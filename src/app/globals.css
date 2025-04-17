@@ -1,11 +1,70 @@
 @import "tailwindcss";
 
+/* vis-network styles for graph visualization */
+.vis-network {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  position: relative;
+  overflow: hidden;
+  touch-action: pan-y;
+  user-select: none;
+  cursor: move;
+}
+
+.vis-canvas {
+  position: relative;
+  touch-action: none;
+  user-select: none;
+}
+
+.vis-tooltip {
+  position: absolute;
+  visibility: hidden;
+  padding: 5px;
+  white-space: nowrap;
+  font-family: sans-serif;
+  font-size: 12px;
+  color: #000000;
+  background-color: #f5f5f5;
+  border: 1px solid #808080;
+  border-radius: 3px;
+  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.vis-node {
+  position: absolute;
+  background-color: #97c2fc;
+  border: 2px solid #2b7ce9;
+  border-radius: 5px;
+  text-align: center;
+  padding: 5px;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.vis-node.vis-selected {
+  border-color: #ffa500;
+  box-shadow: 0 0 5px #ffa500;
+}
+
+.vis-edge {
+  stroke: #848484;
+  stroke-width: 1px;
+}
+
+.vis-edge.vis-selected {
+  stroke: #ffa500;
+  stroke-width: 2px;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
 }
 
-@theme inline {
+/* Theme variables */
+:root {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
