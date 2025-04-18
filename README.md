@@ -30,6 +30,13 @@ A web-based client for interacting with Dgraph databases using DQL (Dgraph Query
   - Hover tooltips showing detailed node information
   - Toggle between graph and JSON views
 
+- **Query History**
+  - Persistent storage of executed queries using browser localStorage
+  - Easy access to previously run queries across sessions
+  - One-click query reuse from history
+  - Delete individual history items or clear entire history
+  - Automatic timestamps for all saved queries
+
 - **Schema-Aware Autocomplete**
   - Intelligent suggestions based on your current Dgraph schema
   - Context-sensitive completions for DQL queries and schema editing
@@ -49,6 +56,7 @@ The application is built with a modern React architecture using Next.js as the f
   /components           # React components
     /ConnectionForm.tsx # Component for connecting to Dgraph
     /QueryEditor.tsx    # DQL query editor component
+    /QueryHistory.tsx   # Query history component
     /SchemaEditor.tsx   # Schema editor component
     /GraphVisualization.tsx # Graph visualization component
   /context
@@ -104,6 +112,47 @@ The application uses the following key dependencies:
 ### Data Visualization
 - **react-graph-vis** - React component for graph visualization
 - **react-json-view-lite** - JSON viewer component
+
+## Query History
+
+![query-history](img/query-history.png)
+
+The Dgraph Client Application includes a robust query history feature that automatically saves your successfully executed queries for future reference. This feature enhances productivity by allowing you to quickly reuse previous queries without having to rewrite them.
+
+### How It Works
+
+1. **Automatic Saving**: When you execute a successful query, it's automatically saved to your browser's localStorage.
+2. **Persistent Storage**: Your query history persists across browser sessions, so you can access your queries even after closing and reopening the application.
+3. **Easy Access**: Click the "History" button in the query editor to view your saved queries.
+4. **Quick Reuse**: Click on any query in the history list to load it into the editor.
+5. **History Management**: Delete individual queries or clear your entire history as needed.
+
+### Implementation Details
+
+- **LocalStorage**: Query history is stored in the browser's localStorage under the key `dgraph-client-query-history`.
+- **Data Structure**: Each history item includes:
+  - Unique ID (timestamp-based)
+  - Query text
+  - Timestamp of execution
+- **Size Limitation**: History is limited to the 50 most recent queries to prevent excessive storage usage.
+- **Duplicate Prevention**: Default or empty queries are not added to the history.
+
+### Code Structure
+
+- `QueryHistory.tsx`: A dedicated component for displaying and managing query history.
+- `QueryEditor.tsx`: Integrates with localStorage to save and load query history.
+- History management functions:
+  - `addToHistory()`: Adds a new query to history
+  - `handleClearHistory()`: Clears all history
+  - `handleDeleteQuery()`: Removes a specific query
+  - `handleSelectQuery()`: Loads a query from history
+
+### Benefits
+
+- **Time Saving**: Quickly reuse complex queries without rewriting them
+- **Consistency**: Maintain a library of proven queries for reference
+- **Learning**: Review previous queries to improve your DQL skills
+- **Workflow Continuity**: Seamlessly continue your work across sessions
 
 ## Schema-Aware Autocomplete
 

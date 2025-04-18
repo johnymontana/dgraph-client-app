@@ -17,11 +17,15 @@
     "axios": "^1.8.4",
     "codemirror": "^6.0.1",
     "dgraph-js-http": "^23.0.0-rc1",
+    "graphology": "^0.26.0",
+    "graphology-layout-force": "^0.2.4",
     "next": "15.3.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-graph-vis": "^1.0.7",
-    "react-json-view-lite": "^2.4.1"
+    "react-json-view-lite": "^2.4.1",
+    "react-sigma": "^1.2.35",
+    "sigma": "^3.0.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
