@@ -30,6 +30,13 @@ A web-based client for interacting with Dgraph databases using DQL (Dgraph Query
   - Hover tooltips showing detailed node information
   - Toggle between graph and JSON views
 
+- **Schema-Aware Autocomplete**
+  - Intelligent suggestions based on your current Dgraph schema
+  - Context-sensitive completions for DQL queries and schema editing
+  - Predicate suggestions derived from your connected database
+  - Function and directive autocompletion
+  - Keyword suggestions for common DQL operations
+
 ## Project Architecture
 
 The application is built with a modern React architecture using Next.js as the framework. Here's an overview of the project structure:
@@ -97,6 +104,71 @@ The application uses the following key dependencies:
 ### Data Visualization
 - **react-graph-vis** - React component for graph visualization
 - **react-json-view-lite** - JSON viewer component
+
+## Schema-Aware Autocomplete
+
+![autocomplete](img/autocomplete.png)
+
+The Dgraph Client Application features an intelligent autocomplete system that makes writing DQL queries and editing schemas faster and more accurate. This feature is context-aware and provides suggestions based on your current Dgraph schema and cursor position.
+
+### Query Editor Autocomplete
+
+#### How to Use
+
+1. **Predicate Suggestions**: As you type in the query editor, you'll see suggestions for predicates from your current schema.
+   ```
+   {
+     q(func: has(na▌) # Typing 'na' will suggest 'name' from your schema
+   }
+   ```
+
+2. **Function Suggestions**: After typing a colon (`:`), you'll see suggestions for DQL functions.
+   ```
+   {
+     q(func: eq(name, "John"))
+     friends(func:▌) # Will suggest functions like uid, has, eq, etc.
+   }
+   ```
+
+3. **Directive Suggestions**: After typing an at symbol (`@`), you'll see suggestions for DQL directives.
+   ```
+   {
+     q(func: has(name)) @▌ # Will suggest directives like filter, cascade, etc.
+   }
+   ```
+
+#### Benefits
+
+- **Fewer Typos**: Autocomplete reduces errors in predicate names and syntax
+- **Discover Schema**: Easily see available predicates without switching contexts
+- **Learn DQL**: Discover available functions and directives as you type
+- **Faster Development**: Spend less time looking up predicate names
+
+### Schema Editor Autocomplete
+
+#### How to Use
+
+1. **Type Suggestions**: After a colon (`:`) or opening bracket (`[`), you'll see suggestions for data types.
+   ```
+   name: st▌ # Will suggest 'string'
+   friends: [u▌ # Will suggest 'uid'
+   ```
+
+2. **Directive Suggestions**: After typing an at symbol (`@`), you'll see suggestions for schema directives.
+   ```
+   name: string @i▌ # Will suggest 'index'
+   ```
+
+3. **Index Type Suggestions**: Inside `@index()`, you'll see suggestions for index types.
+   ```
+   name: string @index(e▌) # Will suggest 'exact', etc.
+   ```
+
+#### Benefits
+
+- **Consistent Schema**: Autocomplete ensures consistent type and directive usage
+- **Discover Options**: Learn available index types and directives
+- **Faster Schema Development**: Quickly create and modify schemas with fewer errors
 
 ## Example DQL Schemas
 

@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import DgraphService from '@/services/dgraphService';
+import { ParsedSchema, parseSchema } from '@/utils/schemaParser';
 
 interface DgraphContextType {
   dgraphService: DgraphService | null;
@@ -13,6 +14,9 @@ interface DgraphContextType {
   connect: () => void;
   disconnect: () => void;
   error: string | null;
+  schemaText: string;
+  parsedSchema: ParsedSchema;
+  updateSchemaText: (text: string) => void;
 }
 
 const DgraphContext = createContext<DgraphContextType | undefined>(undefined);
@@ -23,6 +27,8 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
   const [endpoint, setEndpoint] = useState('http://localhost:8080');
   const [apiKey, setApiKey] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [schemaText, setSchemaText] = useState('');
+  const [parsedSchema, setParsedSchema] = useState<ParsedSchema>({ predicates: [], types: [] });
 
   const connect = async () => {
     try {
@@ -31,11 +37,21 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
         endpoint,
         apiKey: apiKey || undefined,
       };
-      
+
       const service = new DgraphService(config);
-      
+
       // Test connection by fetching schema
-      await service.getSchema();
+      const schemaResult = await service.getSchema();
+
+      // Process schema for autocomplete
+      if (schemaResult && schemaResult.data && schemaResult.data.schema) {
+        const newSchemaText = schemaResult.data.schema.map((item: any) => {
+          return `${item.predicate}: ${item.type} ${item.index ? '@index(' + item.index + ')' : ''} ${item.upsert ? '@upsert' : ''} ${item.lang ? '@lang' : ''} ${item.reverse ? '@reverse' : ''} .`;
+        }).join('\n');
+
+        setSchemaText(newSchemaText);
+        setParsedSchema(parseSchema(newSchemaText));
+      }
       
       setDgraphService(service);
       setConnected(true);
@@ -50,6 +66,13 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
   const disconnect = () => {
     setDgraphService(null);
     setConnected(false);
+    setSchemaText('');
+    setParsedSchema({ predicates: [], types: [] });
+  };
+
+  const updateSchemaText = (text: string) => {
+    setSchemaText(text);
+    setParsedSchema(parseSchema(text));
   };
 
   return (
@@ -64,6 +87,9 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
         connect,
         disconnect,
         error,
+        schemaText,
+        parsedSchema,
+        updateSchemaText,
       }}
     >
       {children}

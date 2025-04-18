@@ -1,19 +1,44 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
-import { sql } from '@codemirror/lang-sql';
 import { useDgraph } from '@/context/DgraphContext';
+import DQLAutocomplete from './DQLAutocomplete';
 
 interface QueryEditorProps {
   onQueryResult: (data: any) => void;
 }
 
 export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
-  const { dgraphService, connected } = useDgraph();
+  const { dgraphService, connected, parsedSchema } = useDgraph();
   const [query, setQuery] = useState('{\n  # Enter your DQL query here\n  # Example:\n  # q(func: has(name)) {\n  #   uid\n  #   name\n  # }\n}');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  // Handle cursor position changes
+  const handleEditorChange = (value: string, viewUpdate: any) => {
+    setQuery(value);
+    setCursorPosition(viewUpdate.state.selection.main.head);
+  };
+
+  // Handle suggestion selection
+  const handleSuggestionSelect = (suggestion: string) => {
+    // Get the current word at cursor
+    const beforeCursor = query.substring(0, cursorPosition);
+    const afterCursor = query.substring(cursorPosition);
+    const wordMatch = beforeCursor.match(/[\w]*$/);
+
+    if (wordMatch) {
+      // Replace the current word with the suggestion
+      const wordStart = cursorPosition - wordMatch[0].length;
+      const newQuery = query.substring(0, wordStart) + suggestion + afterCursor;
+      setQuery(newQuery);
+      // Update cursor position to end of inserted suggestion
+      setCursorPosition(wordStart + suggestion.length);
+    }
+  };
 
   const handleRunQuery = async () => {
     if (!dgraphService || !connected) {
@@ -55,15 +80,23 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
         </div>
       )}
       
-      <div className="border border-gray-300 rounded-md overflow-hidden mb-4">
+      <div className="relative">
         <CodeMirror
           value={query}
           height="200px"
-          extensions={[sql()]}
-          onChange={(value) => setQuery(value)}
+          onChange={handleEditorChange}
           theme="light"
           className="text-sm"
         />
+        <div ref={editorRef}>
+          <DQLAutocomplete
+            editorRef={editorRef}
+            query={query}
+            cursorPosition={cursorPosition}
+            schema={parsedSchema}
+            onSuggestionSelect={handleSuggestionSelect}
+          />
+        </div>
       </div>
       
       <div className="text-sm text-gray-500">
