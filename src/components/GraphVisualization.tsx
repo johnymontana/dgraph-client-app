@@ -3,13 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { JsonView } from 'react-json-view-lite';
 import 'react-json-view-lite/dist/index.css';
+import Graphology from 'graphology';
+import { random } from 'graphology-layout';
 import dynamic from 'next/dynamic';
-
-// Dynamically import Graph to avoid SSR issues
-const Graph = dynamic(() => import('react-graph-vis').then(mod => mod.default), {
-  ssr: false,
-  loading: () => <div className="flex justify-center items-center h-96 bg-gray-100">Loading graph visualization...</div>
-});
+const SigmaGraph = dynamic(() => import('./SigmaGraph'), { ssr: false });
 
 // Styles are now included in globals.css
 
@@ -18,60 +15,31 @@ interface GraphVisualizationProps {
 }
 
 export default function GraphVisualization({ data }: GraphVisualizationProps) {
+
+
   const [viewMode, setViewMode] = useState<'graph' | 'json'>('graph');
-  const [graphData, setGraphData] = useState<{ nodes: any[], edges: any[] }>({ nodes: [], edges: [] });
+  const [graph, setGraph] = useState<Graphology | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   
-  // Graph visualization options
-  const options = {
-    layout: {
-      hierarchical: false
-    },
-    edges: {
-      color: "#000000",
-      arrows: {
-        to: { enabled: true, scaleFactor: 0.5 }
-      }
-    },
-    nodes: {
-      shape: 'dot',
-      size: 16,
-      font: {
-        size: 12,
-        color: '#000000'
-      },
-      borderWidth: 2
-    },
-    physics: {
-      stabilization: {
-        iterations: 100
-      },
-      barnesHut: {
-        gravitationalConstant: -3000,
-        centralGravity: 0.3,
-        springLength: 95,
-        springConstant: 0.04,
-        damping: 0.09
-      }
-    },
-    height: '100%',
-    width: '100%'
-  };
+  // No longer needed: options for react-graph-vis
   
   // Process data for graph visualization
   useEffect(() => {
     if (data) {
       setIsProcessing(true);
-      processDataForGraph(data);
+      processDataForSigmaGraph(data);
     }
   }, [data]);
-  
-  const processDataForGraph = (queryResult: any) => {
+
+
+
+  // Convert Dgraph response to graphology graph for sigma.js
+  const processDataForSigmaGraph = (queryResult: any) => {
     try {
       // Extract the actual data from the Dgraph response
       const responseData = queryResult.data;
       if (!responseData) {
-        setGraphData({ nodes: [], edges: [] });
+        setGraph(null);
         setIsProcessing(false);
         return;
       }
@@ -79,83 +47,68 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
       // Get the first query result key
       const queryKey = Object.keys(responseData)[0];
       if (!queryKey) {
-        setGraphData({ nodes: [], edges: [] });
+        setGraph(null);
         setIsProcessing(false);
         return;
       }
       
       const queryData = responseData[queryKey];
       
-      // Process the data into nodes and edges
-      const nodes: any[] = [];
-      const edges: any[] = [];
+      // Build a graphology graph
+      const graph = new Graphology();
       const nodeMap = new Map();
-      
+
       // Helper function to process nodes recursively
       const processNode = (node: any, parentId: string | null = null) => {
         if (!node || typeof node !== 'object') return;
-        
-        // Skip if node doesn't have a uid
         if (!('uid' in node)) return;
-        
-        // Create a unique node ID
         const nodeId = node.uid;
-        
-        // Check if we've already processed this node
         if (!nodeMap.has(nodeId)) {
-          // Create a node object
-          const nodeObj = {
-            id: nodeId,
+          graph.addNode(nodeId, {
             label: node.name || node.title || `Node ${nodeId.substring(0, 8)}`,
             color: getRandomColor(),
-            title: JSON.stringify(node, null, 2)
-          };
-          
-          nodes.push(nodeObj);
+            raw: node
+          });
           nodeMap.set(nodeId, true);
         }
-        
-        // If this node has a parent, create an edge
-        if (parentId) {
-          const edgeId = `${parentId}-${nodeId}`;
-          edges.push({
-            id: edgeId,
-            from: parentId,
-            to: nodeId
-          });
-        }
-        
-        // Process all object properties recursively
         Object.entries(node).forEach(([key, value]) => {
-          // Skip uid and primitive values
-          if (key === 'uid' || typeof value !== 'object' || value === null) return;
-          
-          // Handle arrays
+          if (key === 'uid' || value === null) return;
+          // If value is an array of objects with 'uid', add edges for each
           if (Array.isArray(value)) {
             value.forEach((item) => {
               if (item && typeof item === 'object' && 'uid' in item) {
+                const targetId = item.uid;
+                if (graph.hasNode(nodeId) && graph.hasNode(targetId) && nodeId !== targetId) {
+                  const edgeId = `${nodeId}-${targetId}-${key}`;
+                  if (!graph.hasEdge(edgeId)) {
+                    graph.addEdgeWithKey(edgeId, nodeId, targetId, { label: key });
+                  }
+                }
                 processNode(item, nodeId);
               }
             });
-          }
-          // Handle nested objects with uid
-          else if (value && typeof value === 'object' && 'uid' in value) {
+          } else if (typeof value === 'object' && 'uid' in value) {
+            const targetId = value.uid;
+            if (graph.hasNode(nodeId) && graph.hasNode(targetId) && nodeId !== targetId) {
+              const edgeId = `${nodeId}-${targetId}-${key}`;
+              if (!graph.hasEdge(edgeId)) {
+                graph.addEdgeWithKey(edgeId, nodeId, targetId, { label: key });
+              }
+            }
             processNode(value, nodeId);
           }
         });
       };
-      
-      // Process all top-level nodes
       if (Array.isArray(queryData)) {
         queryData.forEach(node => processNode(node));
       } else if (queryData && typeof queryData === 'object') {
         processNode(queryData);
       }
-      
-      setGraphData({ nodes, edges });
+      random.assign(graph);
+    setGraph(graph);
     } catch (error) {
       console.error('Error processing graph data:', error);
-      setGraphData({ nodes: [], edges: [] });
+      setGraph(null);
     } finally {
       setIsProcessing(false);
     }
@@ -188,14 +141,7 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
     return colors[Math.floor(Math.random() * colors.length)];
   };
   
-  // Handle graph events
-  const events = {
-    select: function(event: any) {
-      const { nodes, edges } = event;
-      console.log('Selected nodes:', nodes);
-      console.log('Selected edges:', edges);
-    }
-  };
+  // No longer needed: react-graph-vis events. Sigma.js events can be handled via props if needed.
   
   return (
     <div className="bg-white shadow-md rounded-lg p-6">
@@ -236,25 +182,12 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
               <div className="flex justify-center items-center h-full bg-gray-100">
                 <p className="text-gray-500">Processing data...</p>
               </div>
-            ) : graphData.nodes.length === 0 ? (
+            ) : !graph || graph.order === 0 ? (
               <div className="flex justify-center items-center h-full bg-gray-100">
                 <p className="text-gray-500">No graph data available to visualize.</p>
               </div>
             ) : (
-              <div style={{ height: '100%', width: '100%' }}>
-                {/* Add key prop to force re-render when data changes */}
-                <Graph
-                  key={`graph-${Date.now()}`}
-                  graph={graphData}
-                  options={options}
-                  events={events}
-                  style={{ height: '100%', width: '100%' }}
-                  getNetwork={(network) => {
-                    // Store network instance if needed for future interactions
-                    // You can use this to access the vis.js network instance directly
-                  }}
-                />
-              </div>
+              <SigmaGraph graph={graph} />
             )}
           </div>
         </div>
@@ -264,7 +197,7 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
         </div>
       )}
       
-      {graphData.nodes.length > 0 && viewMode === 'graph' && (
+      {graph && graph.order > 0 && viewMode === 'graph' && (
         <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
           <p className="text-sm text-blue-700">
             <strong>Tip:</strong> You can zoom in/out using the mouse wheel and drag nodes to rearrange the graph.
