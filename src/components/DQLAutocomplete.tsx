@@ -11,12 +11,22 @@ interface DQLAutocompleteProps {
   onSuggestionSelect: (suggestion: string) => void;
 }
 
+interface DQLAutocompleteProps {
+  editorRef: React.RefObject<HTMLDivElement | null>;
+  query: string;
+  cursorPosition: number;
+  schema: ParsedSchema;
+  onSuggestionSelect: (suggestion: string) => void;
+  registerHandleInput?: (handle: () => void) => void;
+}
+
 export default function DQLAutocomplete({
   editorRef,
   query,
   cursorPosition,
   schema,
-  onSuggestionSelect
+  onSuggestionSelect,
+  registerHandleInput
 }: DQLAutocompleteProps) {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -37,43 +47,53 @@ export default function DQLAutocomplete({
     'filter', 'facets', 'cascade', 'normalize', 'groupby'
   ];
 
+  // Track typing state and debounce hiding suggestions
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeout = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     // Get current word at cursor
     const currentWord = getCurrentWord(query, cursorPosition);
-    
     // Determine context
     const context = getContext(query, cursorPosition);
-    
     // Generate suggestions based on context
     let newSuggestions: string[] = [];
-    
     if (context === 'directive') {
-      // After @ symbol, suggest directives
-      newSuggestions = dqlDirectives.filter(dir => 
-        dir.toLowerCase().startsWith(currentWord.toLowerCase())
-      );
+      newSuggestions = dqlDirectives.filter(dir => dir.toLowerCase().startsWith(currentWord.toLowerCase()));
     } else if (context === 'function') {
-      // After colon, suggest functions
-      newSuggestions = dqlKeywords.filter(kw => 
-        kw.toLowerCase().startsWith(currentWord.toLowerCase())
-      );
+      newSuggestions = dqlKeywords.filter(kw => kw.toLowerCase().startsWith(currentWord.toLowerCase()));
     } else {
-      // In other contexts, suggest keywords and predicates from schema
       const predicateOptions = schema?.predicates?.map(p => p.predicate) || [];
-      newSuggestions = [...dqlKeywords, ...predicateOptions].filter(opt => 
-        opt.toLowerCase().startsWith(currentWord.toLowerCase())
-      );
+      newSuggestions = [...dqlKeywords, ...predicateOptions].filter(opt => opt.toLowerCase().startsWith(currentWord.toLowerCase()));
     }
-    
     setSuggestions(newSuggestions);
     setSelectedIndex(0);
-    setVisible(newSuggestions.length > 0);
-    
-    // Calculate position for suggestions dropdown
-    if (editorRef.current && newSuggestions.length > 0) {
+    setVisible(isTyping && newSuggestions.length > 0);
+    if (editorRef.current && isTyping && newSuggestions.length > 0) {
       calculatePosition();
     }
-  }, [query, cursorPosition, schema]);
+  }, [query, cursorPosition, schema, isTyping]);
+
+  // Hide suggestions if user stops typing for 500ms
+  const handleInput = () => {
+    setIsTyping(true);
+    if (typingTimeout.current) clearTimeout(typingTimeout.current);
+    typingTimeout.current = setTimeout(() => setIsTyping(false), 500);
+  };
+
+  // Register handleInput with parent for wiring typing events
+  useEffect(() => {
+    if (registerHandleInput) {
+      registerHandleInput(handleInput);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registerHandleInput]);
+
+  // Hide suggestions on blur
+  const handleBlur = () => {
+    setIsTyping(false);
+    setVisible(false);
+  };
 
   // Calculate position for the suggestions dropdown
   const calculatePosition = () => {
@@ -152,6 +172,8 @@ export default function DQLAutocomplete({
       className="absolute z-10 bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto"
       style={{ top: position.top, left: position.left }}
       onKeyDown={handleKeyDown}
+      tabIndex={-1}
+      onBlur={handleBlur}
     >
       <ul className="py-1">
         {suggestions.map((suggestion, index) => (

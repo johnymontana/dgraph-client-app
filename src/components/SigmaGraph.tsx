@@ -10,7 +10,9 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const sigmaInstanceRef = useRef<Sigma | null>(null);
   const [hoveredNode, setHoveredNode] = useState<any | null>(null);
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
+
 
   useEffect(() => {
     if (!containerRef.current || !graph) return;
@@ -23,10 +25,70 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph }) => {
       labelRenderedSizeThreshold: 6,
       defaultNodeColor: '#4285F4',
       defaultEdgeColor: '#999',
+      nodeReducer: (node, data) => ({
+        ...data,
+        size: 16,
+        color: node === selectedNode ? '#FFD700' : data.color // Highlight selected node
+      })
     });
 
-    // Handlers for tooltips
-    const renderer = sigmaInstanceRef.current;
+    // Custom node dragging logic
+    let draggingNode: string | null = null;
+    let dragOffset: { x: number; y: number } | null = null;
+
+    const sigmaRenderer = sigmaInstanceRef.current;
+
+    const getMouseCoords = (event: MouseEvent) => {
+      if (!sigmaRenderer) return { x: 0, y: 0 };
+      const rect = (sigmaRenderer.getContainer() as HTMLElement).getBoundingClientRect();
+      return {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top
+      };
+    };
+
+    const handleDownNode = (event: any) => {
+      draggingNode = event.node;
+      setSelectedNode(event.node);
+      // Calculate offset between mouse and node center
+      const nodeAttrs = graph.getNodeAttributes(event.node);
+      // Convert node's graph coordinates to viewport (screen) coordinates
+      const nodeScreen = sigmaRenderer?.graphToViewport?.(nodeAttrs.x, nodeAttrs.y) ?? { x: 0, y: 0 };
+      const mouse = getMouseCoords(event.event);
+      dragOffset = {
+        x: mouse.x - nodeScreen.x,
+        y: mouse.y - nodeScreen.y
+      };
+      // Prevent default to avoid unwanted text selection
+      //event.preventDefault();
+    };
+
+    const handleMouseMoveDrag = (event: MouseEvent) => {
+      if (!draggingNode) return;
+      const mouse = getMouseCoords(event);
+      // Adjust mouse position by dragOffset, then convert to graph coordinates
+      const adjusted = {
+        x: mouse.x - (dragOffset?.x ?? 0),
+        y: mouse.y - (dragOffset?.y ?? 0)
+      };
+      const graphCoords = sigmaRenderer?.viewportToGraph?.(adjusted.x, adjusted.y) ?? { x: 0, y: 0 };
+      graph.mergeNodeAttributes(draggingNode, {
+        x: graphCoords.x,
+        y: graphCoords.y
+      });
+      sigmaRenderer?.refresh?.();
+    };
+
+    const handleMouseUp = () => {
+      draggingNode = null;
+      dragOffset = null;
+    };
+
+    sigmaRenderer?.on("downNode", handleDownNode);
+    window.addEventListener("mousemove", handleMouseMoveDrag);
+    window.addEventListener("mouseup", handleMouseUp);
+
+    // Handlers for tooltips and selection
     const handleEnterNode = (event: any) => {
       const nodeKey = event.node;
       const nodeAttrs = graph.getNodeAttributes(nodeKey);
@@ -38,20 +100,28 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph }) => {
     const handleMouseMove = (event: MouseEvent) => {
       setMousePosition({ x: event.clientX, y: event.clientY });
     };
-    renderer.on("enterNode", handleEnterNode);
-    renderer.on("leaveNode", handleLeaveNode);
+    const handleClickNode = (event: any) => {
+      setSelectedNode(event.node);
+    };
+    sigmaRenderer.on("enterNode", handleEnterNode);
+    sigmaRenderer.on("leaveNode", handleLeaveNode);
+    sigmaRenderer.on("clickNode", handleClickNode);
     window.addEventListener("mousemove", handleMouseMove);
 
     return () => {
-      renderer.off("enterNode", handleEnterNode);
-      renderer.off("leaveNode", handleLeaveNode);
+      sigmaRenderer?.off("enterNode", handleEnterNode);
+      sigmaRenderer?.off("leaveNode", handleLeaveNode);
+      sigmaRenderer?.off("clickNode", handleClickNode);
+      sigmaRenderer?.off("downNode", handleDownNode);
       window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mousemove", handleMouseMoveDrag);
+      window.removeEventListener("mouseup", handleMouseUp);
       if (sigmaInstanceRef.current) {
         sigmaInstanceRef.current.kill();
         sigmaInstanceRef.current = null;
       }
     };
-  }, [graph]);
+  }, [graph, selectedNode]);
 
   // Tooltip rendering
   const renderTooltip = () => {

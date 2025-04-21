@@ -24,6 +24,8 @@ const DEFAULT_QUERY = `{
 }`;
 
 export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
+  // Ref for DQLAutocomplete's handleInput
+  const autocompleteInputRef = useRef<(() => void) | null>(null);
   const { dgraphService, connected, parsedSchema } = useDgraph();
   const [query, setQuery] = useState(DEFAULT_QUERY);
   const [isLoading, setIsLoading] = useState(false);
@@ -56,6 +58,7 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
   const handleEditorChange = (value: string, viewUpdate: any) => {
     setQuery(value);
     setCursorPosition(viewUpdate.state.selection.main.head);
+    if (autocompleteInputRef.current) autocompleteInputRef.current();
   };
 
   // Handle suggestion selection
@@ -194,13 +197,25 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
           theme="light"
           className="text-sm"
         />
-        <div ref={editorRef}>
+        <div
+          ref={editorRef}
+          tabIndex={0}
+          onKeyDown={() => {
+            if (autocompleteInputRef.current) autocompleteInputRef.current();
+          }}
+          onInput={() => {
+            if (autocompleteInputRef.current) autocompleteInputRef.current();
+          }}
+        >
           <DQLAutocomplete
             editorRef={editorRef}
             query={query}
             cursorPosition={cursorPosition}
             schema={parsedSchema}
             onSuggestionSelect={handleSuggestionSelect}
+            registerHandleInput={(handle: () => void) => {
+              autocompleteInputRef.current = handle;
+            }}
           />
         </div>
       </div>

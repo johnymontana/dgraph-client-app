@@ -5,6 +5,7 @@ import { JsonView } from 'react-json-view-lite';
 import 'react-json-view-lite/dist/index.css';
 import Graphology from 'graphology';
 import { random } from 'graphology-layout';
+import forceAtlas2 from 'graphology-layout-forceatlas2';
 import dynamic from 'next/dynamic';
 const SigmaGraph = dynamic(() => import('./SigmaGraph'), { ssr: false });
 
@@ -58,8 +59,8 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
       const graph = new Graphology();
       const nodeMap = new Map();
 
-      // Helper function to process nodes recursively
-      const processNode = (node: any, parentId: string | null = null) => {
+      // First pass: add all nodes recursively
+      const addNodes = (node: any) => {
         if (!node || typeof node !== 'object') return;
         if (!('uid' in node)) return;
         const nodeId = node.uid;
@@ -73,7 +74,24 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
         }
         Object.entries(node).forEach(([key, value]) => {
           if (key === 'uid' || value === null) return;
-          // If value is an array of objects with 'uid', add edges for each
+          if (Array.isArray(value)) {
+            value.forEach((item) => {
+              if (item && typeof item === 'object' && 'uid' in item) {
+                addNodes(item);
+              }
+            });
+          } else if (typeof value === 'object' && 'uid' in value) {
+            addNodes(value);
+          }
+        });
+      };
+      // Second pass: add all edges recursively
+      const addEdges = (node: any) => {
+        if (!node || typeof node !== 'object') return;
+        if (!('uid' in node)) return;
+        const nodeId = node.uid;
+        Object.entries(node).forEach(([key, value]) => {
+          if (key === 'uid' || value === null) return;
           if (Array.isArray(value)) {
             value.forEach((item) => {
               if (item && typeof item === 'object' && 'uid' in item) {
@@ -84,7 +102,7 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
                     graph.addEdgeWithKey(edgeId, nodeId, targetId, { label: key });
                   }
                 }
-                processNode(item, nodeId);
+                addEdges(item);
               }
             });
           } else if (typeof value === 'object' && 'uid' in value) {
@@ -95,16 +113,28 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
                 graph.addEdgeWithKey(edgeId, nodeId, targetId, { label: key });
               }
             }
-            processNode(value, nodeId);
+            addEdges(value);
           }
         });
       };
+
       if (Array.isArray(queryData)) {
-        queryData.forEach(node => processNode(node));
+        queryData.forEach(node => addNodes(node));
+        queryData.forEach(node => addEdges(node));
       } else if (queryData && typeof queryData === 'object') {
-        processNode(queryData);
+        addNodes(queryData);
+        addEdges(queryData);
       }
-      random.assign(graph);
+      forceAtlas2(graph, { iterations: 100, settings: { gravity: 1, scalingRatio: 2 } });
+      // Ensure all nodes have numeric x and y coordinates
+      graph.forEachNode((node, attrs) => {
+        if (typeof attrs.x !== 'number' || typeof attrs.y !== 'number') {
+          graph.mergeNodeAttributes(node, {
+            x: Math.random(),
+            y: Math.random()
+          });
+        }
+      });
     setGraph(graph);
     } catch (error) {
       console.error('Error processing graph data:', error);

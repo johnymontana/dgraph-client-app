@@ -6,6 +6,8 @@ import { useDgraph } from '@/context/DgraphContext';
 import SchemaAutocomplete from './SchemaAutocomplete';
 
 export default function SchemaEditor() {
+  // Ref for SchemaAutocomplete's handleInput
+  const autocompleteInputRef = useRef<(() => void) | null>(null);
   const { dgraphService, connected, schemaText, updateSchemaText } = useDgraph();
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
@@ -18,6 +20,7 @@ export default function SchemaEditor() {
   const handleEditorChange = (value: string, viewUpdate: any) => {
     updateSchemaText(value);
     setCursorPosition(viewUpdate.state.selection.main.head);
+    if (autocompleteInputRef.current) autocompleteInputRef.current();
   };
 
   // Handle suggestion selection
@@ -134,12 +137,24 @@ export default function SchemaEditor() {
           theme="light"
           className="text-sm"
         />
-        <div ref={editorRef}>
+        <div
+          ref={editorRef}
+          tabIndex={0}
+          onKeyDown={() => {
+            if (autocompleteInputRef.current) autocompleteInputRef.current();
+          }}
+          onInput={() => {
+            if (autocompleteInputRef.current) autocompleteInputRef.current();
+          }}
+        >
           <SchemaAutocomplete
             editorRef={editorRef}
             schema={schemaText}
             cursorPosition={cursorPosition}
             onSuggestionSelect={handleSuggestionSelect}
+            registerHandleInput={(handle: () => void) => {
+              autocompleteInputRef.current = handle;
+            }}
           />
         </div>
       </div>
