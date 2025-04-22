@@ -2,11 +2,18 @@ import React, { useRef, useEffect, useState } from "react";
 import Sigma from "sigma";
 import Graphology from "graphology";
 
-interface SigmaGraphProps {
-  graph: Graphology;
+interface TypeInfo {
+  type: string;
+  color: string;
+  count: number;
 }
 
-const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph }) => {
+interface SigmaGraphProps {
+  graph: Graphology;
+  typeInfo: TypeInfo[];
+}
+
+const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const sigmaInstanceRef = useRef<Sigma | null>(null);
   const [hoveredNode, setHoveredNode] = useState<any | null>(null);
@@ -20,6 +27,15 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph }) => {
       sigmaInstanceRef.current.kill();
       sigmaInstanceRef.current = null;
     }
+
+    // Process the graph to ensure all nodes have the required attributes
+    graph.forEachNode((node) => {
+      // Make sure all nodes have a common type that Sigma can render
+      // This fixes the 'could not find a suitable program for node type' error
+      graph.setNodeAttribute(node, "type", "circle");
+    });
+
+    // Create sigma instance with default renderer
     sigmaInstanceRef.current = new Sigma(graph, containerRef.current, {
       renderLabels: true,
       labelRenderedSizeThreshold: 6,
@@ -52,8 +68,8 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph }) => {
       setSelectedNode(event.node);
       // Calculate offset between mouse and node center
       const nodeAttrs = graph.getNodeAttributes(event.node);
-      // Convert node's graph coordinates to viewport (screen) coordinates
-      const nodeScreen = sigmaRenderer?.graphToViewport?.(nodeAttrs.x, nodeAttrs.y) ?? { x: 0, y: 0 };
+      const coordinates = { x: nodeAttrs.x, y: nodeAttrs.y };
+      const nodeScreen = sigmaRenderer?.graphToViewport(coordinates) ?? { x: 0, y: 0 };
       const mouse = getMouseCoords(event.event);
       dragOffset = {
         x: mouse.x - nodeScreen.x,
@@ -71,7 +87,7 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph }) => {
         x: mouse.x - (dragOffset?.x ?? 0),
         y: mouse.y - (dragOffset?.y ?? 0)
       };
-      const graphCoords = sigmaRenderer?.viewportToGraph?.(adjusted.x, adjusted.y) ?? { x: 0, y: 0 };
+      const graphCoords = sigmaRenderer?.viewportToGraph({ x: adjusted.x, y: adjusted.y }) ?? { x: 0, y: 0 };
       graph.mergeNodeAttributes(draggingNode, {
         x: graphCoords.x,
         y: graphCoords.y
@@ -159,11 +175,69 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph }) => {
     );
   };
 
+  // Render type info legend box
+  const renderTypeInfoBox = () => {
+    if (!typeInfo || typeInfo.length === 0) return null;
+    return (
+      <div
+        style={{
+          position: "absolute",
+          top: 10,
+          right: 10,
+          background: "rgba(255,255,255,0.85)",
+          border: "1px solid #e0e0e0",
+          borderRadius: 8,
+          padding: "10px",
+          maxWidth: 250,
+          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+          fontSize: 12,
+          zIndex: 999
+        }}
+      >
+        <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14 }}>Node Types</div>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: "left", paddingBottom: 6 }}>Type</th>
+              <th style={{ textAlign: "center", paddingBottom: 6 }}>Color</th>
+              <th style={{ textAlign: "right", paddingBottom: 6 }}>Count</th>
+            </tr>
+          </thead>
+          <tbody>
+            {typeInfo.map((info) => (
+              <tr key={info.type}>
+                <td style={{ fontWeight: 500, paddingRight: 5, paddingTop: 3, paddingBottom: 3 }}>
+                  {info.type}
+                </td>
+                <td style={{ textAlign: "center", paddingTop: 3, paddingBottom: 3 }}>
+                  <div
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: "50%",
+                      background: info.color,
+                      display: "inline-block",
+                      border: "1px solid rgba(0,0,0,0.1)"
+                    }}
+                  />
+                </td>
+                <td style={{ textAlign: "right", paddingTop: 3, paddingBottom: 3 }}>
+                  {info.count}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   return (
-    <>
+    <div style={{ position: "relative", height: "100%", width: "100%" }}>
       <div ref={containerRef} style={{ height: "100%", width: "100%" }} />
       {renderTooltip()}
-    </>
+      {renderTypeInfoBox()}
+    </div>
   );
 };
 

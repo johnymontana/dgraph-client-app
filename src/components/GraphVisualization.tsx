@@ -16,11 +16,10 @@ interface GraphVisualizationProps {
 }
 
 export default function GraphVisualization({ data }: GraphVisualizationProps) {
-
-
   const [viewMode, setViewMode] = useState<'graph' | 'json'>('graph');
   const [graph, setGraph] = useState<Graphology | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [typeColorMap, setTypeColorMap] = useState<Map<string, {color: string, count: number}>>(new Map());
   
   // No longer needed: options for react-graph-vis
   
@@ -58,6 +57,50 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
       // Build a graphology graph
       const graph = new Graphology();
       const nodeMap = new Map();
+      
+      // Map to track node types, counts, and colors
+      const newTypeColorMap = new Map<string, {color: string, count: number}>();
+      
+      // Predefined vibrant colors for node types (will be assigned in sequence)
+      const colorPalette = [
+        '#4285F4',  // Google Blue
+        '#EA4335',  // Google Red
+        '#FBBC05',  // Google Yellow
+        '#34A853',  // Google Green
+        '#673AB7',  // Deep Purple
+        '#FF9800',  // Orange
+        '#009688',  // Teal
+        '#E91E63',  // Pink
+        '#9C27B0',  // Purple
+        '#CDDC39',  // Lime
+        '#00BCD4',  // Cyan
+        '#8BC34A',  // Light Green
+        '#FFC107',  // Amber
+        '#3F51B5',  // Indigo
+        '#795548',  // Brown
+        '#607D8B',  // Blue Grey
+        '#FF5722',  // Deep Orange
+        '#2196F3'   // Light Blue
+      ];
+      
+      const defaultColor = '#9E9E9E'; // Grey (default)
+      const typeColorAssignment = new Map<string, string>();
+      let colorIndex = 0;
+      
+      // Helper to get color for a node type (assigns colors dynamically)
+      const getColorForType = (type: string | undefined): string => {
+        if (!type) return defaultColor;
+        
+        // If we haven't seen this type before, assign the next color in palette
+        if (!typeColorAssignment.has(type)) {
+          // Use the next color in the palette or wrap around if we run out
+          const color = colorPalette[colorIndex % colorPalette.length];
+          typeColorAssignment.set(type, color);
+          colorIndex++;
+        }
+        
+        return typeColorAssignment.get(type) || defaultColor;
+      };
 
       // First pass: add all nodes recursively
       const addNodes = (node: any) => {
@@ -65,10 +108,32 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
         if (!('uid' in node)) return;
         const nodeId = node.uid;
         if (!nodeMap.has(nodeId)) {
+          // Get the node type (using 'dgraph.type' predicate)
+          const nodeType = node['dgraph.type'] || node.type;
+          let nodeTypeStr = Array.isArray(nodeType) ? nodeType[0] : nodeType;
+          
+          // Track count of this type
+          if (nodeTypeStr) {
+            if (!newTypeColorMap.has(nodeTypeStr)) {
+              newTypeColorMap.set(nodeTypeStr, {
+                color: getColorForType(nodeTypeStr),
+                count: 1
+              });
+            } else {
+              const typeInfo = newTypeColorMap.get(nodeTypeStr);
+              if (typeInfo) {
+                newTypeColorMap.set(nodeTypeStr, {
+                  color: typeInfo.color,
+                  count: typeInfo.count + 1
+                });
+              }
+            }
+          }
           graph.addNode(nodeId, {
             label: node.name || node.title || `Node ${nodeId.substring(0, 8)}`,
-            color: getRandomColor(),
-            raw: node
+            color: nodeTypeStr ? getColorForType(nodeTypeStr) : defaultColor,
+            raw: node,
+            type: nodeTypeStr
           });
           nodeMap.set(nodeId, true);
         }
@@ -136,15 +201,17 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
         }
       });
     setGraph(graph);
+    setTypeColorMap(newTypeColorMap);
     } catch (error) {
       console.error('Error processing graph data:', error);
       setGraph(null);
+      setTypeColorMap(new Map());
     } finally {
       setIsProcessing(false);
     }
   };
   
-  // Generate a random color for nodes
+  // For backward compatibility - still used for nodes without a type
   const getRandomColor = () => {
     const colors = [
       '#4285F4', // Google Blue
@@ -173,6 +240,16 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
   
   // No longer needed: react-graph-vis events. Sigma.js events can be handled via props if needed.
   
+  // Convert type map to array for SigmaGraph
+  const typeInfo = Array.from(typeColorMap?.entries() || []).map((entry) => {
+    const [type, info] = entry as [string, {color: string, count: number}];
+    return {
+      type,
+      color: info.color,
+      count: info.count
+    };
+  });
+
   return (
     <div className="bg-white shadow-md rounded-lg p-6">
       <div className="flex justify-between items-center mb-4">
@@ -217,7 +294,7 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
                 <p className="text-gray-500">No graph data available to visualize.</p>
               </div>
             ) : (
-              <SigmaGraph graph={graph} />
+              <SigmaGraph graph={graph} typeInfo={typeInfo} />
             )}
           </div>
         </div>
@@ -227,7 +304,7 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
         </div>
       )}
       
-      {graph && graph.order > 0 && viewMode === 'graph' && (
+      {viewMode === 'graph' && graph && (
         <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
           <p className="text-sm text-blue-700">
             <strong>Tip:</strong> You can zoom in/out using the mouse wheel and drag nodes to rearrange the graph.
