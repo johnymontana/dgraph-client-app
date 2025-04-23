@@ -77,7 +77,6 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
     graph.forEachNode((node) => {
       // Make sure all nodes have a common type that Sigma can render
       graph.setNodeAttribute(node, "type", "circle");
-      
       // Ensure all nodes have numeric x and y coordinates
       const attrs = graph.getNodeAttributes(node);
       if (typeof attrs.x !== 'number' || isNaN(attrs.x) || typeof attrs.y !== 'number' || isNaN(attrs.y)) {
@@ -183,7 +182,7 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
       if (isSimulationRunning && sigmaRenderer) {
         forceAtlas2.assign(graph, {
           iterations: 1,
-          settings: settingsRef.curren
+          settings: settingsRef.current
         });
         sigmaRenderer.refresh();
       }

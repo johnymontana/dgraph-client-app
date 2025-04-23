@@ -176,7 +176,7 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
       if (isSimulationRunning && sigmaRenderer) {
         forceAtlas2.assign(graph, {
           iterations: 1,
-          settings: settingsRef.curren
+          settings: settingsRef.current
         });
         sigmaRenderer.refresh();
       }
@@ -283,7 +283,7 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
 
         <div style={{ marginBottom: 8 }}>
           <label style={{ display: "block", marginBottom: 4 }}>Gravity: {simulationSettings.gravity.toFixed(2)}</label>
-          <inpu
+          <input
             type="range"
             min="0"
             max="0.2"
@@ -296,7 +296,7 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
 
         <div style={{ marginBottom: 8 }}>
           <label style={{ display: "block", marginBottom: 4 }}>Scaling Ratio: {simulationSettings.scalingRatio.toFixed(1)}</label>
-          <inpu
+          <input
             type="range"
             min="0.5"
             max="10"
@@ -309,7 +309,7 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
 
         <div style={{ marginBottom: 8 }}>
           <label style={{ display: "block", marginBottom: 4 }}>Slow Down: {simulationSettings.slowDown.toFixed(1)}</label>
-          <inpu
+          <input
             type="range"
             min="1"
             max="10"
@@ -322,7 +322,7 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
 
         <div style={{ marginBottom: 8 }}>
           <label style={{ display: "flex", alignItems: "center", userSelect: "none", cursor: "pointer" }}>
-            <inpu
+            <input
               type="checkbox"
               checked={simulationSettings.linLogMode}
               onChange={() => debouncedUpdateSettings({ linLogMode: !simulationSettings.linLogMode })}
@@ -334,7 +334,7 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
 
         <div style={{ marginBottom: 8 }}>
           <label style={{ display: "flex", alignItems: "center", userSelect: "none", cursor: "pointer" }}>
-            <inpu
+            <input
               type="checkbox"
               checked={simulationSettings.strongGravityMode}
               onChange={() => debouncedUpdateSettings({ strongGravityMode: !simulationSettings.strongGravityMode })}
