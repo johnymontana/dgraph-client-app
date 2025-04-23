@@ -52,7 +52,7 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
         setSchemaText(newSchemaText);
         setParsedSchema(parseSchema(newSchemaText));
       }
-      
+
       setDgraphService(service);
       setConnected(true);
     } catch (err) {

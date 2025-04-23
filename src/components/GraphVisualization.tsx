@@ -7,6 +7,7 @@ import Graphology from 'graphology';
 import { random } from 'graphology-layout';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
 import dynamic from 'next/dynamic';
+import FullscreenToggle from './FullscreenToggle';
 const SigmaGraph = dynamic(() => import('./SigmaGraph'), { ssr: false });
 
 // Styles are now included in globals.css
@@ -19,10 +20,11 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
   const [viewMode, setViewMode] = useState<'graph' | 'json'>('graph');
   const [graph, setGraph] = useState<Graphology | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [typeColorMap, setTypeColorMap] = useState<Map<string, {color: string, count: number}>>(new Map());
-  
+
   // No longer needed: options for react-graph-vis
-  
+
   // Process data for graph visualization
   useEffect(() => {
     if (data) {
@@ -43,7 +45,7 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
         setIsProcessing(false);
         return;
       }
-      
+
       // Get the first query result key
       const queryKey = Object.keys(responseData)[0];
       if (!queryKey) {
@@ -51,16 +53,16 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
         setIsProcessing(false);
         return;
       }
-      
+
       const queryData = responseData[queryKey];
-      
+
       // Build a graphology graph
       const graph = new Graphology();
       const nodeMap = new Map();
-      
+
       // Map to track node types, counts, and colors
       const newTypeColorMap = new Map<string, {color: string, count: number}>();
-      
+
       // Predefined vibrant colors for node types (will be assigned in sequence)
       const colorPalette = [
         '#4285F4',  // Google Blue
@@ -82,23 +84,23 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
         '#FF5722',  // Deep Orange
         '#2196F3'   // Light Blue
       ];
-      
+
       const defaultColor = '#9E9E9E'; // Grey (default)
       const typeColorAssignment = new Map<string, string>();
       let colorIndex = 0;
-      
+
       // Helper to get color for a node type (assigns colors dynamically)
       const getColorForType = (type: string | undefined): string => {
         if (!type) return defaultColor;
-        
+
         // If we haven't seen this type before, assign the next color in palette
         if (!typeColorAssignment.has(type)) {
-          // Use the next color in the palette or wrap around if we run out
+          // Use the next color in the palette or wrap around if we run ou
           const color = colorPalette[colorIndex % colorPalette.length];
           typeColorAssignment.set(type, color);
           colorIndex++;
         }
-        
+
         return typeColorAssignment.get(type) || defaultColor;
       };
 
@@ -111,7 +113,7 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
           // Get the node type (using 'dgraph.type' predicate)
           const nodeType = node['dgraph.type'] || node.type;
           let nodeTypeStr = Array.isArray(nodeType) ? nodeType[0] : nodeType;
-          
+
           // Track count of this type
           if (nodeTypeStr) {
             if (!newTypeColorMap.has(nodeTypeStr)) {
@@ -190,7 +192,18 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
         addNodes(queryData);
         addEdges(queryData);
       }
-      forceAtlas2(graph, { iterations: 100, settings: { gravity: 1, scalingRatio: 2 } });
+      // Run an initial layout to position nodes
+      forceAtlas2.assign(graph, { iterations: 50, settings: {
+        gravity: 0.05,
+        scalingRatio: 4,
+        strongGravityMode: false,
+        slowDown: 5,
+        linLogMode: false,
+        outboundAttractionDistribution: false,
+        adjustSizes: true
+      }});
+
+      // We'll use continuous simulation in SigmaGraph componen
       // Ensure all nodes have numeric x and y coordinates
       graph.forEachNode((node, attrs) => {
         if (typeof attrs.x !== 'number' || typeof attrs.y !== 'number') {
@@ -210,7 +223,7 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
       setIsProcessing(false);
     }
   };
-  
+
   // For backward compatibility - still used for nodes without a type
   const getRandomColor = () => {
     const colors = [
@@ -237,9 +250,9 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
     ];
     return colors[Math.floor(Math.random() * colors.length)];
   };
-  
+
   // No longer needed: react-graph-vis events. Sigma.js events can be handled via props if needed.
-  
+
   // Convert type map to array for SigmaGraph
   const typeInfo = Array.from(typeColorMap?.entries() || []).map((entry) => {
     const [type, info] = entry as [string, {color: string, count: number}];
@@ -251,10 +264,14 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
   });
 
   return (
-    <div className="bg-white shadow-md rounded-lg p-6">
+    <div className={`bg-white shadow-md rounded-lg p-6 ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">Query Results</h2>
-        <div className="flex space-x-2">
+        <div className="flex space-x-2 items-center">
+          <FullscreenToggle
+            isFullscreen={isFullscreen}
+            onToggle={() => setIsFullscreen(!isFullscreen)}
+          />
           <button
             onClick={() => setViewMode('graph')}
             className={`py-2 px-4 rounded-md focus:outline-none ${
@@ -284,7 +301,7 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
         </div>
       ) : viewMode === 'graph' ? (
         <div className="relative">
-          <div className="h-96 border border-gray-300 rounded-md overflow-hidden">
+          <div className={`border border-gray-300 rounded-md overflow-hidden ${isFullscreen ? 'h-[calc(100vh-130px)]' : 'h-96'}`}>
             {isProcessing ? (
               <div className="flex justify-center items-center h-full bg-gray-100">
                 <p className="text-gray-500">Processing data...</p>
@@ -299,11 +316,11 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
           </div>
         </div>
       ) : (
-        <div className="h-96 border border-gray-300 rounded-md overflow-auto p-4">
+        <div className={`border border-gray-300 rounded-md overflow-auto p-4 ${isFullscreen ? 'h-[calc(100vh-130px)]' : 'h-96'}`}>
           <JsonView data={data} />
         </div>
       )}
-      
+
       {viewMode === 'graph' && graph && (
         <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
           <p className="text-sm text-blue-700">

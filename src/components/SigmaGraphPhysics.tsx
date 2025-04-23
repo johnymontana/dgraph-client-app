@@ -77,13 +77,6 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
     graph.forEachNode((node) => {
       // Make sure all nodes have a common type that Sigma can render
       graph.setNodeAttribute(node, "type", "circle");
-      
-      // Ensure all nodes have numeric x and y coordinates
-      const attrs = graph.getNodeAttributes(node);
-      if (typeof attrs.x !== 'number' || isNaN(attrs.x) || typeof attrs.y !== 'number' || isNaN(attrs.y)) {
-        graph.setNodeAttribute(node, "x", Math.random() * 10 - 5);
-        graph.setNodeAttribute(node, "y", Math.random() * 10 - 5);
-      }
 
       // Add mass attribute based on node connections for more realistic physics
       const nodeConnections = graph.degree(node);
@@ -290,7 +283,7 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
 
         <div style={{ marginBottom: 8 }}>
           <label style={{ display: "block", marginBottom: 4 }}>Gravity: {simulationSettings.gravity.toFixed(2)}</label>
-          <input
+          <inpu
             type="range"
             min="0"
             max="0.2"
@@ -303,7 +296,7 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
 
         <div style={{ marginBottom: 8 }}>
           <label style={{ display: "block", marginBottom: 4 }}>Scaling Ratio: {simulationSettings.scalingRatio.toFixed(1)}</label>
-          <input
+          <inpu
             type="range"
             min="0.5"
             max="10"
@@ -316,7 +309,7 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
 
         <div style={{ marginBottom: 8 }}>
           <label style={{ display: "block", marginBottom: 4 }}>Slow Down: {simulationSettings.slowDown.toFixed(1)}</label>
-          <input
+          <inpu
             type="range"
             min="1"
             max="10"
@@ -329,7 +322,7 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
 
         <div style={{ marginBottom: 8 }}>
           <label style={{ display: "flex", alignItems: "center", userSelect: "none", cursor: "pointer" }}>
-            <input
+            <inpu
               type="checkbox"
               checked={simulationSettings.linLogMode}
               onChange={() => debouncedUpdateSettings({ linLogMode: !simulationSettings.linLogMode })}
@@ -341,7 +334,7 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
 
         <div style={{ marginBottom: 8 }}>
           <label style={{ display: "flex", alignItems: "center", userSelect: "none", cursor: "pointer" }}>
-            <input
+            <inpu
               type="checkbox"
               checked={simulationSettings.strongGravityMode}
               onChange={() => debouncedUpdateSettings({ strongGravityMode: !simulationSettings.strongGravityMode })}

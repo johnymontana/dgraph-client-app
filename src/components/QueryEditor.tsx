@@ -5,10 +5,13 @@ import CodeMirror from '@uiw/react-codemirror';
 import { useDgraph } from '@/context/DgraphContext';
 import DQLAutocomplete from './DQLAutocomplete';
 import QueryHistory, { QueryHistoryItem } from './QueryHistory';
+import FullscreenToggle from './FullscreenToggle';
 
 interface QueryEditorProps {
   onQueryResult: (data: any) => void;
 }
+
+type TabType = 'query' | 'mutation';
 
 // Local storage key for query history
 const QUERY_HISTORY_KEY = 'dgraph-client-query-history';
@@ -23,19 +26,32 @@ const DEFAULT_QUERY = `{
   # }
 }`;
 
+// Default mutation
+const DEFAULT_MUTATION = `{
+  # Enter your DQL mutation here
+  # Example:
+  # set {
+  #   _:person <name> "John Doe" .
+  #   _:person <age> "30" .
+  # }
+}`;
+
 export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
-  // Ref for DQLAutocomplete's handleInput
+  // Ref for DQLAutocomplete's handleInpu
   const autocompleteInputRef = useRef<(() => void) | null>(null);
   const { dgraphService, connected, parsedSchema } = useDgraph();
+  const [activeTab, setActiveTab] = useState<TabType>('query');
   const [query, setQuery] = useState(DEFAULT_QUERY);
+  const [mutation, setMutation] = useState(DEFAULT_MUTATION);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [queryHistory, setQueryHistory] = useState<QueryHistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
 
-  // Load query history from localStorage on component mount
+  // Load query history from localStorage on component moun
   useEffect(() => {
     const loadQueryHistory = () => {
       try {
@@ -46,7 +62,7 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
         }
       } catch (err) {
         console.error('Failed to load query history:', err);
-        // If there's an error loading history, reset it
+        // If there's an error loading history, reset i
         localStorage.removeItem(QUERY_HISTORY_KEY);
       }
     };
@@ -56,7 +72,11 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
 
   // Handle cursor position changes
   const handleEditorChange = (value: string, viewUpdate: any) => {
-    setQuery(value);
+    if (activeTab === 'query') {
+      setQuery(value);
+    } else {
+      setMutation(value);
+    }
     setCursorPosition(viewUpdate.state.selection.main.head);
     if (autocompleteInputRef.current) autocompleteInputRef.current();
   };
@@ -64,15 +84,21 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
   // Handle suggestion selection
   const handleSuggestionSelect = (suggestion: string) => {
     // Get the current word at cursor
-    const beforeCursor = query.substring(0, cursorPosition);
-    const afterCursor = query.substring(cursorPosition);
+    const currentText = activeTab === 'query' ? query : mutation;
+    const beforeCursor = currentText.substring(0, cursorPosition);
+    const afterCursor = currentText.substring(cursorPosition);
     const wordMatch = beforeCursor.match(/[\w]*$/);
 
     if (wordMatch) {
       // Replace the current word with the suggestion
       const wordStart = cursorPosition - wordMatch[0].length;
-      const newQuery = query.substring(0, wordStart) + suggestion + afterCursor;
-      setQuery(newQuery);
+      const newText = currentText.substring(0, wordStart) + suggestion + afterCursor;
+      if (activeTab === 'query') {
+        setQuery(newText);
+      } else {
+        setMutation(newText);
+      }
+
       // Update cursor position to end of inserted suggestion
       setCursorPosition(wordStart + suggestion.length);
     }
@@ -87,16 +113,19 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
     }
   };
 
-  // Add a query to history
-  const addToHistory = (queryText: string) => {
-    // Don't add empty or default queries to history
-    if (!queryText.trim() || queryText === DEFAULT_QUERY) return;
+  // Add a query/mutation to history
+  const addToHistory = (text: string, type: TabType = 'query') => {
+    // Don't add empty or default queries/mutations to history
+    if (!text.trim() ||
+        (type === 'query' && text === DEFAULT_QUERY) ||
+        (type === 'mutation' && text === DEFAULT_MUTATION)) return;
 
     // Create a new history item
     const newItem: QueryHistoryItem = {
       id: Date.now().toString(),
-      query: queryText,
+      query: text,
       timestamp: Date.now(),
+      type: type,
     };
 
     // Add to history (most recent first) and limit to 50 items
@@ -119,12 +148,18 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
   };
 
   // Select a query from history
-  const handleSelectQuery = (selectedQuery: string) => {
-    setQuery(selectedQuery);
+  const handleSelectQuery = (item: QueryHistoryItem) => {
+    if (item.type === 'mutation') {
+      setMutation(item.query);
+      setActiveTab('mutation');
+    } else {
+      setQuery(item.query);
+      setActiveTab('query');
+    }
     setShowHistory(false);
   };
 
-  const handleRunQuery = async () => {
+  const handleRunOperation = async () => {
     if (!dgraphService || !connected) {
       setError('Not connected to Dgraph. Please connect first.');
       return;
@@ -132,15 +167,24 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
 
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      const result = await dgraphService.query(query);
+      let result;
+
+      if (activeTab === 'query') {
+        result = await dgraphService.query(query);
+        // Add successful query to history
+        addToHistory(query, 'query');
+      } else {
+        result = await dgraphService.mutate(mutation);
+        // Add successful mutation to history
+        addToHistory(mutation, 'mutation');
+      }
+
       onQueryResult(result);
-      // Add successful query to history
-      addToHistory(query);
     } catch (err: any) {
-      console.error('Query error:', err);
-      setError(err.response?.data?.errors?.[0]?.message || err.message || 'Failed to execute query');
+      console.error(`${activeTab === 'query' ? 'Query' : 'Mutation'} error:`, err);
+      setError(err.response?.data?.errors?.[0]?.message || err.message || `Failed to execute ${activeTab}`);
       onQueryResult(null);
     } finally {
       setIsLoading(false);
@@ -148,14 +192,18 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
   };
 
   return (
-    <div className="bg-white shadow-md rounded-lg p-6 mb-6">
+    <div className={`bg-white shadow-md rounded-lg p-6 ${!isFullscreen ? 'mb-6' : 'absolute inset-0 z-50'}`}>
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold">DQL Query</h2>
-        <div className="flex space-x-2">
+        <h2 className="text-xl font-bold">Dgraph Operations</h2>
+        <div className="flex space-x-2 items-center">
+          <FullscreenToggle
+            isFullscreen={isFullscreen}
+            onToggle={() => setIsFullscreen(!isFullscreen)}
+          />
           <button
             onClick={() => setShowHistory(!showHistory)}
             className="bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-            title="View query history"
+            title="View operation history"
           >
             <span className="flex items-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -165,21 +213,37 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
             </span>
           </button>
           <button
-            onClick={handleRunQuery}
+            onClick={handleRunOperation}
             disabled={isLoading || !connected}
             className="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
           >
-            {isLoading ? 'Running...' : 'Run Query'}
+            {isLoading ? 'Running...' : `Run ${activeTab === 'query' ? 'Query' : 'Mutation'}`}
           </button>
         </div>
       </div>
-      
+
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200 mb-4">
+        <button
+          onClick={() => setActiveTab('query')}
+          className={`py-2 px-4 font-medium text-sm focus:outline-none ${activeTab === 'query' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Query
+        </button>
+        <button
+          onClick={() => setActiveTab('mutation')}
+          className={`py-2 px-4 font-medium text-sm focus:outline-none ${activeTab === 'mutation' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Mutation
+        </button>
+      </div>
+
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           {error}
         </div>
       )}
-      
+
       {showHistory && (
         <QueryHistory
           history={queryHistory}
@@ -188,11 +252,11 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
           onDeleteQuery={handleDeleteQuery}
         />
       )}
-      
+
       <div className="relative">
         <CodeMirror
-          value={query}
-          height="200px"
+          value={activeTab === 'query' ? query : mutation}
+          height={isFullscreen ? 'calc(100vh - 230px)' : '200px'}
           onChange={handleEditorChange}
           theme="light"
           className="text-sm"
@@ -219,7 +283,7 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
           />
         </div>
       </div>
-      
+
       <div className="text-sm text-gray-500">
         <p>Enter a DQL query to execute against your Dgraph database.</p>
         <p className="mt-1">Example: <code>{`{ q(func: has(name)) { uid name } }`}</code></p>

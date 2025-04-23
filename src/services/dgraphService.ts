@@ -68,6 +68,26 @@ class DgraphService {
       throw error;
     }
   }
+
+  async mutate(mutation: string, variables?: Record<string, any>) {
+    try {
+      const response = await axios.post(
+        `${this.config.endpoint}/mutate`,
+        {
+          mutation,
+          variables,
+          commitNow: true // Automatically commit the transaction
+        },
+        {
+          headers: this.getHeaders(),
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error executing mutation:', error);
+      throw error;
+    }
+  }
 }
 
 export default DgraphService;

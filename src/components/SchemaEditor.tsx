@@ -6,7 +6,7 @@ import { useDgraph } from '@/context/DgraphContext';
 import SchemaAutocomplete from './SchemaAutocomplete';
 
 export default function SchemaEditor() {
-  // Ref for SchemaAutocomplete's handleInput
+  // Ref for SchemaAutocomplete's handleInpu
   const autocompleteInputRef = useRef<(() => void) | null>(null);
   const { dgraphService, connected, schemaText, updateSchemaText } = useDgraph();
   const [isLoading, setIsLoading] = useState(false);
@@ -54,7 +54,7 @@ export default function SchemaEditor() {
 
     setIsFetching(true);
     setError(null);
-    
+
     try {
       const result = await dgraphService.getSchema();
       if (result && result.data && result.data.schema) {
@@ -82,11 +82,11 @@ export default function SchemaEditor() {
     setIsLoading(true);
     setError(null);
     setSuccess(null);
-    
+
     try {
       await dgraphService.alter(schemaText);
       setSuccess('Schema updated successfully');
-      // No need to refresh schema as it's already updated in the context
+      // No need to refresh schema as it's already updated in the contex
     } catch (err: any) {
       console.error('Schema update error:', err);
       setError(err.response?.data?.errors?.[0]?.message || err.message || 'Failed to update schema');
@@ -116,19 +116,19 @@ export default function SchemaEditor() {
           </button>
         </div>
       </div>
-      
+
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           {error}
         </div>
       )}
-      
+
       {success && (
         <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
           {success}
         </div>
       )}
-      
+
       <div className="relative border border-gray-300 rounded-md overflow-hidden mb-4">
         <CodeMirror
           value={schemaText}
@@ -158,7 +158,7 @@ export default function SchemaEditor() {
           />
         </div>
       </div>
-      
+
       <div className="text-sm text-gray-500">
         <p>Edit the DQL schema above and click "Update Schema" to apply changes.</p>
         <p className="mt-1">Example: <code>name: string @index(exact) .</code></p>

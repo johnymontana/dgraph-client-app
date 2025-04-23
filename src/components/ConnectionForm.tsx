@@ -17,17 +17,17 @@ export default function ConnectionForm() {
   return (
     <div className="bg-white shadow-md rounded-lg p-6 mb-6">
       <h2 className="text-xl font-bold mb-4">Dgraph Connection</h2>
-      
+
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           {error}
         </div>
       )}
-      
+
       <form onSubmit={handleConnect}>
         <div className="mb-4">
           <label htmlFor="endpoint" className="block text-sm font-medium text-gray-700 mb-1">
-            Dgraph Endpoint
+            Dgraph Endpoin
           </label>
           <input
             type="text"
@@ -43,7 +43,7 @@ export default function ConnectionForm() {
             Example: http://localhost:8080
           </p>
         </div>
-        
+
         <div className="mb-4">
           <label htmlFor="apiKey" className="block text-sm font-medium text-gray-700 mb-1">
             API Key (optional)
@@ -58,7 +58,7 @@ export default function ConnectionForm() {
             placeholder="Enter API key if required"
           />
         </div>
-        
+
         {!connected ? (
           <button
             type="submit"
@@ -73,7 +73,7 @@ export default function ConnectionForm() {
             onClick={disconnect}
             className="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
           >
-            Disconnect
+            Disconnec
           </button>
         )}
       </form>

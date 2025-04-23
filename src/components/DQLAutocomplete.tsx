@@ -54,9 +54,9 @@ export default function DQLAutocomplete({
   useEffect(() => {
     // Get current word at cursor
     const currentWord = getCurrentWord(query, cursorPosition);
-    // Determine context
+    // Determine contex
     const context = getContext(query, cursorPosition);
-    // Generate suggestions based on context
+    // Generate suggestions based on contex
     let newSuggestions: string[] = [];
     if (context === 'directive') {
       newSuggestions = dqlDirectives.filter(dir => dir.toLowerCase().startsWith(currentWord.toLowerCase()));
@@ -98,20 +98,20 @@ export default function DQLAutocomplete({
   // Calculate position for the suggestions dropdown
   const calculatePosition = () => {
     if (!editorRef.current) return;
-    
+
     // Find cursor position in editor
     const editor = editorRef.current;
     const editorRect = editor.getBoundingClientRect();
-    
+
     // This is an approximation - in a real implementation, you'd get the actual cursor position
     // from CodeMirror's API, but for simplicity we're using an approximation
-    const lineHeight = 20; // Approximate line height
+    const lineHeight = 20; // Approximate line heigh
     const lineCount = query.substring(0, cursorPosition).split('\n').length - 1;
     const charPos = cursorPosition - query.substring(0, cursorPosition).lastIndexOf('\n') - 1;
-    
-    const top = lineCount * lineHeight + 20; // Add some offset
+
+    const top = lineCount * lineHeight + 20; // Add some offse
     const left = charPos * 8; // Approximate character width
-    
+
     setPosition({ top, left });
   };
 
@@ -125,18 +125,18 @@ export default function DQLAutocomplete({
   // Determine context based on cursor position
   const getContext = (text: string, position: number): 'directive' | 'function' | 'predicate' => {
     const beforeCursor = text.substring(0, position);
-    
+
     // Check if we're after an @ symbol
     if (beforeCursor.match(/@[\w]*$/)) {
       return 'directive';
     }
-    
+
     // Check if we're after a colon (function context)
     if (beforeCursor.match(/:[\w]*$/)) {
       return 'function';
     }
-    
-    // Default to predicate context
+
+    // Default to predicate contex
     return 'predicate';
   };
 
@@ -149,7 +149,7 @@ export default function DQLAutocomplete({
   // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!visible) return;
-    
+
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSelectedIndex(prev => (prev + 1) % suggestions.length);
@@ -167,7 +167,7 @@ export default function DQLAutocomplete({
   if (!visible) return null;
 
   return (
-    <div 
+    <div
       ref={suggestionsRef}
       className="absolute z-10 bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto"
       style={{ top: position.top, left: position.left }}
@@ -177,7 +177,7 @@ export default function DQLAutocomplete({
     >
       <ul className="py-1">
         {suggestions.map((suggestion, index) => (
-          <li 
+          <li
             key={suggestion}
             className={`px-3 py-1 cursor-pointer hover:bg-gray-100 ${index === selectedIndex ? 'bg-blue-100' : ''}`}
             onClick={() => handleSelect(suggestion)}
