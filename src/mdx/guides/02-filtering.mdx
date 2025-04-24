@@ -1,0 +1,38 @@
+---
+title: "Filtering Data in DQL"
+description: "Learn how to filter data using predicates and functions"
+order: 2
+---
+
+# Filtering Data in DQL
+
+DQL provides powerful filtering capabilities using the `func` parameter in your queries.
+
+## Filter by Predicate Value
+
+This query finds all people who are older than 30:
+
+```dql-query
+{
+  older_people(func: gt(age, 30)) {
+    uid
+    name
+    age
+  }
+}
+```
+
+## String Filtering with Regular Expressions
+
+You can use regular expressions to find patterns in string values:
+
+```dql-query
+{
+  people_with_j(func: regexp(name, /^J.*$/)) {
+    uid
+    name
+  }
+}
+```
+
+This will find all people whose names start with the letter 'J'.

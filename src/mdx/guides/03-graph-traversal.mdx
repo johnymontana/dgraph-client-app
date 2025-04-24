@@ -1,0 +1,46 @@
+---
+title: "Graph Traversal in DQL"
+description: "Learn how to traverse relationships in your graph data"
+order: 3
+---
+
+# Graph Traversal in DQL
+
+One of the most powerful features of Dgraph is the ability to traverse relationships between nodes.
+
+## Basic Relationship Traversal
+
+This query finds people and their friends:
+
+```dql-query
+{
+  people(func: has(name)) {
+    name
+    age
+    friend {
+      name
+      age
+    }
+  }
+}
+```
+
+## Multi-level Traversal
+
+You can traverse multiple levels of relationships:
+
+```dql-query
+{
+  people(func: has(name)) @cascade {
+    name
+    friend {
+      name
+      friend {
+        name
+      }
+    }
+  }
+}
+```
+
+This query finds people, their friends, and their friends' friends, creating a 2-level social network visualization.

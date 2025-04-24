@@ -1,0 +1,26 @@
+---
+title: "Introduction to Dgraph Query Language"
+description: "Learn the basics of DQL and how to write your first query"
+order: 1
+---
+
+# Introduction to Dgraph Query Language
+
+Dgraph Query Language (DQL) is a query language designed to efficiently query graph data stored in Dgraph databases.
+
+## Your First Query
+
+Try this simple query to get all nodes that have a `name` property:
+
+```dql-query
+{
+  q(func: has(name)) {
+    uid
+    name
+  }
+}
+```
+
+Click the query above to load it into the editor, then click "Run Query" to execute it.
+
+DQL uses a GraphQL-like syntax but with functions specifically designed for graph databases.
