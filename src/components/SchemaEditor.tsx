@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { useDgraph } from '@/context/DgraphContext';
 import SchemaAutocomplete from './SchemaAutocomplete';
+import SchemaVisualization from './SchemaVisualization';
 
 export default function SchemaEditor() {
   // Ref for SchemaAutocomplete's handleInpu
@@ -57,12 +58,19 @@ export default function SchemaEditor() {
 
     try {
       const result = await dgraphService.getSchema();
+      console.log('Raw schema result from Dgraph:', result);
+
       if (result && result.data && result.data.schema) {
+        console.log('Schema data items:', result.data.schema);
+
         const schemaText = result.data.schema.map((item: any) => {
           return `${item.predicate}: ${item.type} ${item.index ? '@index(' + item.index + ')' : ''} ${item.upsert ? '@upsert' : ''} ${item.lang ? '@lang' : ''} ${item.reverse ? '@reverse' : ''} .`;
         }).join('\n');
+
+        console.log('Formatted schema text:', schemaText);
         updateSchemaText(schemaText);
       } else {
+        console.log('No schema data found in result');
         updateSchemaText('# No schema found or empty schema');
       }
     } catch (err: any) {
@@ -163,6 +171,13 @@ export default function SchemaEditor() {
         <p>Edit the DQL schema above and click "Update Schema" to apply changes.</p>
         <p className="mt-1">Example: <code>name: string @index(exact) .</code></p>
       </div>
+
+      {/* Schema Visualization */}
+      {schemaText && schemaText.trim() !== '' && schemaText !== '# No schema found or empty schema' && (
+        <div className="mt-6">
+          <SchemaVisualization schemaText={schemaText} />
+        </div>
+      )}
     </div>
   );
 }

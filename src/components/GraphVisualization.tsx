@@ -8,7 +8,16 @@ import { random } from 'graphology-layout';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
 import dynamic from 'next/dynamic';
 import FullscreenToggle from './FullscreenToggle';
-const SigmaGraph = dynamic(() => import('./SigmaGraph'), { ssr: false });
+
+// Dynamically import SigmaGraph to avoid SSR issues with WebGL
+const SigmaGraph = dynamic(() => import('./SigmaGraph'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex justify-center items-center h-full bg-gray-100">
+      <p className="text-gray-500">Loading graph visualization...</p>
+    </div>
+  )
+});
 
 // Styles are now included in globals.css
 

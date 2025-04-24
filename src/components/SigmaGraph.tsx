@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import Sigma from "sigma";
 import Graphology from "graphology";
