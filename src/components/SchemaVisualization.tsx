@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, Suspense } from 'react';
 import Graphology from 'graphology';
-import { schemaToGraph, generateTypeInfo } from '@/utils/schemaToGraph';
+import { schemaToGraph, generateTypeInfo, ensureNonEmptyGraph } from '@/utils/schemaToGraph';
 import { JsonView } from 'react-json-view-lite';
 import 'react-json-view-lite/dist/index.css';
 import FullscreenToggle from './FullscreenToggle';
@@ -31,31 +31,60 @@ export default function SchemaVisualization({ schemaText }: SchemaVisualizationP
   const [jsonData, setJsonData] = useState<any>(null);
 
   useEffect(() => {
-    if (!schemaText) {
-      setGraph(null);
-      setTypeInfo([]);
-      setJsonData(null);
+    if (!schemaText || schemaText.trim() === '' || schemaText.trim() === '# No schema found or empty schema') {
+      // Create a demo graph instead of showing nothing
+      const emptyGraph = new Graphology();
+      const demoGraph = ensureNonEmptyGraph(emptyGraph);
+      setGraph(demoGraph);
+      const demoTypeInfo = generateTypeInfo(demoGraph);
+      setTypeInfo(demoTypeInfo);
+      
+      // Create JSON for the demo graph
+      const nodes: any[] = [];
+      demoGraph.forEachNode((node, attributes) => {
+        nodes.push({ id: node, ...attributes });
+      });
+      
+      const edges: any[] = [];
+      demoGraph.forEachEdge((edge, attributes, source, target) => {
+        edges.push({ id: edge, source, target, ...attributes });
+      });
+      
+      setJsonData({ nodes, edges });
+      setError('No schema defined - showing example schema visualization');
       return;
     }
 
     try {
       console.log('Schema text to parse:', schemaText);
-      
+
       // Convert schema to graph
       const schemaGraph = schemaToGraph(schemaText);
-      console.log('Schema graph created:', {
-        nodeCount: schemaGraph.order,
-        edgeCount: schemaGraph.size,
-        nodes: Array.from(schemaGraph.nodes()),
-        edges: Array.from(schemaGraph.edges())
-      });
-      
-      setGraph(schemaGraph);
-      
-      // Generate type info for the visualization legend
-      const typeInfoData = generateTypeInfo(schemaGraph);
-      console.log('Type info generated:', typeInfoData);
-      setTypeInfo(typeInfoData);
+
+      // If the graph is empty (no nodes were created), show a demo graph instead
+      if (schemaGraph.order === 0) {
+        console.log('Schema parsing produced empty graph, using demo graph');
+        const demoGraph = ensureNonEmptyGraph(schemaGraph);
+        setGraph(demoGraph);
+        const demoTypeInfo = generateTypeInfo(demoGraph);
+        setTypeInfo(demoTypeInfo);
+        setError('Could not generate schema graph - showing example visualization');
+      } else {
+        console.log('Schema graph created:', {
+          nodeCount: schemaGraph.order,
+          edgeCount: schemaGraph.size,
+          nodes: Array.from(schemaGraph.nodes()),
+          edges: Array.from(schemaGraph.edges())
+        });
+
+        setGraph(schemaGraph);
+
+        // Generate type info for the visualization legend
+        const typeInfoData = generateTypeInfo(schemaGraph);
+        console.log('Type info generated:', typeInfoData);
+        setTypeInfo(typeInfoData);
+        setError(null);
+      }
       
       // Create JSON representation for JSON view
       // Convert nodeEntries and edgeEntries iterators to arrays properly
@@ -66,7 +95,7 @@ export default function SchemaVisualization({ schemaText }: SchemaVisualizationP
           ...attributes
         });
       });
-      
+
       const edges: any[] = [];
       schemaGraph.forEachEdge((edge, attributes, source, target) => {
         edges.push({
@@ -76,29 +105,38 @@ export default function SchemaVisualization({ schemaText }: SchemaVisualizationP
           ...attributes
         });
       });
-      
+
       const jsonRepresentation = {
         nodes,
         edges
       };
       setJsonData(jsonRepresentation);
-      
-      setError(null);
     } catch (err) {
       console.error('Error converting schema to graph:', err);
       setError(err instanceof Error ? err.message : 'Failed to parse schema');
-      setGraph(null);
-      setTypeInfo([]);
+      
+      // Create a demo graph on error
+      const emptyGraph = new Graphology();
+      const demoGraph = ensureNonEmptyGraph(emptyGraph);
+      setGraph(demoGraph);
+      setTypeInfo(generateTypeInfo(demoGraph));
+      
+      // Create JSON for the demo graph
+      const nodes: any[] = [];
+      demoGraph.forEachNode((node, attributes) => {
+        nodes.push({ id: node, ...attributes });
+      });
+      
+      const edges: any[] = [];
+      demoGraph.forEachEdge((edge, attributes, source, target) => {
+        edges.push({ id: edge, source, target, ...attributes });
+      });
+      
+      setJsonData({ nodes, edges });
     }
   }, [schemaText]);
 
-  if (!schemaText) {
-    return (
-      <div className="bg-gray-100 rounded-md p-4 text-center text-gray-500">
-        No schema available to visualize. Update your schema or fetch it from Dgraph.
-      </div>
-    );
-  }
+  // Always render the visualization - we now show an example graph when no schema is available
 
   return (
     <div className={`bg-white shadow-md rounded-lg p-6 ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
@@ -133,7 +171,7 @@ export default function SchemaVisualization({ schemaText }: SchemaVisualizationP
       </div>
 
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        <div className="bg-amber-100 border border-amber-400 text-amber-700 px-4 py-3 rounded mb-4">
           {error}
         </div>
       )}
@@ -162,8 +200,21 @@ export default function SchemaVisualization({ schemaText }: SchemaVisualizationP
 
       {viewMode === 'graph' && graph && (
         <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <div className="flex flex-wrap gap-4 mb-2">
+            {typeInfo.map((item) => (
+              <div key={item.type} className="flex items-center">
+                <div
+                  className="w-4 h-4 mr-2"
+                  style={{ backgroundColor: item.color }}
+                ></div>
+                <span className="text-sm text-gray-700">
+                  {item.type} ({item.count})
+                </span>
+              </div>
+            ))}
+          </div>
           <p className="text-sm text-blue-700">
-            <strong>Legend:</strong> Red nodes are types, blue nodes are predicates, 
+            <strong>Legend:</strong> Red nodes are types, blue nodes are predicates/fields, 
             green nodes are scalar types, and yellow nodes represent UID references.
           </p>
           <p className="text-sm text-blue-700 mt-1">
