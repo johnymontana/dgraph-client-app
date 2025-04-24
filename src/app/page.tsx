@@ -6,8 +6,10 @@ import ConnectionForm from '@/components/ConnectionForm';
 import QueryEditor from '@/components/QueryEditor';
 import SchemaEditor from '@/components/SchemaEditor';
 import GraphVisualization from '@/components/GraphVisualization';
+import GeoVisualization from '@/components/GeoVisualization';
 import Drawer from '@/components/Drawer';
 import ResizableContainer from '@/components/ResizableContainer';
+import { hasGeoData } from '@/utils/geoUtils';
 
 export default function Home() {
   const [queryResult, setQueryResult] = useState<any>(null);
@@ -51,8 +53,15 @@ export default function Home() {
                 initialSplit={40}
                 minFirstSize={20}
                 minSecondSize={20}
-                firstComponent={<QueryEditor onQueryResult={setQueryResult} />}
-                secondComponent={<GraphVisualization data={queryResult} />}
+                firstComponent={
+                  <QueryEditor onQueryResult={setQueryResult} />
+                }
+                secondComponent={
+                  <>
+                    {queryResult && <GraphVisualization data={queryResult} />}
+                    {queryResult && hasGeoData(queryResult) && <GeoVisualization data={queryResult} />}
+                  </>
+                }
               />
             </div>
           </div>
