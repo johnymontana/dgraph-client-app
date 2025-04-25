@@ -7,6 +7,7 @@ import DQLAutocomplete from './DQLAutocomplete';
 import QueryHistory, { QueryHistoryItem } from './QueryHistory';
 import FullscreenToggle from './FullscreenToggle';
 import GuidedExperience from './GuidedExperience';
+import DQLVariableInputs from './DQLVariableInputs';
 import { GuideMetadata } from '@/utils/mdxLoader';
 import axios from 'axios';
 
@@ -55,6 +56,7 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
   const [showGuide, setShowGuide] = useState(false);
   const [guides, setGuides] = useState<{ content: string; metadata: GuideMetadata }[]>([]);
   const [guidesLoading, setGuidesLoading] = useState(false);
+  const [queryVariables, setQueryVariables] = useState<Record<string, any>>({});
   const editorRef = useRef<HTMLDivElement>(null);
 
   // Load query history from localStorage on component moun
@@ -198,6 +200,11 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
     setShowHistory(false);
   };
 
+  // Handle variable changes from DQLVariableInputs component
+  const handleVariablesChange = (variables: Record<string, any>) => {
+    setQueryVariables(variables);
+  };
+
   const handleRunOperation = async () => {
     if (!dgraphService || !connected) {
       setError('Not connected to Dgraph. Please connect first.');
@@ -209,13 +216,15 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
 
     try {
       let result;
-
+      const hasVariables = Object.keys(queryVariables).length > 0;
       if (activeTab === 'query') {
-        result = await dgraphService.query(query);
+        // Pass variables if they exist
+        result = await dgraphService.query(query, hasVariables ? queryVariables : undefined);
         // Add successful query to history
         addToHistory(query, 'query');
       } else {
-        result = await dgraphService.mutate(mutation);
+        // Pass variables if they exist
+        result = await dgraphService.mutate(mutation, hasVariables ? queryVariables : undefined);
         // Add successful mutation to history
         addToHistory(mutation, 'mutation');
       }
@@ -329,6 +338,12 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
           onChange={handleEditorChange}
           theme="light"
           className="text-sm"
+        />
+        
+        {/* Variable inputs */}
+        <DQLVariableInputs
+          query={activeTab === 'query' ? query : mutation}
+          onChange={handleVariablesChange}
         />
         <div
           ref={editorRef}
