@@ -59,7 +59,6 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
   const [queryVariables, setQueryVariables] = useState<Record<string, any>>({});
   const editorRef = useRef<HTMLDivElement>(null);
 
-  // Load query history from localStorage on component moun
   // Load query history from localStorage on component mount
   useEffect(() => {
     const loadQueryHistory = () => {

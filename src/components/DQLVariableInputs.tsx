@@ -1,10 +1,18 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { detectVariables, formatVariableValue, validateVariableValue } from '@/utils/dqlVariables';
+import {
+  detectVariables,
+  formatVariableValue,
+  validateVariableValue,
+  extractDeclaredVariables,
+  hasNamedQueryWithVars,
+  DQLVariable
+} from '@/utils/dqlVariables';
 
 interface VariableData {
   name: string;
+  type?: string;
   value: string;
   isValid: boolean;
 }
@@ -19,17 +27,34 @@ export default function DQLVariableInputs({ query, onChange }: DQLVariableInputs
   
   // Detect variables in the query whenever it changes
   useEffect(() => {
-    const detectedVars = detectVariables(query);
+    // Check if this is a named query with declared variable types
+    const isNamedQuery = hasNamedQueryWithVars(query);
+    let newVariables: VariableData[] = [];
     
-    // Keep existing variable values if the variable is still present
-    const newVariables = detectedVars.map(name => {
-      const existingVar = variables.find(v => v.name === name);
-      return {
-        name,
-        value: existingVar?.value || '',
-        isValid: existingVar ? existingVar.isValid : false
-      };
-    });
+    if (isNamedQuery) {
+      // For named queries, extract the variables with their types
+      const declaredVars = extractDeclaredVariables(query);
+      newVariables = declaredVars.map(dv => {
+        const existingVar = variables.find(v => v.name === dv.name);
+        return {
+          name: dv.name,
+          type: dv.type,
+          value: existingVar?.value || '',
+          isValid: existingVar ? existingVar.isValid : false
+        };
+      });
+    } else {
+      // For simple queries, just get the variable names
+      const detectedVars = detectVariables(query);
+      newVariables = detectedVars.map(name => {
+        const existingVar = variables.find(v => v.name === name);
+        return {
+          name,
+          value: existingVar?.value || '',
+          isValid: existingVar ? existingVar.isValid : false
+        };
+      });
+    }
     
     setVariables(newVariables);
     
@@ -39,11 +64,12 @@ export default function DQLVariableInputs({ query, onChange }: DQLVariableInputs
   }, [query]);
   
   // Build a variables object from the current state
-  const buildVariablesObject = (vars: VariableData[]): Record<string, any> => {
-    const result: Record<string, any> = {};
+  const buildVariablesObject = (vars: VariableData[]): Record<string, string> => {
+    const result: Record<string, string> = {};
     vars.forEach(v => {
       if (v.value) {
-        result[v.name] = formatVariableValue(v.value);
+        // Include the $ prefix in the variable name and ensure value is a string
+        result[`$${v.name}`] = String(v.value);
       }
     });
     return result;
@@ -84,7 +110,7 @@ export default function DQLVariableInputs({ query, onChange }: DQLVariableInputs
                 htmlFor={`var-${variable.name}`}
                 className="block text-sm font-medium text-gray-700 mt-1"
               >
-                ${variable.name}
+                ${variable.name}{variable.type ? `: ${variable.type}` : ''}
               </label>
             </div>
             <div className="w-3/4">
