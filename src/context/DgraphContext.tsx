@@ -9,8 +9,10 @@ interface DgraphContextType {
   connected: boolean;
   endpoint: string;
   apiKey: string;
+  hypermodeRouterKey: string;
   setEndpoint: (endpoint: string) => void;
   setApiKey: (apiKey: string) => void;
+  setHypermodeRouterKey: (key: string) => void;
   connect: () => void;
   disconnect: () => void;
   error: string | null;
@@ -26,6 +28,7 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
   const [connected, setConnected] = useState(false);
   const [endpoint, setEndpoint] = useState('http://localhost:8080');
   const [apiKey, setApiKey] = useState('');
+  const [hypermodeRouterKey, setHypermodeRouterKey] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [schemaText, setSchemaText] = useState('');
   const [parsedSchema, setParsedSchema] = useState<ParsedSchema>({ predicates: [], types: [] });
@@ -82,8 +85,10 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
         connected,
         endpoint,
         apiKey,
+        hypermodeRouterKey,
         setEndpoint,
         setApiKey,
+        setHypermodeRouterKey,
         connect,
         disconnect,
         error,
