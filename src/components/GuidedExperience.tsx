@@ -107,8 +107,10 @@ export default function GuidedExperience({ guides, onLoadQuery, onClose }: Guide
                   <h3 className="text-lg font-semibold text-indigo-600">{guide.metadata.title}</h3>
                   <p className="text-gray-600">{guide.metadata.description}</p>
                 </div>
-                <div className="prose prose-indigo max-w-none">
-                  <MdxGuideRenderer content={guide.content} onLoadQuery={onLoadQuery} />
+                <div className="h-[400px] overflow-auto pr-2 custom-scrollbar">
+                  <div className="prose prose-indigo max-w-none">
+                    <MdxGuideRenderer content={guide.content} onLoadQuery={onLoadQuery} />
+                  </div>
                 </div>
               </div>
             ))}
