@@ -9,6 +9,7 @@ import forceAtlas2 from 'graphology-layout-forceatlas2';
 import dynamic from 'next/dynamic';
 import FullscreenToggle from './FullscreenToggle';
 import { hasGeoData, extractGeoNodesAndEdges } from '@/utils/geoUtils';
+import '@/styles/toast.css';
 
 // Dynamically import SigmaGraph to avoid SSR issues with WebGL
 const SigmaGraph = dynamic(() => import('./SigmaGraph'), {
@@ -36,6 +37,51 @@ interface GraphVisualizationProps {
   data: any;
 }
 
+// Simple Toast Notification component
+interface ToastProps {
+  message: string;
+  type: 'success' | 'error';
+  onClose: () => void;
+}
+
+function Toast({ message, type, onClose }: ToastProps) {
+  useEffect(() => {
+    // Auto-close toast after 3 seconds
+    const timer = setTimeout(() => {
+      onClose();
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className="fixed bottom-4 right-4 z-50 animate-fade-in-up">
+      <div
+        className={`flex items-center p-4 rounded-md shadow-lg ${type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}
+      >
+        {type === 'success' ? (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+        ) : (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+        )}
+        {message}
+        <button
+          onClick={onClose}
+          className="ml-4 text-gray-500 hover:text-gray-700"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function GraphVisualization({ data }: GraphVisualizationProps) {
   const [viewMode, setViewMode] = useState<'graph' | 'json' | 'map'>('graph');
   const [graph, setGraph] = useState<Graphology | null>(null);
@@ -45,6 +91,7 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
   const [geoNodes, setGeoNodes] = useState<any[]>([]);
   const [geoEdges, setGeoEdges] = useState<any[]>([]);
   const [hasGeo, setHasGeo] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // No longer needed: options for react-graph-vis
 
@@ -420,8 +467,39 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
           </div>
         </div>
       ) : (
-        <div className={`border border-gray-300 rounded-md overflow-auto p-4 ${isFullscreen ? 'h-[calc(100vh-130px)]' : 'h-96'}`}>
-          <JsonView data={data} />
+        <div className={`border border-gray-300 rounded-md overflow-auto ${isFullscreen ? 'h-[calc(100vh-130px)]' : 'h-96'}`}>
+          <div className="flex justify-end p-2 bg-gray-50 border-b border-gray-300">
+            <button
+              onClick={() => {
+                // Copy JSON data to clipboard
+                const jsonString = JSON.stringify(data, null, 2);
+                navigator.clipboard.writeText(jsonString)
+                  .then(() => {
+                    // Show toast notification for success
+                    setToast({
+                      message: 'JSON data copied to clipboard',
+                      type: 'success'
+                    });
+                  })
+                  .catch(err => {
+                    console.error('Failed to copy JSON data:', err);
+                    setToast({
+                      message: 'Failed to copy JSON data to clipboard',
+                      type: 'error'
+                    });
+                  });
+              }}
+              className="flex items-center px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-md transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+              </svg>
+              Copy Data
+            </button>
+          </div>
+          <div className="p-4">
+            <JsonView data={data} />
+          </div>
         </div>
       )}
 
@@ -445,6 +523,15 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
             Use the mouse wheel to zoom in/out and drag to pan around the map.
           </p>
         </div>
+      )}
+
+      {/* Toast notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   );

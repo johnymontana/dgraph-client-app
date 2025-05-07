@@ -127,27 +127,47 @@ export function hasGeoData(data: any): boolean {
     return false;
   };
   
+  // Deep scan for geo data at any level of nesting
+  const deepScanForGeoData = (obj: any): boolean => {
+    if (!obj || typeof obj !== 'object') return false;
+
+    // Check if this node has geo data
+    if (checkNodeForLocation(obj)) return true;
+    
+    // If it's an array, check each element
+    if (Array.isArray(obj)) {
+      for (const item of obj) {
+        if (deepScanForGeoData(item)) return true;
+      }
+      return false;
+    }
+
+    // If it's an object, check each property
+    // Special handling for Article.geo and similar patterns
+    for (const key in obj) {
+      // Skip special properties like dgraph.type
+      if (key === 'dgraph.type' || key === 'uid') continue;
+
+      // Handle nested arrays (like Article.geo)
+      if (Array.isArray(obj[key])) {
+        for (const item of obj[key]) {
+          if (deepScanForGeoData(item)) return true;
+        }
+      }
+      // Handle nested objects
+      else if (obj[key] && typeof obj[key] === 'object') {
+        if (deepScanForGeoData(obj[key])) return true;
+      }
+    }
+    
+    return false;
+  };
+
   // Extract data from Dgraph response format
   if (data.data) {
     const responseData = data.data;
-    const queryKey = Object.keys(responseData)[0];
-    
-    if (queryKey) {
-      const queryData = responseData[queryKey];
-      
-      if (Array.isArray(queryData)) {
-        // Check each node in the array
-        for (const node of queryData) {
-          if (checkNodeForLocation(node)) {
-            hasLocation = true;
-            break;
-          }
-        }
-      } else if (queryData && typeof queryData === 'object') {
-        // Check single object
-        hasLocation = checkNodeForLocation(queryData);
-      }
-    }
+    // Scan the entire response data structure
+    hasLocation = deepScanForGeoData(responseData);
   }
   
   return hasLocation;
@@ -391,15 +411,92 @@ export function extractGeoNodesAndEdges(
     });
   };
   
+  // Deep scan function to find and process all geo nodes at any level
+  const deepScanAndProcessGeoNodes = (obj: any, path: string = ''): void => {
+    if (!obj || typeof obj !== 'object') return;
+
+    // Process this node if it has geo data
+    addGeoNode(obj);
+    
+    // If it's an array, scan each element
+    if (Array.isArray(obj)) {
+      obj.forEach((item, index) => {
+        if (item && typeof item === 'object') {
+          deepScanAndProcessGeoNodes(item, `${path}[${index}]`);
+        }
+      });
+      return;
+    }
+
+    // For objects, scan each property
+    for (const key in obj) {
+      // Skip special properties
+      if (key === 'dgraph.type' || key === 'uid') continue;
+      
+      const value = obj[key];
+      
+      // Handle arrays (like Article.geo)
+      if (Array.isArray(value)) {
+        value.forEach((item, index) => {
+          if (item && typeof item === 'object') {
+            // Process each item in the array
+            deepScanAndProcessGeoNodes(item, `${path}.${key}[${index}]`);
+          }
+        });
+      }
+      // Handle nested objects
+      else if (value && typeof value === 'object') {
+        deepScanAndProcessGeoNodes(value, `${path}.${key}`);
+      }
+    }
+  };
+  
+  // Second pass to create edges
+  const deepScanForEdges = (obj: any): void => {
+    if (!obj || typeof obj !== 'object') return;
+
+    // Process edges for this node
+    addGeoEdges(obj);
+    
+    // If it's an array, process each element
+    if (Array.isArray(obj)) {
+      obj.forEach(item => {
+        if (item && typeof item === 'object') {
+          deepScanForEdges(item);
+        }
+      });
+      return;
+    }
+
+    // For objects, process each property
+    for (const key in obj) {
+      // Skip special properties
+      if (key === 'dgraph.type' || key === 'uid') continue;
+      
+      const value = obj[key];
+      
+      // Handle arrays
+      if (Array.isArray(value)) {
+        value.forEach(item => {
+          if (item && typeof item === 'object') {
+            deepScanForEdges(item);
+          }
+        });
+      }
+      // Handle nested objects
+      else if (value && typeof value === 'object') {
+        deepScanForEdges(value);
+      }
+    }
+  };
+
   // Process the data
-  if (Array.isArray(queryData)) {
-    // First pass: create nodes
-    queryData.forEach(node => addGeoNode(node));
+  if (responseData && typeof responseData === 'object') {
+    // First pass: find and create all geo nodes at any level
+    deepScanAndProcessGeoNodes(responseData);
+    
     // Second pass: create edges between nodes with geo data
-    queryData.forEach(node => addGeoEdges(node));
-  } else if (queryData && typeof queryData === 'object') {
-    addGeoNode(queryData);
-    addGeoEdges(queryData);
+    deepScanForEdges(responseData);
   }
   
   return { nodes, edges };
