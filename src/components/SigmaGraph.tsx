@@ -24,6 +24,7 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
   const [isSimulationRunning, setIsSimulationRunning] = useState(true);
+  const [showSimulationControls, setShowSimulationControls] = useState(true);
   const [simulationSettings, setSimulationSettings] = useState({
     gravity: 0.05,
     scalingRatio: 2,
@@ -46,6 +47,11 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
   // Toggle simulation on/off
   const toggleSimulation = useCallback(() => {
     setIsSimulationRunning(prev => !prev);
+  }, []);
+
+  // Toggle visibility of simulation controls
+  const toggleSimulationControls = useCallback(() => {
+    setShowSimulationControls(prev => !prev);
   }, []);
 
   // Update simulation settings
@@ -254,6 +260,28 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
 
   // Render simulation controls
   const renderSimulationControls = () => {
+    if (!showSimulationControls) {
+      return (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 10,
+            left: 10,
+            background: "rgba(255,255,255,0.85)",
+            border: "1px solid #e0e0e0",
+            borderRadius: 8,
+            padding: "5px 8px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+            fontSize: 12,
+            zIndex: 999,
+            cursor: "pointer"
+          }}
+          onClick={toggleSimulationControls}
+        >
+          <span style={{ fontWeight: 600 }}>Show Physics Controls</span>
+        </div>
+      );
+    }
     return (
       <div
         style={{
@@ -272,21 +300,38 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
       >
         <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span>Physics Simulation</span>
-          <button
-            onClick={toggleSimulation}
-            style={{
-              background: isSimulationRunning ? "#f44336" : "#4caf50",
-              color: "white",
-              border: "none",
-              borderRadius: 4,
-              padding: "4px 8px",
-              cursor: "pointer",
-              fontSize: 11,
-              fontWeight: 600
-            }}
-          >
-            {isSimulationRunning ? "Pause" : "Play"}
-          </button>
+          <div style={{ display: "flex", gap: "5px" }}>
+            <button
+              onClick={toggleSimulation}
+              style={{
+                background: isSimulationRunning ? "#f44336" : "#4caf50",
+                color: "white",
+                border: "none",
+                borderRadius: 4,
+                padding: "4px 8px",
+                cursor: "pointer",
+                fontSize: 11,
+                fontWeight: 600
+              }}
+            >
+              {isSimulationRunning ? "Pause" : "Play"}
+            </button>
+            <button
+              onClick={toggleSimulationControls}
+              style={{
+                background: "#2196f3",
+                color: "white",
+                border: "none",
+                borderRadius: 4,
+                padding: "4px 8px",
+                cursor: "pointer",
+                fontSize: 11,
+                fontWeight: 600
+              }}
+            >
+              Hide
+            </button>
+          </div>
         </div>
 
         <div style={{ marginBottom: 8 }}>
