@@ -270,7 +270,7 @@ export function extractGeoNodesAndEdges(
       }
     }
     
-    // Check for Dgraph Geo.location format
+    // Check for Dgraph Geo.location format (both direct and nested)
     if ('Geo.location' in node && node['Geo.location'] && typeof node['Geo.location'] === 'object') {
       if ('coordinates' in node['Geo.location'] && Array.isArray(node['Geo.location'].coordinates)) {
         // GeoJSON format: [longitude, latitude]
@@ -280,6 +280,41 @@ export function extractGeoNodesAndEdges(
             lat: parseFloat(coords[1]),
             lng: parseFloat(coords[0])
           };
+        }
+      }
+    }
+    
+    // Also check for Article.geo or other pattern where geo is nested
+    for (const key in node) {
+      if (key.endsWith('.geo') && node[key] && typeof node[key] === 'object') {
+        // First check if it's a direct reference to a Geo node with location
+        if ('Geo.location' in node[key] && node[key]['Geo.location'] &&
+            typeof node[key]['Geo.location'] === 'object') {
+          if ('coordinates' in node[key]['Geo.location'] &&
+              Array.isArray(node[key]['Geo.location'].coordinates)) {
+            const coords = node[key]['Geo.location'].coordinates;
+            if (coords.length === 2 && isValidCoordinate(coords[1], coords[0])) {
+              return {
+                lat: parseFloat(coords[1]),
+                lng: parseFloat(coords[0])
+              };
+            }
+          }
+        }
+        
+        // Also check for direct location property
+        if ('location' in node[key] && node[key].location &&
+            typeof node[key].location === 'object') {
+          if ('coordinates' in node[key].location &&
+              Array.isArray(node[key].location.coordinates)) {
+            const coords = node[key].location.coordinates;
+            if (coords.length === 2 && isValidCoordinate(coords[1], coords[0])) {
+              return {
+                lat: parseFloat(coords[1]),
+                lng: parseFloat(coords[0])
+              };
+            }
+          }
         }
       }
     }

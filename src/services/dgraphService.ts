@@ -24,12 +24,142 @@ class DgraphService {
     return headers;
   }
 
+  private ensureUidAndType(query: string): string {
+    // Don't modify special queries like schema {}
+    if (query.trim() === 'schema {}' || query.trim().startsWith('schema(')) {
+      return query;
+    }
+
+    // Don't modify introspection queries that start with "query IntrospectionQuery"
+    if (query.trim().startsWith('query IntrospectionQuery')) {
+      return query;
+    }
+
+    // Process top-level blocks and their nested blocks recursively
+    const processBlocksRecursively = (text: string): string => {
+      // Define regexes for identifying blocks and field checking
+      const blockRegex = /{([^{}]*)}/g;
+      const uidRegex = /\buid\b/i;
+      const typeRegex = /\bdgraph\.type\b/i;
+
+      // Build a tree of blocks recursively
+      const processBlock = (blockText: string): string => {
+        // Skip empty blocks or directives/fragments
+        if (blockText.trim().length === 0 || blockText.trim().startsWith('@')) {
+          return `{${blockText}}`;
+        }
+
+        // Check if uid and dgraph.type are already present
+        const hasUid = uidRegex.test(blockText);
+        const hasType = typeRegex.test(blockText);
+
+        // Start with the original content and add missing fields
+        let enhancedContent = blockText;
+
+        // Add uid if not present
+        if (!hasUid) {
+          enhancedContent = `uid\n${enhancedContent}`;
+        }
+
+        // Add dgraph.type if not present
+        if (!hasType) {
+          enhancedContent = `${enhancedContent}\ndgraph.type`;
+        }
+
+        // Look for nested blocks within this block and process them too
+        let processedContent = enhancedContent;
+        let nestedMatch;
+        const nestedRegex = new RegExp(blockRegex);
+        let nestedOffset = 0;
+        
+        while ((nestedMatch = nestedRegex.exec(enhancedContent)) !== null) {
+          const matchedNestedBlock = nestedMatch[0];
+          const nestedContent = nestedMatch[1];
+
+          // Calculate positions accounting for previous modifications
+          const startPos = nestedMatch.index + nestedOffset;
+          const endPos = startPos + matchedNestedBlock.length;
+
+          // Process this nested block
+          const processedNestedBlock = processBlock(nestedContent);
+
+          // Replace in the string
+          processedContent = processedContent.substring(0, startPos) +
+                             processedNestedBlock +
+                             processedContent.substring(endPos);
+
+          // Update offset for future replacements
+          nestedOffset += (processedNestedBlock.length - matchedNestedBlock.length);
+
+          // Update regex lastIndex
+          nestedRegex.lastIndex = startPos + processedNestedBlock.length;
+        }
+        
+        return `{${processedContent}}`;
+      };
+
+      // Find all top-level blocks
+      let processedText = text;
+      let match;
+      const regex = new RegExp(blockRegex);
+      let offset = 0;
+
+      while ((match = regex.exec(text)) !== null) {
+        const matchedBlock = match[0];
+        const blockContent = match[1];
+
+        // Calculate positions accounting for previous modifications
+        const startPos = match.index + offset;
+        const endPos = startPos + matchedBlock.length;
+        
+        // Process this block and all its nested blocks
+        const processedBlock = processBlock(blockContent);
+
+        // Replace in the string
+        processedText = processedText.substring(0, startPos) +
+                        processedBlock +
+                        processedText.substring(endPos);
+
+        // Update offset for future replacements
+        offset += (processedBlock.length - matchedBlock.length);
+
+        // Update regex lastIndex
+        regex.lastIndex = startPos + processedBlock.length;
+      }
+      
+      return processedText;
+    };
+
+    // Process the entire query with recursive block enhancement
+    return processBlocksRecursively(query);
+  }
+
   async query(query: string, variables?: Record<string, any>) {
     try {
+      // Special handling for schema queries
+      if (query.trim() === 'schema {}' || query.trim().startsWith('schema(')) {
+        const response = await axios.post(
+          `${this.config.endpoint}/query`,
+          { query, variables },
+          { headers: this.getHeaders() }
+        );
+        return response.data;
+      }
+
+      // Modify the query to ensure uid and dgraph.type are included
+      const enhancedQuery = this.ensureUidAndType(query);
+
+      // Log the differences if query was modified
+      if (enhancedQuery !== query) {
+        console.log('Query was enhanced to include uid and dgraph.type predicates');
+        console.log('Original query:', query);
+        console.log('Enhanced query:', enhancedQuery);
+      }
+
       const response = await axios.post(
         `${this.config.endpoint}/query`,
         {
-          query,
+          query: enhancedQuery,
           variables,
         },
         {
