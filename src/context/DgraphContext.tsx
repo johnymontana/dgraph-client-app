@@ -23,15 +23,77 @@ interface DgraphContextType {
 
 const DgraphContext = createContext<DgraphContextType | undefined>(undefined);
 
+// Storage keys for localStorage
+const STORAGE_KEY_ENDPOINT = 'dgraph_endpoint';
+const STORAGE_KEY_API_KEY = 'dgraph_api_key';
+const STORAGE_KEY_HYPERMODE_KEY = 'dgraph_hypermode_key';
+
+// Function to safely load from localStorage (handles SSR)
+const loadFromStorage = (key: string, defaultValue: string) => {
+  if (typeof window === 'undefined') return defaultValue;
+  try {
+    const value = localStorage.getItem(key);
+    return value !== null ? value : defaultValue;
+  } catch (e) {
+    console.warn('Error reading from localStorage', e);
+    return defaultValue;
+  }
+};
+
 export function DgraphProvider({ children }: { children: ReactNode }) {
   const [dgraphService, setDgraphService] = useState<DgraphService | null>(null);
   const [connected, setConnected] = useState(false);
-  const [endpoint, setEndpoint] = useState('http://localhost:8080');
-  const [apiKey, setApiKey] = useState('');
-  const [hypermodeRouterKey, setHypermodeRouterKey] = useState('');
+  const [endpoint, setEndpointState] = useState<string>(() =>
+    loadFromStorage(STORAGE_KEY_ENDPOINT, 'http://localhost:8080')
+  );
+  const [apiKey, setApiKeyState] = useState<string>(() =>
+    loadFromStorage(STORAGE_KEY_API_KEY, '')
+  );
+  const [hypermodeRouterKey, setHypermodeRouterKeyState] = useState<string>(() =>
+    loadFromStorage(STORAGE_KEY_HYPERMODE_KEY, '')
+  );
   const [error, setError] = useState<string | null>(null);
   const [schemaText, setSchemaText] = useState('');
   const [parsedSchema, setParsedSchema] = useState<ParsedSchema>({ predicates: [], types: [] });
+
+  // Wrapper functions to update both state and localStorage
+  const setEndpoint = (value: string) => {
+    setEndpointState(value);
+    try {
+      localStorage.setItem(STORAGE_KEY_ENDPOINT, value);
+    } catch (e) {
+      console.warn('Error saving to localStorage', e);
+    }
+  };
+
+  const setApiKey = (value: string) => {
+    setApiKeyState(value);
+    try {
+      localStorage.setItem(STORAGE_KEY_API_KEY, value);
+    } catch (e) {
+      console.warn('Error saving to localStorage', e);
+    }
+  };
+
+  const setHypermodeRouterKey = (value: string) => {
+    setHypermodeRouterKeyState(value);
+    try {
+      localStorage.setItem(STORAGE_KEY_HYPERMODE_KEY, value);
+    } catch (e) {
+      console.warn('Error saving to localStorage', e);
+    }
+  };
+
+  // Auto-connect on start if connection details exist
+  React.useEffect(() => {
+    if (endpoint && !connected && !dgraphService) {
+      // Auto-connect with a slight delay to ensure UI is loaded
+      const timer = setTimeout(() => {
+        connect();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [endpoint, connected, dgraphService]);
 
   const connect = async () => {
     try {
