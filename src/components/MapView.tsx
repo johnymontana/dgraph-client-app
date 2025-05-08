@@ -215,13 +215,76 @@ export default function MapView({ nodes, edges, onNodeClick, height = '100%' }: 
               alt: node.label
             })
               .addTo(mapRef.current)
-              .bindPopup(`
-                <div>
-                  <h3 class="font-bold">${node.label}</h3>
-                  ${node.type ? `<p class="text-sm">Type: ${node.type}</p>` : ''}
-                  <p class="text-sm">Coordinates: ${node.lat.toFixed(6)}, ${node.lng.toFixed(6)}</p>
-                </div>
-              `)
+              .bindPopup(() => {
+                // Generate popup content with all properties
+                const popupContent = document.createElement('div');
+                popupContent.className = 'map-marker-popup';
+
+                // Add title
+                const title = document.createElement('h3');
+                title.className = 'font-bold mb-2';
+                title.textContent = node.label;
+                popupContent.appendChild(title);
+
+                // Add type if available
+                if (node.type) {
+                  const typeEl = document.createElement('p');
+                  typeEl.className = 'text-sm mb-1';
+                  typeEl.innerHTML = `<span class="font-medium">Type:</span> ${node.type}`;
+                  popupContent.appendChild(typeEl);
+                }
+
+                // Add coordinates
+                const coordsEl = document.createElement('p');
+                coordsEl.className = 'text-sm mb-2';
+                coordsEl.innerHTML = `<span class="font-medium">Coordinates:</span> ${node.lat.toFixed(6)}, ${node.lng.toFixed(6)}`;
+                popupContent.appendChild(coordsEl);
+
+                // Add divider
+                if (node.raw && Object.keys(node.raw).length > 0) {
+                  const divider = document.createElement('hr');
+                  divider.className = 'my-2 border-gray-200';
+                  popupContent.appendChild(divider);
+
+                  // Add all properties from raw data
+                  const propsTitle = document.createElement('p');
+                  propsTitle.className = 'text-sm font-medium mb-1';
+                  propsTitle.textContent = 'Properties:';
+                  popupContent.appendChild(propsTitle);
+
+                  // Create properties container with some basic styling
+                  const propsContainer = document.createElement('div');
+                  propsContainer.className = 'text-xs space-y-1 pl-2 border-l-2 border-gray-200';
+
+                  // Function to format property values
+                  const formatValue = (value: any): string => {
+                    if (value === null || value === undefined) return 'null';
+                    if (typeof value === 'object') {
+                      try {
+                        return JSON.stringify(value);
+                      } catch (e) {
+                        return '[Object]';
+                      }
+                    }
+                    return String(value);
+                  };
+                  
+                  // Add each property from raw data
+                  Object.entries(node.raw).forEach(([key, value]) => {
+                    // Skip uid and dgraph.type as they're already shown
+                    if (key === 'uid' || key === 'dgraph.type') return;
+
+                    const propEl = document.createElement('div');
+                    propEl.className = 'prop-item';
+                    propEl.innerHTML = `<span class="font-medium">${key}:</span> ${formatValue(value)}`;
+                    propsContainer.appendChild(propEl);
+                  });
+
+                  popupContent.appendChild(propsContainer);
+                }
+
+                return popupContent;
+              })
               .on('click', () => onNodeClick && onNodeClick(node)),
             // Add a colored circle around the marker
             mapRef.current && L.circle([node.lat, node.lng], {

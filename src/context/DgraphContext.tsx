@@ -27,6 +27,7 @@ const DgraphContext = createContext<DgraphContextType | undefined>(undefined);
 const STORAGE_KEY_ENDPOINT = 'dgraph_endpoint';
 const STORAGE_KEY_API_KEY = 'dgraph_api_key';
 const STORAGE_KEY_HYPERMODE_KEY = 'dgraph_hypermode_key';
+const STORAGE_KEY_AUTOCONNECT = 'dgraph_autoconnect'; // New key to track if user explicitly connected
 
 // Function to safely load from localStorage (handles SSR)
 const loadFromStorage = (key: string, defaultValue: string) => {
@@ -84,9 +85,22 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Auto-connect on start if connection details exist
+  // Auto-connect on start only if user has explicitly connected before
   React.useEffect(() => {
-    if (endpoint && !connected && !dgraphService) {
+    // Only auto-connect if:
+    // 1. We have an endpoint
+    // 2. We're not already connected
+    // 3. We don't already have a service instance
+    // 4. User has explicitly connected before (stored in localStorage)
+    const hasExplicitlyConnected = typeof window !== 'undefined' && localStorage.getItem(STORAGE_KEY_AUTOCONNECT) === 'true';
+
+    // Check if we're trying to connect to the default endpoint without explicit user permission
+    const isDefaultEndpoint = endpoint === 'http://localhost:8080';
+    const shouldAutoConnect = hasExplicitlyConnected && endpoint && !connected && !dgraphService;
+
+    console.log(`Auto-connect check: ${shouldAutoConnect ? 'Will connect' : 'Will NOT connect'} (explicitly connected: ${hasExplicitlyConnected})`);
+
+    if (shouldAutoConnect) {
       // Auto-connect with a slight delay to ensure UI is loaded
       const timer = setTimeout(() => {
         connect();
@@ -102,6 +116,13 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
         endpoint,
         apiKey: apiKey || undefined,
       };
+
+      // Mark that the user has explicitly connected (for auto-connect on refresh)
+      try {
+        localStorage.setItem(STORAGE_KEY_AUTOCONNECT, 'true');
+      } catch (e) {
+        console.warn('Could not save auto-connect preference', e);
+      }
 
       const service = new DgraphService(config);
 
@@ -129,10 +150,47 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
   };
 
   const disconnect = () => {
-    setDgraphService(null);
+    // Immediate UI State update
     setConnected(false);
+
+    // Force clean localstorage first to ensure clean state even if something fails later
+    try {
+      // Remove all credentials from localStorage
+      localStorage.removeItem(STORAGE_KEY_API_KEY);
+      localStorage.removeItem(STORAGE_KEY_HYPERMODE_KEY);
+      localStorage.removeItem(STORAGE_KEY_AUTOCONNECT); // Clear auto-connect flag
+
+      // Optionally clear endpoint too for complete reset
+      // localStorage.removeItem(STORAGE_KEY_ENDPOINT);
+
+      // Log for debugging
+      console.log('Successfully removed credentials from localStorage');
+    } catch (e) {
+      console.error('Error removing credentials from localStorage:', e);
+    }
+
+    // Reset all state variables to ensure clean slate
+    setDgraphService(null);
     setSchemaText('');
     setParsedSchema({ predicates: [], types: [] });
+    setApiKeyState('');
+    setHypermodeRouterKeyState('');
+    setError(null); // Also clear any previous errors
+
+    // Force triggering any effects that depend on these values
+    setTimeout(() => {
+      // Double-check disconnection state
+      if (localStorage.getItem(STORAGE_KEY_API_KEY)) {
+        console.warn('API key still exists in localStorage - forcing removal');
+        try {
+          localStorage.removeItem(STORAGE_KEY_API_KEY);
+          localStorage.removeItem(STORAGE_KEY_HYPERMODE_KEY);
+        } catch (e) {
+          console.error('Final attempt to clear localStorage failed:', e);
+        }
+      }
+      console.log('Disconnect complete - state fully reset');
+    }, 100);
   };
 
   const updateSchemaText = (text: string) => {

@@ -27,6 +27,14 @@ export default function ConnectionForm() {
     setIsLoading(false);
   };
 
+  const handleDisconnect = () => {
+    // Call the disconnect function
+    disconnect();
+    // Force re-render by setting loading state briefly
+    setIsLoading(true);
+    setTimeout(() => setIsLoading(false), 50);
+  };
+
   return (
     <div className="bg-white shadow-md rounded-lg p-6 mb-6">
       <h2 className="text-xl font-bold mb-4">Dgraph Connection</h2>
@@ -121,7 +129,7 @@ export default function ConnectionForm() {
         ) : (
           <button
             type="button"
-            onClick={disconnect}
+            onClick={handleDisconnect}
             className="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
           >
             Disconnect
