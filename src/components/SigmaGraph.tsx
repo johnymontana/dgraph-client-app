@@ -73,6 +73,11 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
     // if (currentRunningState) setIsSimulationRunning(true);
   }, [graph, sigmaInstanceRef]);
 
+  // Update simulation settings
+  const updateSimulationSettings = useCallback((settings: Partial<typeof simulationSettings>) => {
+    setSimulationSettings(prev => ({ ...prev, ...settings }));
+  }, []);
+
   // Function to apply inferred settings
   const applyInferredSettings = useCallback(() => {
     if (!graph) return;
@@ -101,11 +106,6 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
   // Toggle visibility of simulation controls
   const toggleSimulationControls = useCallback(() => {
     setShowSimulationControls(prev => !prev);
-  }, []);
-
-  // Update simulation settings
-  const updateSimulationSettings = useCallback((settings: Partial<typeof simulationSettings>) => {
-    setSimulationSettings(prev => ({ ...prev, ...settings }));
   }, []);
 
   // Debounced version of the update function
