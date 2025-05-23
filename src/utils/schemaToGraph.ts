@@ -110,15 +110,18 @@ export function schemaToGraph(schemaText: string): Graphology {
       nodes.add(typeName);
     }
     
-    // Extract fields from the type definition
-    const fieldRegex = /([a-zA-Z0-9_]+)\s*:\s*([a-zA-Z0-9_<>\[\]]+)/g;
+    // Extract fields from the type definition - improved regex to better handle nested types
+    const fieldRegex = /([a-zA-Z0-9_]+)\s*:\s*([a-zA-Z0-9_<>\[\]\s.]+)(?:\s*@[^,]*)?(?:,|$)/g;
     let fieldMatch;
     
     while ((fieldMatch = fieldRegex.exec(typeBody)) !== null) {
-      const fieldName = fieldMatch[1];
-      const fieldType = fieldMatch[2].trim().replace(/\[|\]/g, '');
+      const fieldName = fieldMatch[1].trim();
+      // Clean up the field type and handle array notation
+      let fieldType = fieldMatch[2].trim();
+      const isArray = fieldType.includes('[') && fieldType.includes(']');
+      fieldType = fieldType.replace(/\[|\]/g, '').trim();
       
-      console.log(`Found field in type ${typeName}: ${fieldName}: ${fieldType}`);
+      console.log(`Found field in type ${typeName}: ${fieldName}: ${fieldType} (isArray: ${isArray})`);
       
       // Create a compound name for the field (to avoid conflicts)
       const fieldNodeId = `${typeName}.${fieldName}`;
@@ -126,11 +129,11 @@ export function schemaToGraph(schemaText: string): Graphology {
       // Add the field as a node
       if (!nodes.has(fieldNodeId)) {
         graph.addNode(fieldNodeId, {
-          label: fieldName,
+          label: fieldName + (isArray ? ' []' : ''),
           type: 'field',
           color: '#4285F4', // Blue for fields
           size: 8,
-          raw: { field: fieldName, type: fieldType }
+          raw: { field: fieldName, type: fieldType, isArray }
         });
         nodes.add(fieldNodeId);
       }
@@ -146,26 +149,64 @@ export function schemaToGraph(schemaText: string): Graphology {
         edges.add(typeToFieldEdge);
       }
       
-      // Add type node if not exists
-      if (!nodes.has(fieldType)) {
+      // Process the field type - handle potential nested type references
+      // Extract the core type, handling UID references like <uid> or [uid]
+      let coreType = fieldType;
+      if (fieldType.includes('<') && fieldType.includes('>')) {
+        // Handle type references like "uid<Person>"
+        const typeRefMatch = fieldType.match(/<([^>]+)>/);
+        if (typeRefMatch && typeRefMatch[1]) {
+          const referencedType = typeRefMatch[1];
+
+          // Add the referenced type if it doesn't exist
+          if (!nodes.has(referencedType)) {
+            graph.addNode(referencedType, {
+              label: referencedType,
+              type: 'type',
+              color: '#EA4335', // Red for types
+              size: 12,
+              raw: { type: referencedType }
+            });
+            nodes.add(referencedType);
+          }
+
+          // Add a reference edge from the field to the referenced type
+          const referenceEdge = `${fieldNodeId}-ref-${referencedType}`;
+          if (!edges.has(referenceEdge)) {
+            graph.addEdge(fieldNodeId, referencedType, {
+              label: 'references',
+              size: 1,
+              color: '#FBBC05', // Yellow for references
+              raw: { relationship: 'references' }
+            });
+            edges.add(referenceEdge);
+          }
+
+          // Set coreType to the base type (uid)
+          coreType = fieldType.split('<')[0];
+        }
+      }
+
+      // Add the core type node if it doesn't exist
+      if (!nodes.has(coreType)) {
         // Determine node type (scalar, uid, or type)
-        const isScalar = scalarTypes.has(fieldType);
-        const isUid = fieldType === 'uid' || fieldType.includes('<uid>');
-        
-        graph.addNode(fieldType, {
-          label: fieldType,
+        const isScalar = scalarTypes.has(coreType);
+        const isUid = coreType === 'uid' || coreType.includes('uid');
+
+        graph.addNode(coreType, {
+          label: coreType,
           type: isScalar ? 'scalar' : isUid ? 'uid' : 'type',
           color: isScalar ? '#34A853' : isUid ? '#FBBC05' : '#EA4335',
           size: 8,
-          raw: { type: fieldType }
+          raw: { type: coreType }
         });
-        nodes.add(fieldType);
+        nodes.add(coreType);
       }
-      
-      // Add an edge from the field to its type
-      const fieldToTypeEdge = `${fieldNodeId}-${fieldType}`;
+
+      // Add an edge from the field to its core type
+      const fieldToTypeEdge = `${fieldNodeId}-${coreType}`;
       if (!edges.has(fieldToTypeEdge)) {
-        graph.addEdge(fieldNodeId, fieldType, {
+        graph.addEdge(fieldNodeId, coreType, {
           label: 'has type',
           size: 1,
           raw: { relationship: 'has type' }

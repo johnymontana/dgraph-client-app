@@ -3,7 +3,8 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import Sigma from "sigma";
 import Graphology from "graphology";
-import forceAtlas2 from "graphology-layout-forceatlas2";
+import forceAtlas2, { inferSettings } from "graphology-layout-forceatlas2";
+import noverlap from 'graphology-layout-noverlap';
 import { debounce } from "lodash";
 
 interface TypeInfo {
@@ -34,6 +35,8 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
     outboundAttractionDistribution: false,
     adjustSizes: true,
     edgeWeightInfluence: 1,
+    barnesHutOptimize: false,
+    barnesHutTheta: 0.5,
   });
 
   const animationFrameRef = useRef<number | null>(null);
@@ -44,6 +47,57 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
     settingsRef.current = simulationSettings;
   }, [simulationSettings]);
 
+  // Function to run Noverlap layout
+  const runNoverlapLayout = useCallback(() => {
+    if (!graph || !sigmaInstanceRef.current) return;
+
+    // Optionally, pause ForceAtlas2 simulation
+    // const currentRunningState = isSimulationRunning;
+    // if (currentRunningState) setIsSimulationRunning(false);
+
+    console.log("Running Noverlap layout...");
+    noverlap.assign(graph, {
+      maxIterations: 50,
+      settings: {
+        margin: 5, // Margin between nodes, ensure this is compatible with node sizes
+        ratio: 1.2,
+        speed: 0.1,
+        gridSize: 20, // gridSize can impact performance and quality
+      }
+    });
+
+    sigmaInstanceRef.current.refresh();
+    console.log("Noverlap layout applied and graph refreshed.");
+
+    // Optionally, resume ForceAtlas2 simulation
+    // if (currentRunningState) setIsSimulationRunning(true);
+  }, [graph, sigmaInstanceRef]);
+
+  // Update simulation settings
+  const updateSimulationSettings = useCallback((settings: Partial<typeof simulationSettings>) => {
+    setSimulationSettings(prev => ({ ...prev, ...settings }));
+  }, []);
+
+  // Function to apply inferred settings
+  const applyInferredSettings = useCallback(() => {
+    if (!graph) return;
+    const inferred = inferSettings(graph);
+    console.log("Inferred ForceAtlas2 Settings:", inferred);
+    // Merge inferred settings with current settings, giving preference to inferred ones
+    // Exclude barnesHut related properties if they are not part of what inferSettings provides
+    // to avoid them being overridden to undefined if not present in `inferred`.
+    const { barnesHutOptimize, barnesHutTheta, ...relevantInferred } = inferred as any;
+
+    const newSettings = {
+      ...settingsRef.current,
+      ...relevantInferred, 
+      // Explicitly keep UI-controlled barnesHut settings unless inferSettings starts providing them
+      barnesHutOptimize: simulationSettings.barnesHutOptimize, 
+      barnesHutTheta: simulationSettings.barnesHutTheta,
+    };
+    updateSimulationSettings(newSettings);
+  }, [graph, updateSimulationSettings, simulationSettings.barnesHutOptimize, simulationSettings.barnesHutTheta]);
+
   // Toggle simulation on/off
   const toggleSimulation = useCallback(() => {
     setIsSimulationRunning(prev => !prev);
@@ -52,11 +106,6 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
   // Toggle visibility of simulation controls
   const toggleSimulationControls = useCallback(() => {
     setShowSimulationControls(prev => !prev);
-  }, []);
-
-  // Update simulation settings
-  const updateSimulationSettings = useCallback((settings: Partial<typeof simulationSettings>) => {
-    setSimulationSettings(prev => ({ ...prev, ...settings }));
   }, []);
 
   // Debounced version of the update function
@@ -96,6 +145,11 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
       const nodeConnections = graph.degree(node);
       const mass = Math.max(1, Math.sqrt(nodeConnections + 1));
       graph.setNodeAttribute(node, "mass", mass);
+
+      // Ensure 'size' attribute is set for noverlap and other layouts
+      if (!graph.hasNodeAttribute(node, "size")) {
+        graph.setNodeAttribute(node, "size", 16); // Default size
+      }
     });
 
     // Create sigma instance with default renderer
@@ -190,7 +244,11 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
       if (isSimulationRunning && sigmaRenderer) {
         forceAtlas2.assign(graph, {
           iterations: 1,
-          settings: settingsRef.current
+          settings: {
+            ...settingsRef.current,
+            barnesHutOptimize: settingsRef.current.barnesHutOptimize,
+            barnesHutTheta: settingsRef.current.barnesHutTheta,
+          }
         });
         sigmaRenderer.refresh();
       }
@@ -334,7 +392,43 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
           </div>
         </div>
 
-        <div style={{ marginBottom: 8 }}>
+        <button
+          onClick={applyInferredSettings}
+          style={{
+            background: "#ff9800", // Orange color for distinction
+            color: "white",
+            border: "none",
+            borderRadius: 4,
+            padding: "4px 8px",
+            cursor: "pointer",
+            fontSize: 11,
+            fontWeight: 600,
+            marginTop: 8, // Add some space above this button
+            width: "100%", // Make button full width
+          }}
+        >
+          Auto-tune Settings
+        </button>
+
+        <button
+          onClick={runNoverlapLayout}
+          style={{
+            background: "#4CAF50", // Green color for declutter
+            color: "white",
+            border: "none",
+            borderRadius: 4,
+            padding: "4px 8px",
+            cursor: "pointer",
+            fontSize: 11,
+            fontWeight: 600,
+            marginTop: 8,
+            width: "100%",
+          }}
+        >
+          Declutter Nodes
+        </button>
+
+        <div style={{ marginTop: 12, marginBottom: 8 }}>
           <label style={{ display: "block", marginBottom: 4 }}>Gravity: {simulationSettings.gravity.toFixed(2)}</label>
           <input
             type="range"
@@ -395,6 +489,32 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
             />
             <span>Strong Gravity</span>
           </label>
+        </div>
+
+        <div style={{ marginBottom: 8 }}>
+          <label style={{ display: "flex", alignItems: "center", userSelect: "none", cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={simulationSettings.barnesHutOptimize}
+              onChange={() => debouncedUpdateSettings({ barnesHutOptimize: !simulationSettings.barnesHutOptimize })}
+              style={{ marginRight: 4 }}
+            />
+            <span>Barnes-Hut Optimization</span>
+          </label>
+        </div>
+
+        <div style={{ marginBottom: 8 }}>
+          <label style={{ display: "block", marginBottom: 4 }}>Barnes-Hut Theta: {simulationSettings.barnesHutTheta.toFixed(2)}</label>
+          <input
+            type="range"
+            min="0.1"
+            max="2"
+            step="0.1"
+            value={simulationSettings.barnesHutTheta}
+            onChange={(e) => debouncedUpdateSettings({ barnesHutTheta: parseFloat(e.target.value) })}
+            disabled={!simulationSettings.barnesHutOptimize}
+            style={{ width: "100%" }}
+          />
         </div>
       </div>
     );

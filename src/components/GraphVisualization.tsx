@@ -197,24 +197,44 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
       };
 
       // First pass: add all nodes recursively
-      const addNodes = (node: any) => {
-        const nodeType = node['dgraph.type'] || node.type;
-        console.log('Processing node:', node?.uid, 'type:', nodeType, 'properties:', Object.keys(node));
-        // Special logging for Geo nodes
-        if (nodeType && Array.isArray(nodeType) && nodeType.includes('Geo')) {
-          console.log('Found Geo node:', node);
-        }
+      const addNodes = (node: any, depth = 0) => {
+        // Skip invalid nodes
         if (!node || typeof node !== 'object') return;
         if (!('uid' in node)) return;
+
         const nodeId = node.uid;
+        const nodeType = node['dgraph.type'] || node.type;
+
+        console.log(`Processing node at depth ${depth}:`, nodeId, 'type:', nodeType, 'properties:', Object.keys(node));
+
+        // Process this node if we haven't seen it before
         if (!nodeMap.has(nodeId)) {
-          // Get the node type (using 'dgraph.type' predicate)
-          const nodeType = node['dgraph.type'] || node.type;
-          let nodeTypeStr = Array.isArray(nodeType) ? nodeType[0] : nodeType;
-          // Debug Geo nodes specifically
-          if (nodeTypeStr === 'Geo') {
-            console.log('Adding Geo node to graph:', node.uid, node);
+          // Extract node type (handle array or string)
+          let nodeTypeStr;
+
+          if (Array.isArray(nodeType) && nodeType.length > 0) {
+            nodeTypeStr = nodeType[0];
+          } else if (typeof nodeType === 'string') {
+            nodeTypeStr = nodeType;
+          } else {
+            // If no type is found, try to infer from object structure
+            const keys = Object.keys(node);
+            if (keys.some(k => k.includes('.'))) {
+              // Use the prefix before the first dot as a type guess
+              const typedKey = keys.find(k => k.includes('.'));
+              if (typedKey) {
+                nodeTypeStr = typedKey.split('.')[0];
+                console.log(`Inferred type ${nodeTypeStr} from property ${typedKey}`);
+              } else {
+                nodeTypeStr = 'Unknown';
+              }
+            } else {
+              nodeTypeStr = 'Unknown';
+            }
           }
+
+          // Debug logging
+          console.log(`Adding node ${nodeId} with type ${nodeTypeStr}`);
 
           // Track count of this type
           if (nodeTypeStr) {
@@ -233,60 +253,117 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
               }
             }
           }
+
+          // Create a meaningful label from available properties
+          let nodeLabel = node.name || node.title;
+          if (!nodeLabel) {
+            // Try to find a property that might serve as a good label
+            for (const [key, value] of Object.entries(node)) {
+              if (typeof value === 'string' && key.toLowerCase().includes('name') && value.length < 30) {
+                nodeLabel = value;
+                break;
+              }
+            }
+            if (!nodeLabel) {
+              nodeLabel = `${nodeTypeStr || 'Node'} ${nodeId.substring(0, 8)}`;
+            }
+          }
+
+          // Add the node to the graph
           graph.addNode(nodeId, {
-            label: node.name || node.title || `Node ${nodeId.substring(0, 8)}`,
+            label: nodeLabel,
             color: nodeTypeStr ? getColorForType(nodeTypeStr) : defaultColor,
             raw: node,
             type: nodeTypeStr
           });
+
           nodeMap.set(nodeId, true);
         }
+
+        // Recursively process nested nodes
         Object.entries(node).forEach(([key, value]) => {
           if (key === 'uid' || value === null) return;
+
           if (Array.isArray(value)) {
             value.forEach((item) => {
               if (item && typeof item === 'object' && 'uid' in item) {
-                addNodes(item);
+                addNodes(item, depth + 1);
               }
             });
           } else if (typeof value === 'object' && 'uid' in value) {
-            addNodes(value);
+            addNodes(value, depth + 1);
           }
         });
       };
       // Second pass: add all edges recursively
-      const addEdges = (node: any) => {
-        // Check if this is a parent node with Geo connections
-        if (node && typeof node === 'object' && 'Article.geo' in node) {
-          console.log('Found node with Geo connections:', node.uid, node['Article.geo']);
-        }
+      const addEdges = (node: any, depth = 0) => {
+        // Skip invalid nodes
         if (!node || typeof node !== 'object') return;
         if (!('uid' in node)) return;
+
         const nodeId = node.uid;
+        console.log(`Adding edges for node ${nodeId} at depth ${depth}`);
+
+        // Process each property of the node
         Object.entries(node).forEach(([key, value]) => {
-          if (key === 'uid' || value === null) return;
+          // Skip uid and null values
+          if (key === 'uid' || key === 'dgraph.type' || value === null) return;
+
+          // Handle array of objects (one-to-many relationships)
           if (Array.isArray(value)) {
-            value.forEach((item) => {
+            value.forEach((item, index) => {
               if (item && typeof item === 'object' && 'uid' in item) {
                 const targetId = item.uid;
+
+                // Create a more descriptive edge label from the property name
+                let edgeLabel = key;
+                // Try to extract a more readable label by removing type prefixes
+                if (key.includes('.')) {
+                  edgeLabel = key.split('.').slice(1).join('.');
+                }
+
+                // Only add edges between nodes that exist and are different
                 if (graph.hasNode(nodeId) && graph.hasNode(targetId) && nodeId !== targetId) {
-                  const edgeId = `${nodeId}-${targetId}-${key}`;
+                  const edgeId = `${nodeId}-${targetId}-${key}-${index}`;
                   if (!graph.hasEdge(edgeId)) {
-                    graph.addEdgeWithKey(edgeId, nodeId, targetId, { label: key });
+                    console.log(`Adding edge from ${nodeId} to ${targetId} with label ${edgeLabel}`);
+                    graph.addEdgeWithKey(edgeId, nodeId, targetId, { 
+                      label: edgeLabel,
+                      key: key, // Store original property name
+                      index: index // Store array index for reference
+                    });
                   }
                 }
-                addEdges(item);
+
+                // Process nested objects recursively
+                addEdges(item, depth + 1);
               }
             });
-          } else if (typeof value === 'object' && 'uid' in value) {
+          } 
+          // Handle single object (one-to-one relationship)
+          else if (typeof value === 'object' && 'uid' in value) {
             const targetId = value.uid;
+
+            // Create a more descriptive edge label
+            let edgeLabel = key;
+            if (key.includes('.')) {
+              edgeLabel = key.split('.').slice(1).join('.');
+            }
+
+            // Only add edges between nodes that exist and are different
             if (graph.hasNode(nodeId) && graph.hasNode(targetId) && nodeId !== targetId) {
               const edgeId = `${nodeId}-${targetId}-${key}`;
               if (!graph.hasEdge(edgeId)) {
-                graph.addEdgeWithKey(edgeId, nodeId, targetId, { label: key });
+                console.log(`Adding edge from ${nodeId} to ${targetId} with label ${edgeLabel}`);
+                graph.addEdgeWithKey(edgeId, nodeId, targetId, { 
+                  label: edgeLabel,
+                  key: key // Store original property name
+                });
               }
             }
-            addEdges(value);
+
+            // Process nested object recursively
+            addEdges(value, depth + 1);
           }
         });
       };
