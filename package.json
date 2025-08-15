@@ -39,6 +39,7 @@
     "@types/leaflet": "^1.9.17",
     "@types/lodash": "^4.17.16",
     "@uiw/react-codemirror": "^4.23.10",
+    "@vercel/analytics": "^1.5.0",
     "axios": "^1.8.4",
     "codemirror": "^6.0.1",
     "dgraph-js-http": "^23.0.0-rc1",
