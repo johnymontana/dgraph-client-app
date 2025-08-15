@@ -88,19 +88,18 @@ export default function GuidedExperience({ guides, onLoadQuery, onClose }: Guide
             variant="ghost"
             size="sm"
             aria-label="Close guided experience"
-            _icon={
-              <Icon viewBox="0 0 24 24">
-                <path
-                  fill="currentColor"
-                  d="M6 18L18 6M6 6l12 12"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </Icon>
-            }
-          />
+          >
+            <Icon viewBox="0 0 24 24">
+              <path
+                fill="currentColor"
+                d="M6 18L18 6M6 6l12 12"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Icon>
+          </IconButton>
         </HStack>
         <Box display="flex" justifyContent="center" alignItems="center" h="64">
           <Spinner size="xl" color="blue.500" />
@@ -125,19 +124,18 @@ export default function GuidedExperience({ guides, onLoadQuery, onClose }: Guide
               variant="ghost"
               size="sm"
               aria-label="Close guided experience"
-              _icon={
-                <Icon viewBox="0 0 24 24">
-                  <path
-                    fill="currentColor"
-                    d="M6 18L18 6M6 6l12 12"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </Icon>
-              }
-            />
+            >
+              <Icon viewBox="0 0 24 24">
+                <path
+                  fill="currentColor"
+                  d="M6 18L18 6M6 6l12 12"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Icon>
+            </IconButton>
           </HStack>
         </HStack>
 
