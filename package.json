@@ -2,6 +2,7 @@
   "name": "dgraph-client-app",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.0.0",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
@@ -9,7 +10,19 @@
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "clean": "pnpm store prune && rm -rf node_modules .next .swc",
+    "reinstall": "pnpm clean && pnpm install"
+  },
+  "pnpm": {
+    "overrides": {
+      "uuid": "^9.0.0"
+    },
+    "onlyBuiltDependencies": [
+      "@tailwindcss/oxide",
+      "sharp",
+      "unrs-resolver"
+    ]
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.6",
