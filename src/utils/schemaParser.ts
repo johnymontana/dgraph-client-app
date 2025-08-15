@@ -2,178 +2,220 @@
  * Utility functions for parsing Dgraph schema and generating autocomplete suggestions
  */
 
-export interface SchemaItem {
-  predicate: string;
+export interface SchemaType {
+  name: string;
+  fields: SchemaField[];
+}
+
+export interface SchemaField {
+  name: string;
   type: string;
-  index?: string;
-  upsert?: boolean;
-  lang?: boolean;
-  reverse?: boolean;
-  isArray?: boolean;
+  kind?: string;
 }
 
 export interface ParsedSchema {
-  predicates: SchemaItem[];
-  types: string[];
+  types: SchemaType[];
+}
+
+export interface SchemaValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
+export interface SchemaSuggestion {
+  label: string;
+  type: 'type' | 'field';
+  description?: string;
 }
 
 /**
- * Parse raw schema text into structured schema items
+ * Parse schema from different formats (Dgraph, GraphQL)
  */
-export function parseSchema(schemaText: string): ParsedSchema {
-  const predicates: SchemaItem[] = [];
-  const types = new Set<string>(['string', 'int', 'float', 'bool', 'datetime', 'geo', 'uid']);
+export function parseSchema(schema: any): ParsedSchema {
+  if (!schema) {
+    return { types: [] };
+  }
+
+  // Handle Dgraph schema format
+  if (schema.schema && Array.isArray(schema.schema)) {
+    return parseDgraphSchema(schema);
+  }
+
+  // Handle GraphQL schema format
+  if (schema.data && schema.data.__schema && schema.data.__schema.types) {
+    return parseGraphQLSchema(schema);
+  }
+
+  return { types: [] };
+}
+
+/**
+ * Parse Dgraph schema format
+ */
+function parseDgraphSchema(schema: any): ParsedSchema {
+  const types = new Map<string, SchemaType>();
   
-  // Handle empty schema
-  if (!schemaText || schemaText.trim().startsWith('#')) {
-    return { predicates, types: Array.from(types) };
+  schema.schema.forEach((predicate: any) => {
+    if (predicate.predicate && predicate.type) {
+      // Extract type name from predicate
+      const typeName = extractTypeNameFromPredicate(predicate.predicate);
+      
+      if (!types.has(typeName)) {
+        types.set(typeName, {
+          name: typeName,
+          fields: []
+        });
+      }
+      
+      const type = types.get(typeName)!;
+      type.fields.push({
+        name: predicate.predicate,
+        type: predicate.type
+      });
+    }
+  });
+  
+  return { types: Array.from(types.values()) };
+}
+
+/**
+ * Parse GraphQL schema format
+ */
+function parseGraphQLSchema(schema: any): ParsedSchema {
+  const types: SchemaType[] = [];
+  
+  schema.data.__schema.types.forEach((type: any) => {
+    if (type.name && type.fields && Array.isArray(type.fields)) {
+      types.push({
+        name: type.name,
+        fields: type.fields.map((field: any) => ({
+          name: field.name,
+          type: field.type?.name || 'Unknown',
+          kind: field.kind
+        }))
+      });
+    }
+  });
+  
+  return { types };
+}
+
+/**
+ * Extract type name from predicate
+ */
+function extractTypeNameFromPredicate(predicate: string): string {
+  // Simple heuristic: use the first part of the predicate as type name
+  const parts = predicate.split('.');
+  return parts[0] || 'Unknown';
+}
+
+/**
+ * Extract types from schema
+ */
+export function extractTypes(schema: any): SchemaType[] {
+  const parsed = parseSchema(schema);
+  return parsed.types;
+}
+
+/**
+ * Extract fields from schema
+ */
+export function extractFields(schema: any): SchemaField[] {
+  const types = extractTypes(schema);
+  const fields: SchemaField[] = [];
+  
+  types.forEach(type => {
+    type.fields.forEach(field => {
+      fields.push({
+        name: field.name,
+        type: field.type,
+        kind: field.kind
+      });
+    });
+  });
+  
+  return fields;
+}
+
+/**
+ * Validate schema structure
+ */
+export function validateSchema(schema: any): SchemaValidationResult {
+  const errors: string[] = [];
+  
+  if (!schema) {
+    errors.push('Schema is required');
+    return { isValid: false, errors };
   }
   
-  // Split schema text by lines and process each line
-  const lines = schemaText.split('\n');
+  // Check for Dgraph schema format
+  if (schema.schema) {
+    if (!Array.isArray(schema.schema)) {
+      errors.push('Dgraph schema must have an array of predicates');
+    } else {
+      schema.schema.forEach((predicate: any, index: number) => {
+        if (!predicate.predicate) {
+          errors.push(`Predicate ${index + 1}: Missing predicate name`);
+        }
+        if (!predicate.type) {
+          errors.push(`Predicate ${index + 1}: Missing predicate type`);
+        }
+      });
+    }
+  }
   
-  for (const line of lines) {
-    const trimmedLine = line.trim();
-    
-    // Skip comments and empty lines
-    if (trimmedLine.startsWith('#') || !trimmedLine) {
-      continue;
+  // Check for GraphQL schema format
+  if (schema.data && schema.data.__schema) {
+    if (!schema.data.__schema.types || !Array.isArray(schema.data.__schema.types)) {
+      errors.push('GraphQL schema must have an array of types');
     }
-    
-    // Parse schema line
-    const schemaItem = parseSchemaLine(trimmedLine);
-    if (schemaItem) {
-      predicates.push(schemaItem);
-      types.add(schemaItem.type);
-    }
+  }
+  
+  // If neither format is detected
+  if (!schema.schema && (!schema.data || !schema.data.__schema)) {
+    errors.push('Schema must be in Dgraph or GraphQL format');
   }
   
   return {
-    predicates,
-    types: Array.from(types)
+    isValid: errors.length === 0,
+    errors
   };
 }
 
 /**
- * Parse a single schema line into a SchemaItem
+ * Get schema suggestions based on input
  */
-function parseSchemaLine(line: string): SchemaItem | null {
-  // Basic regex to match schema definition
-  // Format: <predicate>: <type> [@index(...)] [@upsert] [@lang] [@reverse] .
-  const schemaRegex = /^([a-zA-Z0-9._-]+)\s*:\s*(\[?[a-zA-Z0-9]+\]?)\s*(?:@index\(([^)]+)\))?\s*(@upsert)?\s*(@lang)?\s*(@reverse)?\s*\.?$/;
+export function getSchemaSuggestions(input: string, schema: any): SchemaSuggestion[] {
+  const suggestions: SchemaSuggestion[] = [];
   
-  const match = line.match(schemaRegex);
-  if (!match) return null;
-  
-  const [, predicate, type, index, upsert, lang, reverse] = match;
-  
-  // Check if type is an array (e.g., [uid])
-  const isArray = type.startsWith('[') && type.endsWith(']');
-  const cleanType = isArray ? type.slice(1, -1) : type;
-  
-  return {
-    predicate,
-    type: cleanType,
-    index: index || undefined,
-    upsert: !!upsert,
-    lang: !!lang,
-    reverse: !!reverse,
-    isArray
-  };
-}
-
-/**
- * Generate DQL function suggestions based on schema
- */
-export function getDqlFunctionSuggestions(): string[] {
-  return [
-    'eq', 'lt', 'le', 'gt', 'ge', 'has', 'allof', 'anyof',
-    'allofterms', 'anyofterms', 'regexp', 'near', 'within',
-    'contains', 'intersects', 'uid', 'uid_in', 'type'
-  ];
-}
-
-/**
- * Generate DQL directive suggestions
- */
-export function getDqlDirectiveSuggestions(): string[] {
-  return [
-    '@filter', '@facets', '@cascade', '@normalize', '@groupby',
-    '@ignorereflex', '@recurse', '@lambda'
-  ];
-}
-
-/**
- * Generate autocomplete suggestions based on schema and query context
- */
-export function generateSuggestions(
-  schema: ParsedSchema,
-  word: string,
-  context: 'function' | 'predicate' | 'directive' | 'type' | 'unknown' = 'unknown'
-): string[] {
-  const suggestions: string[] = [];
-  
-  switch (context) {
-    case 'function':
-      // Suggest DQL functions
-      suggestions.push(...getDqlFunctionSuggestions().filter(f => f.startsWith(word)));
-      break;
-      
-    case 'predicate':
-      // Suggest predicates from schema
-      suggestions.push(...schema.predicates.map(p => p.predicate).filter(p => p.startsWith(word)));
-      break;
-      
-    case 'directive':
-      // Suggest DQL directives
-      suggestions.push(...getDqlDirectiveSuggestions().filter(d => d.startsWith(word)));
-      break;
-      
-    case 'type':
-      // Suggest types from schema
-      suggestions.push(...schema.types.filter(t => t.startsWith(word)));
-      break;
-      
-    default:
-      // Unknown context, suggest everything
-      suggestions.push(
-        ...getDqlFunctionSuggestions().filter(f => f.startsWith(word)),
-        ...schema.predicates.map(p => p.predicate).filter(p => p.startsWith(word)),
-        ...getDqlDirectiveSuggestions().filter(d => d.startsWith(word))
-      );
-      break;
+  if (!schema) {
+    return suggestions;
   }
+  
+  const types = extractTypes(schema);
+  const fields = extractFields(schema);
+  
+  // Add type suggestions
+  types.forEach(type => {
+    if (type.name.toLowerCase().includes(input.toLowerCase())) {
+      suggestions.push({
+        label: type.name,
+        type: 'type',
+        description: `Type: ${type.name}`
+      });
+    }
+  });
+  
+  // Add field suggestions
+  fields.forEach(field => {
+    if (field.name.toLowerCase().includes(input.toLowerCase())) {
+      suggestions.push({
+        label: field.name,
+        type: 'field',
+        description: `Field: ${field.name} (${field.type})`
+      });
+    }
+  });
   
   return suggestions;
-}
-
-/**
- * Determine the context of the cursor position in the query
- */
-export function determineContext(
-  query: string,
-  cursorPos: number
-): 'function' | 'predicate' | 'directive' | 'type' | 'unknown' {
-  const textBeforeCursor = query.slice(0, cursorPos);
-  
-  // Check if we're in a function context
-  if (/\(\s*func\s*:\s*$/.test(textBeforeCursor)) {
-    return 'function';
-  }
-  
-  // Check if we're in a directive context
-  if (/\s+@\w*$/.test(textBeforeCursor)) {
-    return 'directive';
-  }
-  
-  // Check if we're in a predicate context (inside curly braces)
-  const lastOpenBrace = textBeforeCursor.lastIndexOf('{');
-  const lastCloseBrace = textBeforeCursor.lastIndexOf('}');
-  
-  if (lastOpenBrace > lastCloseBrace) {
-    return 'predicate';
-  }
-  
-  // Default to unknown context
-  return 'unknown';
 }

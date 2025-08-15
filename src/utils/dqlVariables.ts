@@ -2,125 +2,118 @@
  * Utilities for handling DQL query variables
  */
 
-/**
- * Variable info including name, type and value
- */
 export interface DQLVariable {
-  name: string;    // Variable name without $ prefix
-  type?: string;   // Variable type if specified (e.g., 'int', 'string')
-  value: string;   // The string value to use
+  name: string;
+  value: string;
+  type?: string;
+}
+
+export interface VariableValidationResult {
+  isValid: boolean;
+  errors: string[];
 }
 
 /**
- * Detects variables in a DQL query
- * Variables in DQL can be used in different ways:
- * 1. Simple: just using $variableName
- * 2. Typed in query declaration: query myQuery($var: int) { ... }
- *
- * @param query The DQL query string
- * @returns Array of variable names without the $ prefix
+ * Parse variables from variable definitions
  */
-export function detectVariables(query: string): string[] {
-  if (!query) return [];
-
-  // First check for query declaration with typed variables
-  const declaredVars = extractDeclaredVariables(query);
-
-  // Then look for variables in the query body
-  const regex = /\$([a-zA-Z][a-zA-Z0-9_]*)\b/g;
-  const matches = query.match(regex) || [];
-
-  // Combine both sets of variables (from declaration and body)
-  const allVars = new Set([
-    ...declaredVars.map(v => v.name),
-    ...matches.map(m => m.substring(1))
-  ]);
-
-  return [...allVars];
+export function parseVariables(variables: DQLVariable[]): Record<string, any> {
+  const result: Record<string, any> = {};
+  
+  variables.forEach(variable => {
+    if (variable.name && variable.value !== undefined) {
+      // Convert value based on type
+      if (variable.type === 'Int') {
+        result[variable.name] = parseInt(variable.value, 10);
+      } else if (variable.type === 'Float') {
+        result[variable.name] = parseFloat(variable.value);
+      } else if (variable.type === 'Boolean') {
+        result[variable.name] = variable.value === 'true';
+      } else {
+        result[variable.name] = variable.value;
+      }
+    }
+  });
+  
+  return result;
 }
 
 /**
- * Extracts declared variables with their types
- * Looks for patterns like: query name($var1: type1, $var2: type2)
- *
- * @param query The DQL query
- * @returns Array of variable info objects
+ * Validate variable definitions
  */
-export function extractDeclaredVariables(query: string): DQLVariable[] {
-  if (!query) return [];
-
-  // Match query declarations like "query name($var: type, $var2: type2)"
-  const queryDeclMatch = query.match(/^\s*query\s+[\w]+\s*\((.+?)\)\s*\{/i);
-  if (!queryDeclMatch || !queryDeclMatch[1]) return [];
-
-  const varsDeclaration = queryDeclMatch[1];
-  const varMatches = [...varsDeclaration.matchAll(/\$([\w]+)\s*:\s*([\w]+)/g)];
-
-  return varMatches.map(match => ({
-    name: match[1],
-    type: match[2],
-    value: '',
-  }));
+export function validateVariables(variables: DQLVariable[]): VariableValidationResult {
+  const errors: string[] = [];
+  
+  variables.forEach((variable, index) => {
+    // Check for missing name
+    if (!variable.name || variable.name.trim() === '') {
+      errors.push(`Variable ${index + 1}: Missing variable name`);
+    }
+    
+    // Check for invalid variable name
+    if (variable.name && !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(variable.name)) {
+      errors.push(`Variable ${index + 1}: Invalid variable name '${variable.name}'`);
+    }
+    
+    // Check for missing value
+    if (variable.value === undefined || variable.value === null) {
+      errors.push(`Variable ${index + 1}: Missing variable value`);
+    }
+    
+    // Check type validation
+    if (variable.type === 'Int' && isNaN(parseInt(variable.value, 10))) {
+      errors.push(`Variable ${index + 1}: Value '${variable.value}' is not a valid integer`);
+    }
+    
+    if (variable.type === 'Float' && isNaN(parseFloat(variable.value))) {
+      errors.push(`Variable ${index + 1}: Value '${variable.value}' is not a valid float`);
+    }
+    
+    if (variable.type === 'Boolean' && !['true', 'false'].includes(variable.value.toLowerCase())) {
+      errors.push(`Variable ${index + 1}: Value '${variable.value}' is not a valid boolean`);
+    }
+  });
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
 }
 
 /**
- * Checks if a query is a named query with type declarations
- *
- * @param query The DQL query
- * @returns Whether the query has declared variables
+ * Substitute variables in a query string
  */
-export function hasNamedQueryWithVars(query: string): boolean {
-  if (!query) return false;
-  return query.match(/^\s*query\s+[\w]+\s*\(.+?\)\s*\{/i) !== null;
+export function substituteVariables(query: string, variables: Record<string, any>): string {
+  let result = query;
+  
+  Object.entries(variables).forEach(([name, value]) => {
+    const regex = new RegExp(`\\$${name}\\b`, 'g');
+    
+    if (typeof value === 'string') {
+      // Escape quotes in string values
+      const escapedValue = value.replace(/'/g, "\\'");
+      result = result.replace(regex, `'${escapedValue}'`);
+    } else {
+      result = result.replace(regex, String(value));
+    }
+  });
+  
+  return result;
 }
 
 /**
- * Validates that a variable has a valid value
- * 
- * @param name Variable name
- * @param value Variable value
- * @returns True if valid, false otherwise
+ * Extract variable names from a query string
  */
-export function validateVariableValue(name: string, value: string): boolean {
-  // For now, just check if the value is not empty
-  return value.trim().length > 0;
-}
-
-/**
- * Formats a variable value for use in a DQL query
- * Dgraph may handle variable types differently based on how the query is structured
- *
- * @param value The variable value
- * @param type Optional variable type
- * @returns The formatted value
- */
-export function formatVariableValue(value: string, type?: string): any {
-  if (!type) {
-    // If no type is specified, return the string value for backward compatibility
-    return value;
+export function extractVariableNames(query: string): string[] {
+  const variableRegex = /\$([a-zA-Z_][a-zA-Z0-9_]*)/g;
+  const variables: string[] = [];
+  let match;
+  
+  while ((match = variableRegex.exec(query)) !== null) {
+    const variableName = match[1];
+    if (!variables.includes(variableName)) {
+      variables.push(variableName);
+    }
   }
   
-  // Format the value based on the declared type
-  switch (type.toLowerCase()) {
-    case 'int':
-      return parseInt(value, 10);
-    case 'float':
-      return parseFloat(value);
-    case 'bool':
-    case 'boolean':
-      return value.toLowerCase() === 'true';
-    case 'string':
-      return value;
-    default:
-      // For any other type, try to parse as JSON if it looks like JSON
-      if ((value.startsWith('{') && value.endsWith('}')) ||
-          (value.startsWith('[') && value.endsWith(']'))) {
-        try {
-          return JSON.parse(value);
-        } catch (_) {
-          // Fall back to string if parsing fails
-        }
-      }
-      return value;
-  }
+  return variables;
 }
