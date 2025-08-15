@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Agent } from 'https';
 
 interface DgraphConfig {
   endpoint: string;
@@ -242,7 +243,7 @@ class DgraphService {
               headers: this.getHeaders(),
               // Add SSL configuration for verify-ca mode
               httpsAgent: this.config.sslMode === 'verify-ca' ?
-                new (require('https').Agent)({
+                new Agent({
                   rejectUnauthorized: true,
                   ca: undefined // Will use system CA certificates
                 }) : undefined,
