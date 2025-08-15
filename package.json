@@ -11,6 +11,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "type-check": "tsc --noEmit",
     "clean": "pnpm store prune && rm -rf node_modules .next .swc",
     "reinstall": "pnpm clean && pnpm install"
   },

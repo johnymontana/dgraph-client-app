@@ -346,6 +346,62 @@ Variables:
 }
 ```
 
+## CI/CD
+
+This project uses GitHub Actions for continuous integration and deployment. The CI pipeline ensures code quality and reliability through automated testing and building.
+
+### GitHub Actions Workflows
+
+#### Main CI Pipeline (`.github/workflows/ci.yml`)
+- **Triggers**: Push to main/develop branches, pull requests
+- **Jobs**:
+  - **Test Suite**: Runs linting, type checking, and tests
+  - **Build**: Ensures the application builds successfully
+  - **Security Audit**: Checks for security vulnerabilities
+
+#### Dependency Management (`.github/workflows/dependencies.yml`)
+- **Triggers**: Weekly schedule (Mondays 9 AM UTC), manual dispatch
+- **Purpose**: Automatically checks for outdated dependencies and security issues
+
+### Local Development Commands
+
+```bash
+# Install dependencies
+pnpm install
+
+# Run development server
+pnpm dev
+
+# Run tests
+pnpm test
+
+# Run tests with coverage
+pnpm test:coverage
+
+# Run linting
+pnpm lint
+
+# Type checking
+pnpm type-check
+
+# Build for production
+pnpm build
+
+# Clean dependencies and build artifacts
+pnpm clean
+
+# Reinstall dependencies
+pnpm reinstall
+```
+
+### CI Status Badge
+
+Add this badge to your README to show CI status:
+
+```markdown
+![CI](https://github.com/{username}/{repo}/workflows/CI/badge.svg)
+```
+
 ## Getting Started
 
 First, run the development server:
