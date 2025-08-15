@@ -6,7 +6,7 @@ jest.mock('gray-matter', () => ({
   default: jest.fn()
 }))
 
-const mockGrayMatter = require('gray-matter').default
+const mockGrayMatter = jest.mocked(jest.requireMock('gray-matter').default)
 
 describe('mdxLoader', () => {
   beforeEach(() => {

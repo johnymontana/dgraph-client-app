@@ -63,7 +63,10 @@ export default function DQLAutocomplete({
     } else if (context === 'function') {
       newSuggestions = dqlKeywords.filter(kw => kw.toLowerCase().startsWith(currentWord.toLowerCase()));
     } else {
-      const predicateOptions = schema?.predicates?.map(p => p.predicate) || [];
+      // Extract predicates from schema types
+      const predicateOptions = schema?.types?.flatMap(type =>
+        type.fields?.map(field => field.name) || []
+      ) || [];
       newSuggestions = [...dqlKeywords, ...predicateOptions].filter(opt => opt.toLowerCase().startsWith(currentWord.toLowerCase()));
     }
     setSuggestions(newSuggestions);

@@ -2,7 +2,7 @@ import { CompletionContext, CompletionResult, autocompletion } from '@codemirror
 import { LanguageSupport, LRLanguage, syntaxHighlighting, HighlightStyle } from '@codemirror/language';
 import { styleTags, tags as t } from '@lezer/highlight';
 import { sql } from '@codemirror/lang-sql';
-import { ParsedSchema, determineContext, generateSuggestions } from './schemaParser';
+import { ParsedSchema } from './schemaParser';
 
 // Extend SQL parser with DQL-specific syntax highlighting
 const dqlHighlighting = syntaxHighlighting(HighlightStyle.define([
@@ -40,14 +40,39 @@ function createDqlCompletions(schema: ParsedSchema) {
     const word = context.matchBefore(/\w*/);
     if (!word) return null;
     
-    // Determine the context of the cursor position
-    const cursorContext = determineContext(
-      context.state.doc.toString(),
-      context.pos
-    );
-    
+        // Simple context detection
+    const beforeCursor = context.state.doc.toString().substring(0, context.pos);
+    let cursorContext: 'function' | 'predicate' | 'directive' | 'type' = 'predicate';
+
+    if (beforeCursor.match(/@[\w]*$/)) {
+      cursorContext = 'directive';
+    } else if (beforeCursor.match(/:\s*[\w]*$/)) {
+      cursorContext = 'function';
+    } else if (beforeCursor.match(/type\s+[\w]*$/)) {
+      cursorContext = 'type';
+    }
+
     // Generate suggestions based on schema and context
-    const suggestions = generateSuggestions(schema, word.text, cursorContext);
+    let suggestions: string[] = [];
+
+    if (cursorContext === 'function') {
+      suggestions = getDQLFunctions();
+    } else if (cursorContext === 'directive') {
+      suggestions = ['index', 'upsert', 'lang', 'reverse', 'count', 'list'];
+    } else if (cursorContext === 'type') {
+      suggestions = ['string', 'int', 'float', 'bool', 'datetime', 'geo', 'password'];
+    } else {
+      // For predicates, include schema fields and DQL keywords
+      const schemaFields = schema.types?.flatMap(type =>
+        type.fields?.map(field => field.name) || []
+      ) || [];
+      suggestions = [...getDQLKeywords(), ...schemaFields];
+    }
+
+    // Filter suggestions based on input
+    suggestions = suggestions.filter(s =>
+      s.toLowerCase().includes(word.text.toLowerCase())
+    );
     
     if (suggestions.length === 0) return null;
     
@@ -65,7 +90,7 @@ function createDqlCompletions(schema: ParsedSchema) {
 }
 
 // Create DQL language support with schema-aware autocomplete
-export function dql(schema: ParsedSchema = { predicates: [], types: [] }) {
+export function dql(schema: ParsedSchema = { types: [] }) {
   // Instead of returning a LanguageSupport object, return an array of extensions
   // that can be directly passed to CodeMirror
   return [

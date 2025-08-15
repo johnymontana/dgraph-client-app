@@ -55,7 +55,7 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
   );
   const [error, setError] = useState<string | null>(null);
   const [schemaText, setSchemaText] = useState('');
-  const [parsedSchema, setParsedSchema] = useState<ParsedSchema>({ predicates: [], types: [] });
+  const [parsedSchema, setParsedSchema] = useState<ParsedSchema>({ types: [] });
 
   // Wrapper functions to update both state and localStorage
   const setEndpoint = (value: string) => {
@@ -172,7 +172,7 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
     // Reset all state variables to ensure clean slate
     setDgraphService(null);
     setSchemaText('');
-    setParsedSchema({ predicates: [], types: [] });
+    setParsedSchema({ types: [] });
     setApiKeyState('');
     setHypermodeRouterKeyState('');
     setError(null); // Also clear any previous errors

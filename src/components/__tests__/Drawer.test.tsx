@@ -48,7 +48,11 @@ describe('Drawer', () => {
 
     it('should render children content', () => {
       const customChildren = <div data-testid="custom-content">Custom content</div>
-      render(<Drawer {...defaultProps} isOpen={true} children={customChildren} />)
+      render(
+        <Drawer {...defaultProps} isOpen={true}>
+          {customChildren}
+        </Drawer>
+      )
       
       expect(screen.getByTestId('custom-content')).toBeInTheDocument()
       expect(screen.getByText('Custom content')).toBeInTheDocument()
@@ -171,7 +175,11 @@ describe('Drawer', () => {
         </div>
       )
       
-      render(<Drawer {...defaultProps} isOpen={true} children={complexChildren} />)
+      render(
+        <Drawer {...defaultProps} isOpen={true}>
+          {complexChildren}
+        </Drawer>
+      )
       
       expect(screen.getByText('Section Title')).toBeInTheDocument()
       expect(screen.getByText('This is a paragraph with some text.')).toBeInTheDocument()
@@ -183,14 +191,22 @@ describe('Drawer', () => {
     it('should handle functional children', () => {
       const FunctionalChild = () => <div data-testid="functional-child">Functional content</div>
       
-      render(<Drawer {...defaultProps} isOpen={true} children={<FunctionalChild />} />)
+      render(
+        <Drawer {...defaultProps} isOpen={true}>
+          <FunctionalChild />
+        </Drawer>
+      )
       
       expect(screen.getByTestId('functional-child')).toBeInTheDocument()
       expect(screen.getByText('Functional content')).toBeInTheDocument()
     })
 
     it('should handle null children gracefully', () => {
-      render(<Drawer {...defaultProps} isOpen={true} children={null} />)
+      render(
+        <Drawer {...defaultProps} isOpen={true}>
+          {null}
+        </Drawer>
+      )
       
       expect(screen.getByText('Test Drawer')).toBeInTheDocument()
       expect(screen.queryByTestId('drawer-content')).not.toBeInTheDocument()
@@ -278,7 +294,11 @@ describe('Drawer', () => {
       )
       
       const startTime = performance.now()
-      render(<Drawer {...defaultProps} isOpen={true} children={largeContent} />)
+      render(
+        <Drawer {...defaultProps} isOpen={true}>
+          {largeContent}
+        </Drawer>
+      )
       const endTime = performance.now()
       
       // Should render 1000 items in reasonable time (less than 500ms)
