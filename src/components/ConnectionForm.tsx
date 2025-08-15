@@ -2,7 +2,21 @@
 
 import React, { useState } from 'react';
 import { useDgraph } from '@/context/DgraphContext';
-import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
+import {
+  Box,
+  Card,
+  Heading,
+  Field,
+  Input,
+  Button,
+  Text,
+  Alert,
+  Collapsible,
+  VStack,
+  HStack,
+  Icon,
+} from '@chakra-ui/react';
+import { useColorModeValue } from '@/components/ui/color-mode';
 
 export default function ConnectionForm() {
   const {
@@ -20,6 +34,12 @@ export default function ConnectionForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [isHypermodeExpanded, setIsHypermodeExpanded] = useState(false);
 
+  const bgColor = useColorModeValue('white', 'gray.800');
+  const borderColor = useColorModeValue('gray.200', 'gray.600');
+  const textColor = useColorModeValue('gray.700', 'gray.300');
+  const mutedTextColor = useColorModeValue('gray.500', 'gray.400');
+  const hoverBgColor = useColorModeValue('gray.50', 'gray.700');
+
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -28,114 +48,147 @@ export default function ConnectionForm() {
   };
 
   const handleDisconnect = () => {
-    // Call the disconnect function
     disconnect();
-    // Force re-render by setting loading state briefly
     setIsLoading(true);
     setTimeout(() => setIsLoading(false), 50);
   };
 
   return (
-    <div className="bg-white shadow-md rounded-lg p-6 mb-6">
-      <h2 className="text-xl font-bold mb-4">Dgraph Connection</h2>
+    <Card.Root bg={bgColor} shadow="md" p={6} mb={6}>
+      <Heading as="h2" size="md" mb={4} color={textColor}>
+        Dgraph Connection
+      </Heading>
 
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
+        <Alert.Root status="error" mb={4}>
+          <Alert.Indicator />
+          <Alert.Content>
+            {error}
+          </Alert.Content>
+        </Alert.Root>
       )}
 
-      <form onSubmit={handleConnect}>
-        <div className="mb-4">
-          <label htmlFor="endpoint" className="block text-sm font-medium text-gray-700 mb-1">
-            Dgraph Endpoin
-          </label>
-          <input
-            type="text"
-            id="endpoint"
-            value={endpoint}
-            onChange={(e) => setEndpoint(e.target.value)}
-            disabled={connected}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            placeholder="http://localhost:8080"
-            required
-          />
-          <p className="mt-1 text-xs text-gray-500">
-            Example: http://localhost:8080
-          </p>
-        </div>
+      <Box as="form" onSubmit={handleConnect}>
+        <VStack gap={4} align="stretch">
+          <Field.Root required>
+            <Field.Label color={textColor} fontSize="sm" fontWeight="medium">
+              Dgraph Endpoint
+            </Field.Label>
+            <Input
+              type="text"
+              value={endpoint}
+              onChange={(e) => setEndpoint(e.target.value)}
+              disabled={connected}
+              placeholder="dgraph://host:port?sslmode=verify-ca&bearertoken=xxx"
+              size="md"
+              variant="outline"
+              _focus={{ ring: 2, ringColor: 'brand.500', borderColor: 'brand.500' }}
+            />
+            <Field.HelperText fontSize="xs" color={mutedTextColor}>
+              Supports: dgraph://host:port?sslmode=verify-ca&bearertoken=xxx, https://host:port, or http://localhost:8080
+            </Field.HelperText>
+          </Field.Root>
 
-        <div className="mb-4">
-          <label htmlFor="apiKey" className="block text-sm font-medium text-gray-700 mb-1">
-            API Key (optional)
-          </label>
-          <input
-            type="password"
-            id="apiKey"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            disabled={connected}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            placeholder="Enter API key if required"
-          />
-        </div>
+          <Field.Root>
+            <Field.Label color={textColor} fontSize="sm" fontWeight="medium">
+              API Key (optional)
+            </Field.Label>
+            <Input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              disabled={connected}
+              placeholder="Enter API key if required"
+              size="md"
+              variant="outline"
+              _focus={{ ring: 2, ringColor: 'brand.500', borderColor: 'brand.500' }}
+            />
+            <Field.HelperText fontSize="xs" color={mutedTextColor}>
+              Optional if using bearer token in connection string
+            </Field.HelperText>
+          </Field.Root>
 
-        {/* Hypermode Settings Section */}
-        <div className="mb-4 border border-gray-200 rounded-md">
-          <button
-            type="button"
-            onClick={() => setIsHypermodeExpanded(!isHypermodeExpanded)}
-            className="w-full flex justify-between items-center px-4 py-2 bg-gray-50 hover:bg-gray-100 focus:outline-none"
-          >
-            <span className="font-medium text-gray-700">Hypermode Settings</span>
-            {isHypermodeExpanded ? (
-              <ChevronUpIcon className="h-5 w-5 text-gray-500" />
-            ) : (
-              <ChevronDownIcon className="h-5 w-5 text-gray-500" />
-            )}
-          </button>
-
-          {isHypermodeExpanded && (
-            <div className="p-4 border-t border-gray-200">
-              <div className="mb-4">
-                <label htmlFor="hypermodeRouterKey" className="block text-sm font-medium text-gray-700 mb-1">
-                  Model Router Key
-                </label>
-                <input
-                  type="password"
-                  id="hypermodeRouterKey"
-                  value={hypermodeRouterKey}
-                  onChange={(e) => setHypermodeRouterKey(e.target.value)}
-                  disabled={connected}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Enter Hypermode Model Router Key"
+          {/* Hypermode Settings Section */}
+          <Box border="1px" borderColor={borderColor} borderRadius="md">
+            <Button
+              type="button"
+              onClick={() => setIsHypermodeExpanded(!isHypermodeExpanded)}
+              w="full"
+              variant="ghost"
+              justifyContent="space-between"
+              px={4}
+              py={2}
+              bg={hoverBgColor}
+              _hover={{ bg: useColorModeValue('gray.100', 'gray.600') }}
+              _focus={{ outline: 'none' }}
+            >
+              <Text fontWeight="medium" color={textColor}>
+                Hypermode Settings
+              </Text>
+              <Icon
+                viewBox="0 0 20 20"
+                color={mutedTextColor}
+                transform={isHypermodeExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}
+                transition="transform 0.2s"
+              >
+                <path
+                  fill="currentColor"
+                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
                 />
-                <p className="mt-1 text-xs text-gray-500">
-                  Your Hypermode Model Router API key for AI-powered features
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
+              </Icon>
+            </Button>
 
-        {!connected ? (
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-          >
-            {isLoading ? 'Connecting...' : 'Connect'}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={handleDisconnect}
-            className="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-          >
-            Disconnect
-          </button>
-        )}
-      </form>
-    </div>
+            <Collapsible.Root open={isHypermodeExpanded}>
+              <Collapsible.Content>
+                <Box p={4} borderTop="1px" borderColor={borderColor}>
+                  <Field.Root>
+                    <Field.Label color={textColor} fontSize="sm" fontWeight="medium">
+                      Model Router Key
+                    </Field.Label>
+                    <Input
+                      type="password"
+                      value={hypermodeRouterKey}
+                      onChange={(e) => setHypermodeRouterKey(e.target.value)}
+                      disabled={connected}
+                      placeholder="Enter Hypermode Model Router Key"
+                      size="md"
+                      variant="outline"
+                      _focus={{ ring: 2, ringColor: 'brand.500', borderColor: 'brand.500' }}
+                    />
+                    <Field.HelperText fontSize="xs" color={mutedTextColor}>
+                      Your Hypermode Model Router API key for AI-powered features
+                    </Field.HelperText>
+                  </Field.Root>
+                </Box>
+              </Collapsible.Content>
+            </Collapsible.Root>
+          </Box>
+
+          {!connected ? (
+            <Button
+              type="submit"
+              loading={isLoading}
+              loadingText="Connecting..."
+              w="full"
+              colorPalette="brand"
+              size="md"
+              disabled={isLoading}
+            >
+              Connect
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              onClick={handleDisconnect}
+              w="full"
+              colorPalette="red"
+              size="md"
+            >
+              Disconnect
+            </Button>
+          )}
+        </VStack>
+      </Box>
+    </Card.Root>
   );
 }

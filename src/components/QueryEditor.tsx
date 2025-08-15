@@ -10,6 +10,18 @@ import GuidedExperience from './GuidedExperience';
 import DQLVariableInputs from './DQLVariableInputs';
 import { GuideMetadata } from '@/utils/mdxLoader';
 import axios from 'axios';
+import {
+  Box,
+  Card,
+  Heading,
+  Button,
+  HStack,
+  VStack,
+  Text,
+  Alert,
+  Icon,
+} from '@chakra-ui/react';
+import { useColorModeValue } from '@/components/ui/color-mode';
 
 interface QueryEditorProps {
   onQueryResult: (data: any) => void;
@@ -41,7 +53,7 @@ const DEFAULT_MUTATION = `{
 }`;
 
 export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
-  // Ref for DQLAutocomplete's handleInpu
+  // Ref for DQLAutocomplete's handleInput
   const autocompleteInputRef = useRef<(() => void) | null>(null);
   const { dgraphService, connected, parsedSchema } = useDgraph();
   const [activeTab, setActiveTab] = useState<TabType>('query');
@@ -58,6 +70,14 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
   const [guidesLoading, setGuidesLoading] = useState(false);
   const [queryVariables, setQueryVariables] = useState<Record<string, any>>({});
   const editorRef = useRef<HTMLDivElement>(null);
+
+  // Color mode values
+  const bgColor = useColorModeValue('white', 'gray.800');
+  const borderColor = useColorModeValue('gray.200', 'gray.600');
+  const textColor = useColorModeValue('gray.900', 'white');
+  const mutedTextColor = useColorModeValue('gray.500', 'gray.400');
+  const activeTabColor = useColorModeValue('blue.600', 'blue.400');
+  const inactiveTabColor = useColorModeValue('gray.500', 'gray.400');
 
   // Load query history from localStorage on component mount
   useEffect(() => {
@@ -239,138 +259,181 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
   };
 
   return (
-    <div className={`bg-white shadow-md rounded-lg p-6 ${!isFullscreen ? 'mb-6' : 'absolute inset-0 z-50'}`}>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold">Dgraph Operations</h2>
-        <div className="flex space-x-2 items-center">
-          <FullscreenToggle
-            isFullscreen={isFullscreen}
-            onToggle={() => setIsFullscreen(!isFullscreen)}
-          />
-          <button
-            onClick={() => {
-              setShowGuide(!showGuide);
-              if (showHistory) setShowHistory(false);
-            }}
-            className={`${showGuide ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-200 text-gray-800'} py-2 px-4 rounded-md hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-2`}
-            title="Learn DQL with guided tutorials"
-          >
-            <span className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
+    <Card.Root
+      bg={bgColor}
+      shadow="md"
+      p={6}
+      mb={!isFullscreen ? 6 : 0}
+      position={isFullscreen ? 'absolute' : 'relative'}
+      inset={isFullscreen ? 0 : 'auto'}
+      zIndex={isFullscreen ? 50 : 'auto'}
+    >
+      <VStack gap={4} align="stretch">
+        {/* Header */}
+        <HStack justify="space-between" align="center">
+          <Heading as="h2" size="lg" color={textColor}>
+            Dgraph Operations
+          </Heading>
+          <HStack gap={2} align="center">
+            <FullscreenToggle
+              isFullscreen={isFullscreen}
+              onToggle={() => setIsFullscreen(!isFullscreen)}
+            />
+            <Button
+              onClick={() => {
+                setShowGuide(!showGuide);
+                if (showHistory) setShowHistory(false);
+              }}
+              variant={showGuide ? 'solid' : 'outline'}
+              colorPalette={showGuide ? 'blue' : 'gray'}
+              size="sm"
+              _icon={
+                <Icon viewBox="0 0 24 24">
+                  <path
+                    fill="currentColor"
+                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                  />
+                </Icon>
+              }
+            >
               Guide
-            </span>
-          </button>
-          <button
-            onClick={() => {
-              setShowHistory(!showHistory);
-              if (showGuide) setShowGuide(false);
-            }}
-            className={`${showHistory ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-200 text-gray-800'} py-2 px-4 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500`}
-            title="View operation history"
-          >
-            <span className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+            </Button>
+            <Button
+              onClick={() => {
+                setShowHistory(!showHistory);
+                if (showGuide) setShowGuide(false);
+              }}
+              variant={showHistory ? 'solid' : 'outline'}
+              colorPalette={showHistory ? 'blue' : 'gray'}
+              size="sm"
+              _icon={
+                <Icon viewBox="0 0 24 24">
+                  <path
+                    fill="currentColor"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </Icon>
+              }
+            >
               History
-            </span>
-          </button>
-          <button
-            onClick={handleRunOperation}
-            disabled={isLoading || !connected}
-            className="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+            </Button>
+            <Button
+              onClick={handleRunOperation}
+              loading={isLoading}
+              loadingText="Running..."
+              disabled={!connected}
+              colorPalette="blue"
+              size="md"
+            >
+              {`Run ${activeTab === 'query' ? 'Query' : 'Mutation'}`}
+            </Button>
+          </HStack>
+        </HStack>
+
+        {/* Tabs */}
+        <HStack borderBottom="1px" borderColor={borderColor} gap={0}>
+          <Button
+            onClick={() => setActiveTab('query')}
+            variant="ghost"
+            size="sm"
+            color={activeTab === 'query' ? activeTabColor : inactiveTabColor}
+            borderBottom="2px"
+            borderColor={activeTab === 'query' ? activeTabColor : 'transparent'}
+            borderRadius="0"
+            _hover={{ bg: 'transparent' }}
           >
-            {isLoading ? 'Running...' : `Run ${activeTab === 'query' ? 'Query' : 'Mutation'}`}
-          </button>
-        </div>
-      </div>
+            Query
+          </Button>
+          <Button
+            onClick={() => setActiveTab('mutation')}
+            variant="ghost"
+            size="sm"
+            color={activeTab === 'mutation' ? activeTabColor : inactiveTabColor}
+            borderBottom="2px"
+            borderColor={activeTab === 'mutation' ? activeTabColor : 'transparent'}
+            borderRadius="0"
+            _hover={{ bg: 'transparent' }}
+          >
+            Mutation
+          </Button>
+        </HStack>
 
-      {/* Tabs */}
-      <div className="flex border-b border-gray-200 mb-4">
-        <button
-          onClick={() => setActiveTab('query')}
-          className={`py-2 px-4 font-medium text-sm focus:outline-none ${activeTab === 'query' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
-        >
-          Query
-        </button>
-        <button
-          onClick={() => setActiveTab('mutation')}
-          className={`py-2 px-4 font-medium text-sm focus:outline-none ${activeTab === 'mutation' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
-        >
-          Mutation
-        </button>
-      </div>
+        {error && (
+          <Alert.Root status="error">
+            <Alert.Indicator />
+            <Alert.Content>
+              {error}
+            </Alert.Content>
+          </Alert.Root>
+        )}
 
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
-      )}
-
-      {showGuide && (
-        <GuidedExperience
-          guides={guides}
-          onLoadQuery={(queryText) => {
-            setQuery(queryText);
-            setActiveTab('query');
-            setShowGuide(false);
-          }}
-          onClose={() => setShowGuide(false)}
-        />
-      )}
-
-      {showHistory && (
-        <QueryHistory
-          history={queryHistory}
-          onSelectQuery={handleSelectQuery}
-          onClearHistory={handleClearHistory}
-          onDeleteQuery={handleDeleteQuery}
-        />
-      )}
-
-      <div className="relative">
-        <CodeMirror
-          value={activeTab === 'query' ? query : mutation}
-          height={isFullscreen ? 'calc(100vh - 230px)' : '200px'}
-          onChange={handleEditorChange}
-          theme="light"
-          className="text-sm"
-        />
-        
-        {/* Variable inputs */}
-        <DQLVariableInputs
-          query={activeTab === 'query' ? query : mutation}
-          onChange={handleVariablesChange}
-        />
-        <div
-          ref={editorRef}
-          tabIndex={0}
-          onKeyDown={() => {
-            if (autocompleteInputRef.current) autocompleteInputRef.current();
-          }}
-          onInput={() => {
-            if (autocompleteInputRef.current) autocompleteInputRef.current();
-          }}
-        >
-          <DQLAutocomplete
-            editorRef={editorRef}
-            query={query}
-            cursorPosition={cursorPosition}
-            schema={parsedSchema}
-            onSuggestionSelect={handleSuggestionSelect}
-            registerHandleInput={(handle: () => void) => {
-              autocompleteInputRef.current = handle;
+        {showGuide && (
+          <GuidedExperience
+            guides={guides}
+            onLoadQuery={(queryText) => {
+              setQuery(queryText);
+              setActiveTab('query');
+              setShowGuide(false);
             }}
+            onClose={() => setShowGuide(false)}
           />
-        </div>
-      </div>
+        )}
 
-      <div className="text-sm text-gray-500">
-        <p>Enter a DQL query to execute against your Dgraph database.</p>
-        <p className="mt-1">Example: <code>{`{ q(func: has(name)) { uid name } }`}</code></p>
-      </div>
-    </div>
+        {showHistory && (
+          <QueryHistory
+            history={queryHistory}
+            onSelectQuery={handleSelectQuery}
+            onClearHistory={handleClearHistory}
+            onDeleteQuery={handleDeleteQuery}
+          />
+        )}
+
+                  <Box position="relative">
+            <CodeMirror
+              value={activeTab === 'query' ? query : mutation}
+              height={isFullscreen ? 'calc(100vh - 230px)' : '200px'}
+              onChange={handleEditorChange}
+              theme="light"
+              className="text-sm"
+            />
+
+            {/* Variable inputs */}
+          <DQLVariableInputs
+            query={activeTab === 'query' ? query : mutation}
+            onChange={handleVariablesChange}
+          />
+          <Box
+            ref={editorRef}
+            tabIndex={0}
+            onKeyDown={() => {
+              if (autocompleteInputRef.current) autocompleteInputRef.current();
+            }}
+            onInput={() => {
+              if (autocompleteInputRef.current) autocompleteInputRef.current();
+            }}
+          >
+            <DQLAutocomplete
+              editorRef={editorRef}
+              query={query}
+              cursorPosition={cursorPosition}
+              schema={parsedSchema}
+              onSuggestionSelect={handleSuggestionSelect}
+              registerHandleInput={(handle: () => void) => {
+                autocompleteInputRef.current = handle;
+              }}
+            />
+          </Box>
+        </Box>
+
+        <VStack gap={1} align="start">
+          <Text fontSize="sm" color={mutedTextColor}>
+            Enter a DQL query to execute against your Dgraph database.
+          </Text>
+          <Text fontSize="sm" color={mutedTextColor}>
+            Example: <code>{`{ q(func: has(name)) { uid name } }`}</code>
+          </Text>
+        </VStack>
+      </VStack>
+    </Card.Root>
   );
 }

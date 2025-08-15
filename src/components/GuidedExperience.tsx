@@ -5,6 +5,19 @@ import Slider from 'react-slick';
 import { serialize } from 'next-mdx-remote/serialize';
 import MdxGuideRenderer from './mdx/MdxGuideRenderer';
 import { GuideMetadata } from '@/utils/mdxLoader';
+import {
+  Box,
+  Card,
+  Heading,
+  Button,
+  HStack,
+  VStack,
+  Text,
+  IconButton,
+  Icon,
+  Spinner,
+} from '@chakra-ui/react';
+import { useColorModeValue } from '@/components/ui/color-mode';
 
 // Import Slick carousel styles
 import 'slick-carousel/slick/slick.css';
@@ -20,6 +33,13 @@ export default function GuidedExperience({ guides, onLoadQuery, onClose }: Guide
   const [serializedContent, setSerializedContent] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeSlide, setActiveSlide] = useState(0);
+
+  // Color mode values
+  const bgColor = useColorModeValue('white', 'gray.800');
+  const textColor = useColorModeValue('gray.900', 'white');
+  const mutedTextColor = useColorModeValue('gray.600', 'gray.400');
+  const borderColor = useColorModeValue('gray.200', 'gray.600');
+  const titleColor = useColorModeValue('blue.600', 'blue.400');
 
   // Serialize MDX content
   useEffect(() => {
@@ -58,86 +78,121 @@ export default function GuidedExperience({ guides, onLoadQuery, onClose }: Guide
 
   if (loading) {
     return (
-      <div className="bg-white shadow-lg rounded-lg p-6 mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Guided DQL Experience</h2>
-          <button
+      <Card.Root bg={bgColor} shadow="lg" p={6} mb={6}>
+        <HStack justify="space-between" align="center" mb={4}>
+          <Heading as="h2" size="lg" color={textColor}>
+            Guided DQL Experience
+          </Heading>
+          <IconButton
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
+            variant="ghost"
+            size="sm"
             aria-label="Close guided experience"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-        </div>
-      </div>
+            _icon={
+              <Icon viewBox="0 0 24 24">
+                <path
+                  fill="currentColor"
+                  d="M6 18L18 6M6 6l12 12"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Icon>
+            }
+          />
+        </HStack>
+        <Box display="flex" justifyContent="center" alignItems="center" h="64">
+          <Spinner size="xl" color="blue.500" />
+        </Box>
+      </Card.Root>
     );
   }
 
   return (
-    <div className="bg-white shadow-lg rounded-lg p-6 mb-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold">Guided DQL Experience</h2>
-        <div className="flex items-center space-x-4">
-          <div className="text-sm text-gray-600">
-            Guide {activeSlide + 1} of {serializedContent.length}
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-            aria-label="Close guided experience"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
+    <Card.Root bg={bgColor} shadow="lg" p={6} mb={6}>
+      <VStack gap={4} align="stretch">
+        <HStack justify="space-between" align="center">
+          <Heading as="h2" size="lg" color={textColor}>
+            Guided DQL Experience
+          </Heading>
+          <HStack gap={4} align="center">
+            <Text fontSize="sm" color={mutedTextColor}>
+              Guide {activeSlide + 1} of {serializedContent.length}
+            </Text>
+            <IconButton
+              onClick={onClose}
+              variant="ghost"
+              size="sm"
+              aria-label="Close guided experience"
+              _icon={
+                <Icon viewBox="0 0 24 24">
+                  <path
+                    fill="currentColor"
+                    d="M6 18L18 6M6 6l12 12"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </Icon>
+              }
+            />
+          </HStack>
+        </HStack>
 
-      {serializedContent.length > 0 ? (
-        <div className="guide-slider">
-          <Slider {...settings}>
-            {serializedContent.map((guide, index) => (
-              <div key={guide.metadata.slug} className="p-2">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-indigo-600">{guide.metadata.title}</h3>
-                  <p className="text-gray-600">{guide.metadata.description}</p>
-                </div>
-                <div className="h-[400px] overflow-auto pr-2 custom-scrollbar">
-                  <div className="prose prose-indigo max-w-none">
-                    <MdxGuideRenderer content={guide.content} onLoadQuery={onLoadQuery} />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </Slider>
-        </div>
-      ) : (
-        <div className="text-center p-8 border border-gray-200 rounded-md">
-          <p className="text-gray-500">No guides available</p>
-        </div>
-      )}
-      
-      <div className="flex justify-between items-center mt-4">
-        <button
-          onClick={() => (Slider as any).slickPrev()}
-          disabled={activeSlide === 0}
-          className="bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Previous
-        </button>
-        <button
-          onClick={() => (Slider as any).slickNext()}
-          disabled={activeSlide === serializedContent.length - 1}
-          className="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Next
-        </button>
-      </div>
-    </div>
+        {serializedContent.length > 0 ? (
+          <Box className="guide-slider">
+            <Slider {...settings}>
+              {serializedContent.map((guide, index) => (
+                <Box key={guide.metadata.slug} p={2}>
+                  <VStack gap={4} align="start">
+                    <Box>
+                      <Heading as="h3" size="md" color={titleColor} mb={2}>
+                        {guide.metadata.title}
+                      </Heading>
+                      <Text color={mutedTextColor}>
+                        {guide.metadata.description}
+                      </Text>
+                    </Box>
+                    <Box h="400px" overflowY="auto" pr={2} className="custom-scrollbar">
+                      <Box className="prose prose-indigo max-w-none">
+                        <MdxGuideRenderer content={guide.content} onLoadQuery={onLoadQuery} />
+                      </Box>
+                    </Box>
+                  </VStack>
+                </Box>
+              ))}
+            </Slider>
+          </Box>
+        ) : (
+          <Box textAlign="center" p={8} border="1px" borderColor={borderColor} borderRadius="md">
+            <Text color={mutedTextColor}>No guides available</Text>
+          </Box>
+                 )}
+
+         <HStack justify="space-between" align="center">
+          <Button
+            onClick={() => (Slider as any).slickPrev()}
+            disabled={activeSlide === 0}
+            variant="outline"
+            colorPalette="gray"
+            size="md"
+            _disabled={{ opacity: 0.5, cursor: 'not-allowed' }}
+          >
+            Previous
+          </Button>
+          <Button
+            onClick={() => (Slider as any).slickNext()}
+            disabled={activeSlide === serializedContent.length - 1}
+            colorPalette="blue"
+            size="md"
+            _disabled={{ opacity: 0.5, cursor: 'not-allowed' }}
+          >
+            Next
+          </Button>
+        </HStack>
+      </VStack>
+    </Card.Root>
   );
 }

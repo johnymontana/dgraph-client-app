@@ -10,44 +10,97 @@ import GeoVisualization from '@/components/GeoVisualization';
 import Drawer from '@/components/Drawer';
 import ResizableContainer from '@/components/ResizableContainer';
 import { hasGeoData } from '@/utils/geoUtils';
+import {
+  Box,
+  Container,
+  Flex,
+  Heading,
+  Text,
+  Button,
+  Icon,
+  IconButton,
+} from '@chakra-ui/react';
+import { useColorModeValue } from '@/components/ui/color-mode';
 
 export default function Home() {
   const [queryResult, setQueryResult] = useState<any>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
+  const bgColor = useColorModeValue('gray.50', 'gray.900');
+  const headerBg = useColorModeValue('white', 'gray.800');
+  const textColor = useColorModeValue('gray.900', 'white');
+  const mutedTextColor = useColorModeValue('gray.500', 'gray.400');
+  const borderColor = useColorModeValue('gray.200', 'gray.700');
+  const hoverBgColor = useColorModeValue('gray.100', 'gray.700');
+
   return (
     <DgraphProvider>
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white shadow-sm">
-          <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-            <div className="flex items-center">
-              {/* Drawer toggle button */}
-              <button
-                onClick={() => setIsDrawerOpen(true)}
-                className="mr-4 p-2 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                aria-label="Open settings"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-              <h1 className="text-2xl font-bold text-gray-900">Dgraph Client</h1>
-            </div>
-            <div className="text-sm text-gray-500">DQL Explorer</div>
-          </div>
-        </header>
+      <Box minH="100vh" bg={bgColor}>
+        {/* Header */}
+        <Box as="header" bg={headerBg} shadow="sm" borderBottom="1px" borderColor={borderColor}>
+          <Container maxW="7xl" py={4} px={{ base: 4, sm: 6, lg: 8 }}>
+            <Flex justify="space-between" align="center">
+              <Flex align="center">
+                {/* Drawer toggle button */}
+                <IconButton
+                  onClick={() => setIsDrawerOpen(!isDrawerOpen)}
+                  mr={4}
+                  aria-label={isDrawerOpen ? "Close settings" : "Open settings"}
+                  variant={isDrawerOpen ? "solid" : "ghost"}
+                  colorPalette={isDrawerOpen ? "blue" : "gray"}
+                  size="sm"
+                  _hover={{ bg: hoverBgColor }}
+                  _focus={{ ring: 2, ringColor: 'blue.500' }}
+                  _active={{ bg: useColorModeValue('gray.200', 'gray.600') }}
+                >
+                  <Icon viewBox="0 0 24 24" color={textColor}>
+                    <path
+                      fill="currentColor"
+                      d="M4 6h16M4 12h16M4 18h16"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </Icon>
+                </IconButton>
+                <Heading as="h1" size="lg" color={textColor}>
+                  Dgraph Client
+                </Heading>
+              </Flex>
+              <Text fontSize="sm" color={mutedTextColor}>
+                DQL Explorer
+              </Text>
+            </Flex>
+          </Container>
+        </Box>
 
         {/* Drawer for Connection and Schema */}
         <Drawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)}>
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Dgraph Settings</h2>
-          <ConnectionForm />
-          <SchemaEditor />
+          <Box>
+            <Heading as="h2" size="lg" color={textColor} mb={6}>
+              Dgraph Settings
+            </Heading>
+            <ConnectionForm />
+            <SchemaEditor />
+          </Box>
         </Drawer>
 
-        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <div className="px-4 sm:px-0">
+        {/* Main Content */}
+        <Box
+          as="main"
+          maxW="7xl"
+          mx="auto"
+          py={6}
+          px={{ base: 4, sm: 6, lg: 8 }}
+          transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+          transform={isDrawerOpen ? "translateX(0)" : "translateX(0)"}
+          opacity={isDrawerOpen ? 0.8 : 1}
+          filter={isDrawerOpen ? "blur(1px)" : "none"}
+        >
+          <Box px={{ base: 4, sm: 0 }}>
             {/* Query and Visualization with resizable container */}
-            <div className="h-[calc(100vh-200px)]">
+            <Box h="calc(100vh - 200px)">
               <ResizableContainer
                 direction="vertical"
                 initialSplit={40}
@@ -63,18 +116,19 @@ export default function Home() {
                   </>
                 }
               />
-            </div>
-          </div>
-        </main>
+            </Box>
+          </Box>
+        </Box>
 
-        <footer className="bg-white border-t border-gray-200 mt-12">
-          <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
-            <p className="text-center text-sm text-gray-500">
+        {/* Footer */}
+        <Box as="footer" bg={headerBg} borderTop="1px" borderColor={borderColor} mt={12}>
+          <Container maxW="7xl" py={4} px={{ base: 4, sm: 6, lg: 8 }}>
+            <Text textAlign="center" fontSize="sm" color={mutedTextColor}>
               Dgraph Client - DQL Explorer
-            </p>
-          </div>
-        </footer>
-      </div>
+            </Text>
+          </Container>
+        </Box>
+      </Box>
     </DgraphProvider>
   );
 }

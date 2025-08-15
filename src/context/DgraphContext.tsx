@@ -112,9 +112,15 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
   const connect = async () => {
     try {
       setError(null);
+
+      // Parse the connection string to extract endpoint, SSL settings, and bearer token
+      const parsedConnection = DgraphService.parseConnectionString(endpoint);
+
       const config = {
-        endpoint,
+        endpoint: parsedConnection.endpoint,
         apiKey: apiKey || undefined,
+        sslMode: parsedConnection.sslMode,
+        bearerToken: parsedConnection.bearerToken || apiKey || undefined,
       };
 
       // Mark that the user has explicitly connected (for auto-connect on refresh)

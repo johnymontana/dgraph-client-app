@@ -3,6 +3,14 @@ import axios from 'axios';
 interface DgraphConfig {
   endpoint: string;
   apiKey?: string;
+  sslMode?: string;
+  bearerToken?: string;
+}
+
+interface ParsedConnectionString {
+  endpoint: string;
+  sslMode?: string;
+  bearerToken?: string;
 }
 
 class DgraphService {
@@ -12,11 +20,55 @@ class DgraphService {
     this.config = config;
   }
 
+  /**
+   * Parse a Dgraph connection string
+   * Supports formats like:
+   * - dgraph://host:port?sslmode=verify-ca&bearertoken=xxx
+   * - http://host:port
+   * - https://host:port
+   */
+  static parseConnectionString(connectionString: string): ParsedConnectionString {
+    try {
+      // Handle dgraph:// protocol
+      if (connectionString.startsWith('dgraph://')) {
+        // Remove dgraph:// prefix and parse as URL
+        const urlString = connectionString.replace('dgraph://', 'https://');
+        const url = new URL(urlString);
+
+        return {
+          endpoint: `${url.protocol}//${url.host}${url.pathname}`,
+          sslMode: url.searchParams.get('sslmode') || undefined,
+          bearerToken: url.searchParams.get('bearertoken') || undefined,
+        };
+      }
+
+      // Handle standard HTTP/HTTPS URLs
+      const url = new URL(connectionString);
+      return {
+        endpoint: `${url.protocol}//${url.host}${url.pathname}`,
+        sslMode: url.searchParams.get('sslmode') || undefined,
+        bearerToken: url.searchParams.get('bearertoken') || undefined,
+      };
+    } catch (error) {
+      console.error('Error parsing connection string:', error);
+      // Fallback: treat as plain endpoint
+      return {
+        endpoint: connectionString,
+      };
+    }
+  }
+
   private getHeaders() {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
 
+    // Add bearer token if available
+    if (this.config.bearerToken) {
+      headers['Authorization'] = `Bearer ${this.config.bearerToken}`;
+    }
+
+    // Add API key if available
     if (this.config.apiKey) {
       headers['X-Dgraph-ApiKey'] = this.config.apiKey;
     }
