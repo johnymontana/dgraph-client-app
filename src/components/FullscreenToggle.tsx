@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { IconButton, Icon } from '@chakra-ui/react';
+import { IconButton } from '@chakra-ui/react';
 import { useColorModeValue } from '@/components/ui/color-mode';
 
 interface FullscreenToggleProps {
@@ -29,28 +29,26 @@ export default function FullscreenToggle({
       _hover={{ color: hoverColor }}
     >
       {isFullscreen ? (
-        <Icon viewBox="0 0 24 24">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
           <path
-            fill="currentColor"
             d="M6 18L18 6M6 6l12 12"
             stroke="currentColor"
             strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-        </Icon>
+        </svg>
       ) : (
-        <Icon viewBox="0 0 24 24">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
           <path
-            fill="currentColor"
             d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"
             stroke="currentColor"
             strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-        </Icon>
-            )}
+        </svg>
+      )}
     </IconButton>
   );
 }

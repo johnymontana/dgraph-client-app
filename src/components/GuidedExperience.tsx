@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Slider from 'react-slick';
 import { serialize } from 'next-mdx-remote/serialize';
 import MdxGuideRenderer from './mdx/MdxGuideRenderer';
@@ -14,7 +14,6 @@ import {
   VStack,
   Text,
   IconButton,
-  Icon,
   Spinner,
 } from '@chakra-ui/react';
 import { useColorModeValue } from '@/components/ui/color-mode';
@@ -33,6 +32,7 @@ export default function GuidedExperience({ guides, onLoadQuery, onClose }: Guide
   const [serializedContent, setSerializedContent] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeSlide, setActiveSlide] = useState(0);
+  const sliderRef = useRef<Slider>(null);
 
   // Color mode values
   const bgColor = useColorModeValue('white', 'gray.800');
@@ -40,6 +40,19 @@ export default function GuidedExperience({ guides, onLoadQuery, onClose }: Guide
   const mutedTextColor = useColorModeValue('gray.600', 'gray.400');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   const titleColor = useColorModeValue('blue.600', 'blue.400');
+
+  // Navigation functions
+  const goToNext = () => {
+    if (sliderRef.current) {
+      sliderRef.current.slickNext();
+    }
+  };
+
+  const goToPrev = () => {
+    if (sliderRef.current) {
+      sliderRef.current.slickPrev();
+    }
+  };
 
   // Serialize MDX content
   useEffect(() => {
@@ -89,16 +102,15 @@ export default function GuidedExperience({ guides, onLoadQuery, onClose }: Guide
             size="sm"
             aria-label="Close guided experience"
           >
-            <Icon viewBox="0 0 24 24">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
               <path
-                fill="currentColor"
                 d="M6 18L18 6M6 6l12 12"
                 stroke="currentColor"
                 strokeWidth={2}
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
-            </Icon>
+            </svg>
           </IconButton>
         </HStack>
         <Box display="flex" justifyContent="center" alignItems="center" h="64">
@@ -125,23 +137,22 @@ export default function GuidedExperience({ guides, onLoadQuery, onClose }: Guide
               size="sm"
               aria-label="Close guided experience"
             >
-              <Icon viewBox="0 0 24 24">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                 <path
-                  fill="currentColor"
                   d="M6 18L18 6M6 6l12 12"
                   stroke="currentColor"
                   strokeWidth={2}
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
-              </Icon>
+              </svg>
             </IconButton>
           </HStack>
         </HStack>
 
         {serializedContent.length > 0 ? (
           <Box className="guide-slider">
-            <Slider {...settings}>
+            <Slider {...settings} ref={sliderRef}>
               {serializedContent.map((guide, index) => (
                 <Box key={guide.metadata.slug} p={2}>
                   <VStack gap={4} align="start">
@@ -171,7 +182,7 @@ export default function GuidedExperience({ guides, onLoadQuery, onClose }: Guide
 
          <HStack justify="space-between" align="center">
           <Button
-            onClick={() => (Slider as any).slickPrev()}
+            onClick={goToPrev}
             disabled={activeSlide === 0}
             variant="outline"
             colorPalette="gray"
@@ -181,7 +192,7 @@ export default function GuidedExperience({ guides, onLoadQuery, onClose }: Guide
             Previous
           </Button>
           <Button
-            onClick={() => (Slider as any).slickNext()}
+            onClick={goToNext}
             disabled={activeSlide === serializedContent.length - 1}
             colorPalette="blue"
             size="md"
