@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { MDXRemote, MDXRemoteSerializeResult } from 'next-mdx-remote';
-import { useRouter } from 'next/navigation';
 
 interface CodeBlockProps {
   children: string;
@@ -50,7 +49,8 @@ export default function MdxGuideRenderer({ content, onLoadQuery }: MdxGuideRende
     h1: (props: any) => <h1 {...props} className="text-2xl font-bold mb-4 mt-6" />,
     h2: (props: any) => <h2 {...props} className="text-xl font-bold mb-3 mt-5" />,
     h3: (props: any) => <h3 {...props} className="text-lg font-bold mb-2 mt-4" />,
-    p: (props: any) => <p {...props} className="mb-4" />,
+    // Use div instead of p to avoid nesting issues with pre/code blocks
+    p: (props: any) => <div {...props} className="mb-4" />,
     ul: (props: any) => <ul {...props} className="list-disc pl-6 mb-4" />,
     ol: (props: any) => <ol {...props} className="list-decimal pl-6 mb-4" />,
     li: (props: any) => <li {...props} className="mb-1" />,

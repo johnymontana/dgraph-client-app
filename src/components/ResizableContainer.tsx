@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { Box } from '@chakra-ui/react';
+import { useColorModeValue } from '@/components/ui/color-mode';
 
 interface ResizableContainerProps {
   firstComponent: React.ReactNode;
@@ -22,6 +24,12 @@ export default function ResizableContainer({
   const [splitPosition, setSplitPosition] = useState(initialSplit);
   const [isResizing, setIsResizing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Color mode values
+  const resizeHandleBg = useColorModeValue('gray.200', 'gray.600');
+  const resizeHandleHoverBg = useColorModeValue('blue.300', 'blue.400');
+  const resizeHandleActiveBg = useColorModeValue('blue.400', 'blue.500');
+  const resizeHandleIndicatorBg = useColorModeValue('gray.400', 'gray.500');
 
   // Handle resize functionality
   useEffect(() => {
@@ -76,50 +84,63 @@ export default function ResizableContainer({
   };
 
   return (
-    <div
+    <Box
       ref={containerRef}
-      className={`relative w-full ${direction === 'vertical' ? 'flex flex-col' : 'flex flex-row'}`}
-      style={{ height: '100%' }}
+      position="relative"
+      w="full"
+      h="full"
+      display="flex"
+      flexDirection={direction === 'vertical' ? 'column' : 'row'}
     >
-      <div
+      <Box
+        position="relative"
+        overflow="hidden"
         style={{
           [direction === 'vertical' ? 'height' : 'width']: `${splitPosition}%`,
-          overflow: 'hidden'
         }}
-        className="relative"
       >
         {firstComponent}
-      </div>
+      </Box>
 
       {/* Resizer handle */}
-      <div
-        className={`
-          ${direction === 'vertical'
-            ? 'w-full h-2 cursor-ns-resize hover:bg-indigo-300 active:bg-indigo-400'
-            : 'h-full w-2 cursor-ew-resize hover:bg-indigo-300 active:bg-indigo-400'
-          }
-          bg-gray-200 transition-colors flex items-center justify-center z-10
-        `}
+      <Box
+        bg={resizeHandleBg}
+        transition="colors"
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+        zIndex={10}
+        _hover={{ bg: resizeHandleHoverBg }}
+        _active={{ bg: resizeHandleActiveBg }}
         onMouseDown={handleResizeStart}
+        cursor={direction === 'vertical' ? 'ns-resize' : 'ew-resize'}
+        {...(direction === 'vertical'
+          ? {
+              w: 'full',
+              h: 2,
+            }
+          : {
+              h: 'full',
+              w: 2,
+            }
+        )}
       >
-        {direction === 'vertical'
-          ? (
-            <div className="w-8 h-1 bg-gray-400 rounded"></div>
-          ) : (
-            <div className="h-8 w-1 bg-gray-400 rounded"></div>
-          )
-        }
-      </div>
+        {direction === 'vertical' ? (
+          <Box w={8} h={1} bg={resizeHandleIndicatorBg} borderRadius="md" />
+        ) : (
+          <Box h={8} w={1} bg={resizeHandleIndicatorBg} borderRadius="md" />
+        )}
+      </Box>
 
-      <div
+      <Box
+        position="relative"
+        overflow="hidden"
         style={{
           [direction === 'vertical' ? 'height' : 'width']: `${100 - splitPosition}%`,
-          overflow: 'hidden'
         }}
-        className="relative"
       >
         {secondComponent}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }

@@ -1,6 +1,8 @@
 'use client';
 
 import React from 'react';
+import { IconButton } from '@chakra-ui/react';
+import { useColorModeValue } from '@/components/ui/color-mode';
 
 interface FullscreenToggleProps {
   isFullscreen: boolean;
@@ -13,22 +15,40 @@ export default function FullscreenToggle({
   onToggle,
   title = isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'
 }: FullscreenToggleProps) {
+  const iconColor = useColorModeValue('gray.500', 'gray.400');
+  const hoverColor = useColorModeValue('gray.700', 'gray.200');
+
   return (
-    <button
+    <IconButton
       onClick={onToggle}
-      className="p-2 text-gray-500 hover:text-gray-700 focus:outline-none"
-      title={title}
+      variant="ghost"
+      size="sm"
       aria-label={title}
+      title={title}
+      color={iconColor}
+      _hover={{ color: hoverColor }}
     >
       {isFullscreen ? (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path
+            d="M6 18L18 6M6 6l12 12"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       ) : (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path
+            d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       )}
-    </button>
+    </IconButton>
   );
 }

@@ -2,6 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import {
+  Box,
+  VStack,
+  HStack,
+  Heading,
+  Field,
+  Input,
+  Text,
+} from '@chakra-ui/react';
+import { useColorModeValue } from '@/components/ui/color-mode';
+import {
   detectVariables,
   formatVariableValue,
   validateVariableValue,
@@ -24,6 +34,14 @@ interface DQLVariableInputsProps {
 
 export default function DQLVariableInputs({ query, onChange }: DQLVariableInputsProps) {
   const [variables, setVariables] = useState<VariableData[]>([]);
+
+  // Color mode values
+  const bgColor = useColorModeValue('blue.50', 'blue.900');
+  const borderColor = useColorModeValue('blue.200', 'blue.700');
+  const textColor = useColorModeValue('blue.800', 'blue.200');
+  const labelColor = useColorModeValue('gray.700', 'gray.300');
+  const mutedTextColor = useColorModeValue('gray.500', 'gray.400');
+  const errorTextColor = useColorModeValue('red.600', 'red.400');
   
   // Detect variables in the query whenever it changes
   useEffect(() => {
@@ -99,45 +117,56 @@ export default function DQLVariableInputs({ query, onChange }: DQLVariableInputs
   if (variables.length === 0) return null;
   
   return (
-    <div className="mt-4 p-4 border border-indigo-200 bg-indigo-50 rounded-md">
-      <h3 className="text-sm font-medium text-indigo-800 mb-2">Query Variables</h3>
+    <Box mt={4} p={4} border="1px" borderColor={borderColor} bg={bgColor} borderRadius="md">
+      <Heading as="h3" size="sm" color={textColor} mb={2}>
+        Query Variables
+      </Heading>
       
-      <div className="space-y-3">
+      <VStack gap={3} align="stretch">
         {variables.map(variable => (
-          <div key={variable.name} className="flex items-start">
-            <div className="w-1/4 pr-2">
-              <label
+          <HStack key={variable.name} align="start" gap={4}>
+            <Box w="1/4">
+              <Field.Label
                 htmlFor={`var-${variable.name}`}
-                className="block text-sm font-medium text-gray-700 mt-1"
+                fontSize="sm"
+                fontWeight="medium"
+                color={labelColor}
+                mt={1}
+                display="block"
               >
                 ${variable.name}{variable.type ? `: ${variable.type}` : ''}
-              </label>
-            </div>
-            <div className="w-3/4">
-              <input
-                id={`var-${variable.name}`}
-                type="text"
-                value={variable.value}
-                onChange={(e) => handleVariableChange(variable.name, e.target.value)}
-                placeholder="Enter value..."
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${
-                  variable.value && !variable.isValid
-                    ? 'border-red-300 text-red-900 placeholder-red-300 focus:outline-none focus:ring-red-500 focus:border-red-500'
-                    : 'border-gray-300'
-                }`}
-              />
-              {variable.value && !variable.isValid && (
-                <p className="mt-1 text-sm text-red-600">
-                  Please enter a valid value for ${variable.name}
-                </p>
-              )}
-              <p className="mt-1 text-xs text-gray-500">
-                Values will be automatically converted to the appropriate type (string, number, boolean, object)
-              </p>
-            </div>
-          </div>
+              </Field.Label>
+            </Box>
+            <Box w="3/4">
+              <Field.Root>
+                <Input
+                  id={`var-${variable.name}`}
+                  type="text"
+                  value={variable.value}
+                  onChange={(e) => handleVariableChange(variable.name, e.target.value)}
+                  placeholder="Enter value..."
+                  size="sm"
+                  variant="outline"
+                  borderColor={variable.value && !variable.isValid ? 'red.300' : 'gray.300'}
+                  _focus={{
+                    ring: 2,
+                    ringColor: variable.value && !variable.isValid ? 'red.500' : 'blue.500',
+                    borderColor: variable.value && !variable.isValid ? 'red.500' : 'blue.500'
+                  }}
+                />
+                {variable.value && !variable.isValid && (
+                  <Field.HelperText color={errorTextColor}>
+                    Please enter a valid value for ${variable.name}
+                  </Field.HelperText>
+                )}
+                <Field.HelperText fontSize="xs" color={mutedTextColor}>
+                  Values will be automatically converted to the appropriate type (string, number, boolean, object)
+                </Field.HelperText>
+              </Field.Root>
+            </Box>
+          </HStack>
         ))}
-      </div>
-    </div>
+      </VStack>
+    </Box>
   );
 }

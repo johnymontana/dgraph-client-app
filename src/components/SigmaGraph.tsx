@@ -41,6 +41,7 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
 
   const animationFrameRef = useRef<number | null>(null);
   const settingsRef = useRef(simulationSettings);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
   // Update the ref whenever simulationSettings changes
   useEffect(() => {
@@ -119,6 +120,25 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
   useEffect(() => {
     if (!containerRef.current || !graph) return;
 
+    // Ensure container has proper dimensions
+    const container = containerRef.current;
+    const rect = container.getBoundingClientRect();
+
+    if (rect.height === 0 || rect.width === 0) {
+      console.warn('Container has no dimensions, waiting for next frame...');
+      // Wait for next frame to ensure container is properly sized
+      requestAnimationFrame(() => {
+        if (containerRef.current) {
+          const newRect = containerRef.current.getBoundingClientRect();
+          if (newRect.height > 0 && newRect.width > 0) {
+            // Re-run the effect with proper dimensions
+            return;
+          }
+        }
+      });
+      return;
+    }
+
     // Clean up previous instances
     if (sigmaInstanceRef.current) {
       sigmaInstanceRef.current.kill();
@@ -128,6 +148,12 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
+    }
+
+    // Clean up resize observer
+    if (resizeObserverRef.current) {
+      resizeObserverRef.current.disconnect();
+      resizeObserverRef.current = null;
     }
 
     // Process the graph to ensure all nodes have the required attributes
@@ -152,18 +178,49 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
       }
     });
 
-    // Create sigma instance with default renderer
-    sigmaInstanceRef.current = new Sigma(graph, containerRef.current, {
-      renderLabels: true,
-      labelRenderedSizeThreshold: 6,
-      defaultNodeColor: "#4285F4",
-      defaultEdgeColor: "#999",
-      nodeReducer: (node, data) => ({
-        ...data,
-        size: 16,
-        color: node === selectedNode ? "#FFD700" : data.color // Highlight selected node
-      })
-    });
+    try {
+      // Create sigma instance with default renderer
+      sigmaInstanceRef.current = new Sigma(graph, containerRef.current, {
+        renderLabels: true,
+        labelRenderedSizeThreshold: 6,
+        defaultNodeColor: "#4285F4",
+        defaultEdgeColor: "#999",
+        nodeReducer: (node, data) => ({
+          ...data,
+          size: 16,
+          color: node === selectedNode ? "#FFD700" : data.color // Highlight selected node
+        })
+      });
+    } catch (error) {
+      console.error('Error creating Sigma instance:', error);
+               // If Sigma creation fails, try to set a minimum height and retry
+         if (containerRef.current) {
+           containerRef.current.style.minHeight = '400px';
+           containerRef.current.style.height = '400px';
+
+           // Wait a bit and try again
+        setTimeout(() => {
+          if (containerRef.current && graph) {
+            try {
+              sigmaInstanceRef.current = new Sigma(graph, containerRef.current, {
+                renderLabels: true,
+                labelRenderedSizeThreshold: 6,
+                defaultNodeColor: "#4285F4",
+                defaultEdgeColor: "#999",
+                nodeReducer: (node, data) => ({
+                  ...data,
+                  size: 16,
+                  color: node === selectedNode ? "#FFD700" : data.color
+                })
+              });
+            } catch (retryError) {
+              console.error('Sigma creation retry failed:', retryError);
+            }
+          }
+        }, 100);
+      }
+      return;
+    }
 
     // Custom node dragging logic
     let draggingNode: string | null = null;
@@ -238,6 +295,16 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
     sigmaRenderer.on("leaveNode", handleLeaveNode);
     sigmaRenderer.on("clickNode", handleClickNode);
     window.addEventListener("mousemove", handleMouseMove);
+
+    // Set up resize observer to handle container size changes
+    if (containerRef.current) {
+      resizeObserverRef.current = new ResizeObserver(() => {
+        if (sigmaInstanceRef.current) {
+          sigmaInstanceRef.current.refresh();
+        }
+      });
+      resizeObserverRef.current.observe(containerRef.current);
+    }
 
     // Animation loop for physics simulation
     const runPhysicsStep = () => {
@@ -578,7 +645,7 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
   };
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+    <div style={{ position: "relative", width: "100%", height: "600px" }}>
       <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
       {renderTooltip()}
       {renderTypeInfoBox()}

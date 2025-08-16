@@ -5,6 +5,18 @@ import CodeMirror from '@uiw/react-codemirror';
 import { useDgraph } from '@/context/DgraphContext';
 import SchemaAutocomplete from './SchemaAutocomplete';
 import SchemaVisualization from './SchemaVisualization';
+import {
+  Box,
+  Card,
+  Heading,
+  Button,
+  Text,
+  Alert,
+  HStack,
+  VStack,
+  Code,
+} from '@chakra-ui/react';
+import { useColorModeValue } from '@/components/ui/color-mode';
 
 export default function SchemaEditor() {
   // Ref for SchemaAutocomplete's handleInpu
@@ -16,6 +28,11 @@ export default function SchemaEditor() {
   const [success, setSuccess] = useState<string | null>(null);
   const [cursorPosition, setCursorPosition] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
+
+  const bgColor = useColorModeValue('white', 'gray.800');
+  const borderColor = useColorModeValue('gray.300', 'gray.600');
+  const textColor = useColorModeValue('gray.900', 'white');
+  const mutedTextColor = useColorModeValue('gray.500', 'gray.400');
 
   // Handle cursor position changes
   const handleEditorChange = (value: string, viewUpdate: any) => {
@@ -104,40 +121,60 @@ export default function SchemaEditor() {
   };
 
   return (
-    <div className="bg-white shadow-md rounded-lg p-6 mb-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold">DQL Schema</h2>
-        <div className="flex space-x-2">
-          <button
+    <Card.Root bg={bgColor} shadow="md" p={6} mb={6}>
+              <HStack justify="space-between" align="center" mb={4}>
+        <Heading as="h2" size="md" color={textColor}>
+          DQL Schema
+        </Heading>
+        <HStack gap={2}>
+          <Button
             onClick={fetchSchema}
-            disabled={isFetching || !connected}
-            className="bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
+            loading={isFetching}
+            loadingText="Fetching..."
+            disabled={!connected}
+            colorPalette="gray"
+            size="md"
           >
-            {isFetching ? 'Fetching...' : 'Refresh Schema'}
-          </button>
-          <button
+            Refresh Schema
+          </Button>
+          <Button
             onClick={handleUpdateSchema}
-            disabled={isLoading || !connected}
+            loading={isLoading}
+            loadingText="Updating..."
+            disabled={!connected}
             className="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
           >
-            {isLoading ? 'Updating...' : 'Update Schema'}
-          </button>
-        </div>
-      </div>
+            Update Schema
+          </Button>
+        </HStack>
+      </HStack>
 
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
+        <Alert.Root status="error" mb={4}>
+          <Alert.Indicator />
+          <Alert.Content>
+            {error}
+          </Alert.Content>
+        </Alert.Root>
       )}
 
       {success && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-          {success}
-        </div>
+        <Alert.Root status="success" mb={4}>
+          <Alert.Indicator />
+          <Alert.Content>
+            {success}
+          </Alert.Content>
+        </Alert.Root>
       )}
 
-      <div className="relative border border-gray-300 rounded-md overflow-hidden mb-4">
+      <Box
+        position="relative"
+        border="1px"
+        borderColor={borderColor}
+        borderRadius="md"
+        overflow="hidden"
+        mb={4}
+      >
         <CodeMirror
           value={schemaText}
           height="300px"
@@ -145,7 +182,7 @@ export default function SchemaEditor() {
           theme="light"
           className="text-sm"
         />
-        <div
+        <Box
           ref={editorRef}
           tabIndex={0}
           onKeyDown={() => {
@@ -164,20 +201,24 @@ export default function SchemaEditor() {
               autocompleteInputRef.current = handle;
             }}
           />
-        </div>
-      </div>
+        </Box>
+      </Box>
 
-      <div className="text-sm text-gray-500">
-        <p>Edit the DQL schema above and click "Update Schema" to apply changes.</p>
-        <p className="mt-1">Example: <code>name: string @index(exact) .</code></p>
-      </div>
+      <VStack gap={2} align="start">
+        <Text fontSize="sm" color={mutedTextColor}>
+          Edit the DQL schema above and click "Update Schema" to apply changes.
+        </Text>
+        <Text fontSize="sm" color={mutedTextColor}>
+          Example: <Code>name: string @index(exact) .</Code>
+        </Text>
+      </VStack>
 
       {/* Schema Visualization */}
       {schemaText && schemaText.trim() !== '' && schemaText !== '# No schema found or empty schema' && (
-        <div className="mt-6">
+        <Box mt={6}>
           <SchemaVisualization schemaText={schemaText} />
-        </div>
+        </Box>
       )}
-    </div>
+    </Card.Root>
   );
 }
