@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
+  useBreakpointValue,
 } from '@chakra-ui/react';
 import { useDgraph } from '@/context/DgraphContext';
 import Toolbar from '@/components/Toolbar';
@@ -15,9 +16,32 @@ function MainContent() {
   const [activeSection, setActiveSection] = useState<'connection' | 'schema' | 'guides' | 'query'>('connection');
   const { connected } = useDgraph();
 
+  // Responsive sidebar behavior
+  const isMobile = useBreakpointValue({ base: true, md: false });
+  const isTablet = useBreakpointValue({ base: false, md: true, lg: false });
+  
+  // Auto-close sidebar on mobile when section changes
+  useEffect(() => {
+    if (isMobile && isSidebarOpen) {
+      setIsSidebarOpen(false);
+    }
+  }, [activeSection, isMobile, isSidebarOpen]);
+
+  // Auto-close sidebar on mobile by default
+  useEffect(() => {
+    if (isMobile) {
+      setIsSidebarOpen(false);
+    }
+  }, [isMobile]);
+
   const handleSectionChange = (section: 'connection' | 'schema' | 'guides' | 'query') => {
     console.log('Section changing from', activeSection, 'to', section);
     setActiveSection(section);
+  };
+
+  const handleToggleSidebar = () => {
+    console.log('Sidebar toggle clicked. Current state:', isSidebarOpen, 'New state:', !isSidebarOpen);
+    setIsSidebarOpen(!isSidebarOpen);
   };
 
   return (
@@ -25,40 +49,46 @@ function MainContent() {
       {/* Top Toolbar */}
       <Toolbar
         isSidebarOpen={isSidebarOpen}
-        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        onToggleSidebar={handleToggleSidebar}
+        isMobile={isMobile}
       />
+
+      {/* Mobile Overlay Backdrop */}
+      {isMobile && isSidebarOpen && (
+        <Box
+          position="fixed"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
+          bg="blackAlpha.600"
+          zIndex={35}
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
 
       {/* Sidebar */}
       <Sidebar
         isOpen={isSidebarOpen}
-        onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+        onToggle={handleToggleSidebar}
         activeSection={activeSection}
         onSectionChange={handleSectionChange}
+        isMobile={isMobile}
+        isTablet={isTablet}
       />
 
       {/* Main Content Area */}
       <Box
-        pt="60px" // Account for fixed header
+        pt={{ base: "56px", md: "60px" }} // Responsive header height
         minH="100vh"
       >
-        {/* Welcome Screen or Settings Panel */}
-        {!connected ? (
-          <>
-            {/* Settings Panel */}
-            <ContentPanel
-              activeSection={activeSection}
-              isSidebarOpen={isSidebarOpen}
-            />
-          </>
-        ) : (
-          <>
-            {/* Settings Panel */}
-            <ContentPanel
-              activeSection={activeSection}
-              isSidebarOpen={isSidebarOpen}
-            />
-          </>
-        )}
+        {/* Content Panel */}
+        <ContentPanel
+          activeSection={activeSection}
+          isSidebarOpen={isSidebarOpen}
+          isMobile={isMobile}
+          isTablet={isTablet}
+        />
       </Box>
     </>
   );

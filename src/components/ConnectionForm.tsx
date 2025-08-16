@@ -65,30 +65,32 @@ export default function ConnectionForm() {
   };
 
   return (
-    <Card.Root variant="elevated" p={6}>
-      <VStack gap={6} align="stretch">
+    <Card.Root variant="elevated" p={{ base: 4, md: 6 }}>
+      <VStack gap={{ base: 4, md: 6 }} align="stretch">
         {/* Header */}
         <Box>
-          <HStack justify="space-between" align="center" mb={2}>
-            <Heading as="h3" size="md" color="fg.primary">
-              Database Connection
-            </Heading>
-            {connected && (
-              <Badge
-                variant="solid"
-                colorPalette="green"
-                size="sm"
-                borderRadius="full"
-                px={3}
-                py={1}
-              >
-                Connected
-              </Badge>
-            )}
-          </HStack>
-          <Text color="fg.secondary" fontSize="sm">
-            Configure your DGraph database connection settings
-          </Text>
+          <VStack align={{ base: "stretch", md: "flex-start" }} gap={2} mb={2}>
+            <HStack justify="space-between" align="center" w="full">
+              <Heading as="h3" size={{ base: "md", md: "lg" }} color="fg.primary">
+                Database Connection
+              </Heading>
+              {connected && (
+                <Badge
+                  variant="solid"
+                  colorPalette="green"
+                  size="sm"
+                  borderRadius="full"
+                  px={3}
+                  py={1}
+                >
+                  Connected
+                </Badge>
+              )}
+            </HStack>
+            <Text color="fg.secondary" fontSize={{ base: "sm", md: "md" }}>
+              Configure your DGraph database connection settings
+            </Text>
+          </VStack>
         </Box>
 
         {/* Quick Connect Button */}
@@ -96,7 +98,7 @@ export default function ConnectionForm() {
           <Button
             variant="outline"
             colorPalette="blue"
-            size="sm"
+            size={{ base: "md", md: "sm" }}
             onClick={handleQuickConnect}
             disabled={connected}
             w="full"
@@ -106,9 +108,6 @@ export default function ConnectionForm() {
             </svg>
             Quick Connect (Patient Graph)
           </Button>
-          <Text fontSize="xs" color="fg.tertiary" mt={1} textAlign="center">
-            Use the provided connection string for testing
-          </Text>
         </Box>
 
         {error && (

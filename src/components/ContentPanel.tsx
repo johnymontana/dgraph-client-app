@@ -21,19 +21,26 @@ import { useDgraph } from '@/context/DgraphContext';
 interface ContentPanelProps {
   activeSection: 'connection' | 'schema' | 'guides' | 'query';
   isSidebarOpen: boolean;
+  isMobile?: boolean;
+  isTablet?: boolean;
 }
 
-export default function ContentPanel({ activeSection, isSidebarOpen }: ContentPanelProps) {
+export default function ContentPanel({ 
+  activeSection, 
+  isSidebarOpen, 
+  isMobile, 
+  isTablet 
+}: ContentPanelProps) {
   const { connected } = useDgraph();
   const [queryResult, setQueryResult] = useState<any>(null);
 
   const renderConnectionSection = () => (
-    <VStack gap={6} align="stretch">
+    <VStack gap={{ base: 4, md: 6 }} align="stretch">
       <Box>
-        <Heading as="h2" size="lg" color="fg.primary" mb={2}>
+        <Heading as="h2" size={{ base: "lg", md: "xl" }} color="fg.primary" mb={2}>
           Database Connection
         </Heading>
-        <Text color="fg.secondary" fontSize="sm">
+        <Text color="fg.secondary" fontSize={{ base: "sm", md: "md" }}>
           Connect to your DGraph database to start exploring and querying data
         </Text>
       </Box>
@@ -56,12 +63,12 @@ export default function ContentPanel({ activeSection, isSidebarOpen }: ContentPa
   );
 
   const renderSchemaSection = () => (
-    <VStack gap={6} align="stretch">
+    <VStack gap={{ base: 4, md: 6 }} align="stretch">
       <Box>
-        <Heading as="h2" size="lg" color="fg.primary" mb={2}>
+        <Heading as="h2" size={{ base: "lg", md: "xl" }} color="fg.primary" mb={2}>
           Schema Management
         </Heading>
-        <Text color="fg.secondary" fontSize="sm">
+        <Text color="fg.secondary" fontSize={{ base: "sm", md: "md" }}>
           View and manage your database schema, types, and predicates
         </Text>
       </Box>
@@ -84,12 +91,12 @@ export default function ContentPanel({ activeSection, isSidebarOpen }: ContentPa
   );
 
   const renderGuidesSection = () => (
-    <VStack gap={6} align="stretch">
+    <VStack gap={{ base: 4, md: 6 }} align="stretch">
       <Box>
-        <Heading as="h2" size="lg" color="fg.primary" mb={2}>
+        <Heading as="h2" size={{ base: "lg", md: "xl" }} color="fg.primary" mb={2}>
           Learning Guides
         </Heading>
-        <Text color="fg.secondary" fontSize="sm">
+        <Text color="fg.secondary" fontSize={{ base: "sm", md: "md" }}>
           Interactive tutorials and examples to help you master DGraph DQL
         </Text>
       </Box>
@@ -104,18 +111,18 @@ export default function ContentPanel({ activeSection, isSidebarOpen }: ContentPa
 
   const renderQuerySection = () => {
     return (
-      <VStack gap={6} align="stretch">
+      <VStack gap={{ base: 4, md: 6 }} align="stretch">
         <Box>
-          <Heading as="h2" size="lg" color="fg.primary" mb={2}>
+          <Heading as="h2" size={{ base: "lg", md: "xl" }} color="fg.primary" mb={2}>
             Query Editor
           </Heading>
-          <Text color="fg.secondary" fontSize="sm">
+          <Text color="fg.secondary" fontSize={{ base: "sm", md: "md" }}>
             Write and execute DQL queries against your connected database
           </Text>
         </Box>
 
         {/* Query and Visualization with resizable container */}
-        <Box h="calc(100vh - 300px)">
+        <Box h={{ base: "calc(100vh - 400px)", md: "calc(100vh - 300px)" }}>
           <ResizableContainer
             direction="vertical"
             initialSplit={40}
@@ -158,18 +165,25 @@ export default function ContentPanel({ activeSection, isSidebarOpen }: ContentPa
     }
   };
 
+  // Responsive margin logic
+  const getMarginLeft = () => {
+    if (isMobile) return "0px";
+    if (isTablet) return isSidebarOpen ? "320px" : "0px";
+    return isSidebarOpen ? "280px" : "0px";
+  };
+
   return (
     <Box
-      ml={isSidebarOpen ? "280px" : "0px"}
+      ml={getMarginLeft()}
       transition="margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
       minH="100vh"
       bg="bg.primary"
     >
       <Box
-        maxW="4xl"
+        maxW={{ base: "full", md: "4xl", xl: "6xl" }}
         mx="auto"
-        py={8}
-        px={{ base: 4, sm: 6, lg: 8 }}
+        py={{ base: 4, md: 6, lg: 8 }}
+        px={{ base: 3, sm: 4, md: 6, lg: 8 }}
       >
         {renderContent()}
       </Box>

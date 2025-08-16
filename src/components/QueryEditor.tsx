@@ -249,74 +249,70 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
   };
 
   return (
-    <Card.Root
-      variant="elevated"
-      p={6}
-      mb={!isFullscreen ? 6 : 0}
-      position={isFullscreen ? 'absolute' : 'relative'}
-      inset={isFullscreen ? 0 : 'auto'}
-      zIndex={isFullscreen ? 50 : 'auto'}
-    >
-      <VStack gap={4} align="stretch">
-        {/* Header */}
-        <HStack justify="space-between" align="center">
-          <Box>
-            <Heading as="h3" size="md" color="fg.primary" mb={1}>
-              DQL Editor
-            </Heading>
-            <Text color="fg.secondary" fontSize="sm">
-              Write and execute DQL queries and mutations
-            </Text>
-          </Box>
-          <HStack gap={2} align="center">
-            <FullscreenToggle
-              isFullscreen={isFullscreen}
-              onToggle={() => setIsFullscreen(!isFullscreen)}
-            />
-            <Button
-              onClick={() => {
-                setShowGuide(!showGuide);
-                if (showHistory) setShowHistory(false);
-              }}
-              variant={showGuide ? 'solid' : 'outline'}
-              colorPalette={showGuide ? 'blue' : 'gray'}
-              size="sm"
-            >
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ marginRight: '8px' }}>
-                <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-              Guide
-            </Button>
-            <Button
-              onClick={() => {
-                setShowHistory(!showHistory);
-                if (showGuide) setShowGuide(false);
-              }}
-              variant={showHistory ? 'solid' : 'outline'}
-              colorPalette={showHistory ? 'blue' : 'gray'}
-              size="sm"
-            >
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ marginRight: '8px' }}>
-                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              History
-            </Button>
-            <Button
-              onClick={handleRunOperation}
-              loading={isLoading}
-              loadingText="Running..."
-              disabled={!connected}
-              colorPalette="blue"
-              size="md"
-              h="40px"
-            >
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ marginRight: '8px' }}>
-                <path d="M8 5v14l11-7z" />
-              </svg>
-              {`Run ${activeTab === 'query' ? 'Query' : 'Mutation'}`}
-            </Button>
+    <Card.Root variant="elevated">
+      {/* Header */}
+      <Box p={{ base: 3, md: 4 }} borderBottom="1px" borderColor="border.primary">
+        <VStack gap={3} align="stretch">
+          <HStack justify="space-between" align="center" flexWrap={{ base: "wrap", md: "nowrap" }}>
+            <VStack align="start" gap={1}>
+              <Heading as="h3" size={{ base: "md", md: "lg" }} color="fg.primary">
+                DQL Editor
+              </Heading>
+              <Text color="fg.secondary" fontSize={{ base: "xs", md: "sm" }}>
+                Write and execute DQL queries and mutations
+              </Text>
+            </VStack>
+            
+            <HStack gap={2} flexWrap="wrap">
+              <Button
+                variant="ghost"
+                size={{ base: "sm", md: "sm" }}
+                onClick={() => setShowGuide(!showGuide)}
+                color="fg.secondary"
+                _hover={{ color: "fg.primary" }}
+              >
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ marginRight: '8px' }}>
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+                Guide
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size={{ base: "sm", md: "sm" }}
+                onClick={() => setShowHistory(!showHistory)}
+                color="fg.secondary"
+                _hover={{ color: "fg.primary" }}
+              >
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ marginRight: '8px' }}>
+                  <path d="M13 3a9 9 0 00-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" />
+                </svg>
+                History
+              </Button>
+              
+              <Button
+                onClick={handleRunOperation}
+                loading={isLoading}
+                loadingText="Running..."
+                disabled={!connected}
+                colorPalette="blue"
+                size={{ base: "md", md: "md" }}
+                h="40px"
+              >
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ marginRight: '8px' }}>
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+                {`Run ${activeTab === 'query' ? 'Query' : 'Mutation'}`}
+              </Button>
+              
+              <FullscreenToggle
+                isFullscreen={isFullscreen}
+                onToggle={() => setIsFullscreen(!isFullscreen)}
+              />
+            </HStack>
           </HStack>
-        </HStack>
+        </VStack>
+      </Box>
 
         {/* Tabs */}
         <HStack borderBottom="1px" borderColor="border.primary" gap={0}>
@@ -431,7 +427,6 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
             Example: <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-xs">{`{ q(func: has(name)) { uid name } }`}</code>
           </Text>
         </VStack>
-      </VStack>
-    </Card.Root>
+      </Card.Root>
   );
 }

@@ -20,9 +20,10 @@ import StatusIndicator from './StatusIndicator';
 interface ToolbarProps {
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
+  isMobile?: boolean;
 }
 
-export default function Toolbar({ isSidebarOpen, onToggleSidebar }: ToolbarProps) {
+export default function Toolbar({ isSidebarOpen, onToggleSidebar, isMobile }: ToolbarProps) {
   const { isLight, toggleColorMode } = useColorMode();
   const { connected, disconnect } = useDgraph();
 
@@ -42,26 +43,27 @@ export default function Toolbar({ isSidebarOpen, onToggleSidebar }: ToolbarProps
       right={0}
       zIndex={30}
     >
-      <Container maxW="7xl" py={3} px={{ base: 4, sm: 6, lg: 8 }}>
-        <Flex justify="space-between" align="center">
+      <Container maxW="7xl" py={{ base: 2, md: 3 }} px={{ base: 3, sm: 4, md: 6, lg: 8 }}>
+        <Flex justify="space-between" align="center" direction={{ base: "column", md: "row" }} gap={{ base: 2, md: 0 }}>
           {/* Left Section */}
-          <HStack gap={4}>
+          <HStack gap={{ base: 2, md: 4 }} w={{ base: "full", md: "auto" }} justify={{ base: "space-between", md: "flex-start" }}>
             <IconButton
               onClick={onToggleSidebar}
               aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
               variant="ghost"
-              size="sm"
+              size={{ base: "sm", md: "sm" }}
+              display={{ base: "flex", md: "flex" }}
             >
               <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                 <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
               </svg>
             </IconButton>
             
-            <VStack align="start" gap={0}>
-              <Heading as="h1" size="lg" color="fg.primary">
+            <VStack align="start" gap={0} flex={1}>
+              <Heading as="h1" size={{ base: "md", md: "lg" }} color="fg.primary">
                 DGraph Client
               </Heading>
-              <Text fontSize="xs" color="fg.tertiary">
+              <Text fontSize={{ base: "2xs", md: "xs" }} color="fg.tertiary">
                 Graph Database Explorer
               </Text>
             </VStack>
@@ -73,24 +75,25 @@ export default function Toolbar({ isSidebarOpen, onToggleSidebar }: ToolbarProps
               borderRadius="full"
               px={2}
               py={1}
+              display={{ base: "none", sm: "inline-flex" }}
             >
               DQL Explorer
             </Badge>
           </HStack>
 
           {/* Center Section - Connection Status */}
-          <Box textAlign="center">
+          <Box textAlign="center" order={{ base: 2, md: 1 }}>
             <StatusIndicator />
           </Box>
 
           {/* Right Section */}
-          <HStack gap={3}>
+          <HStack gap={{ base: 2, md: 3 }} order={{ base: 3, md: 2 }}>
             {/* Theme Toggle */}
             <IconButton
               onClick={toggleColorMode}
               aria-label={`Switch to ${isLight ? 'dark' : 'light'} mode`}
               variant="ghost"
-              size="sm"
+              size={{ base: "sm", md: "sm" }}
             >
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                 {isLight ? (
@@ -104,10 +107,11 @@ export default function Toolbar({ isSidebarOpen, onToggleSidebar }: ToolbarProps
             {/* Help Button */}
             <Button
               variant="ghost"
-              size="sm"
+              size={{ base: "xs", md: "sm" }}
               color="fg.secondary"
               _hover={{ color: "fg.primary" }}
               title="Documentation and Help"
+              display={{ base: "none", sm: "inline-flex" }}
             >
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ marginRight: '8px' }}>
                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
@@ -121,7 +125,8 @@ export default function Toolbar({ isSidebarOpen, onToggleSidebar }: ToolbarProps
                 onClick={handleDisconnect}
                 variant="outline"
                 colorPalette="red"
-                size="sm"
+                size={{ base: "xs", md: "sm" }}
+                display={{ base: "none", sm: "inline-flex" }}
               >
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ marginRight: '8px' }}>
                   <path d="M6 18L18 6M6 6l12 12" />
