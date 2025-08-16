@@ -160,7 +160,7 @@ export default function ContentPanel({ activeSection, isSidebarOpen }: ContentPa
 
   return (
     <Box
-      ml={isSidebarOpen ? "280px" : "60px"}
+      ml={isSidebarOpen ? "280px" : "0px"}
       transition="margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
       minH="100vh"
       bg="bg.primary"

@@ -9,7 +9,6 @@ import {
   Button,
   Separator,
   Badge,
-  IconButton,
 } from '@chakra-ui/react';
 import { useDgraph } from '@/context/DgraphContext';
 
@@ -85,7 +84,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
   );
 };
 
-export default function Sidebar({ isOpen, onToggle, activeSection, onSectionChange }: SidebarProps) {
+export default function Sidebar({ isOpen, activeSection, onSectionChange }: SidebarProps) {
   const { connected, endpoint } = useDgraph();
 
   const getConnectionStatus = () => {
@@ -102,9 +101,10 @@ export default function Sidebar({ isOpen, onToggle, activeSection, onSectionChan
       left={0}
       top={0}
       h="100vh"
-      w={isOpen ? "280px" : "60px"}
+      w="280px"
       layerStyle="sidebar"
-      transition="width 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+      transform={isOpen ? "translateX(0)" : "translateX(-220px)"}
+      transition="transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
       zIndex={40}
       overflow="hidden"
     >
@@ -121,18 +121,11 @@ export default function Sidebar({ isOpen, onToggle, activeSection, onSectionChan
               DGraph Client
             </Text>
           )}
-          <IconButton
-            aria-label="Toggle sidebar"
-            variant="ghost"
-            size="sm"
-            onClick={onToggle}
-          >
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <path
-                d={isOpen ? "M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" : "M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"}
-              />
-            </svg>
-          </IconButton>
+          {!isOpen && (
+            <Text fontSize="lg" fontWeight="bold" color="fg.primary" textAlign="center" w="full">
+              DG
+            </Text>
+          )}
         </HStack>
       </Box>
 
