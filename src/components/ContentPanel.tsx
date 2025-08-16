@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   VStack,
@@ -11,15 +11,21 @@ import {
 import ConnectionForm from './ConnectionForm';
 import SchemaEditor from './SchemaEditor';
 import GuidedExperience from './GuidedExperience';
+import QueryEditor from './QueryEditor';
+import ResizableContainer from './ResizableContainer';
+import GraphVisualization from './GraphVisualization';
+import GeoVisualization from './GeoVisualization';
+import { hasGeoData } from '@/utils/geoUtils';
 import { useDgraph } from '@/context/DgraphContext';
 
 interface ContentPanelProps {
-  activeSection: 'connection' | 'schema' | 'guides';
+  activeSection: 'connection' | 'schema' | 'guides' | 'query';
   isSidebarOpen: boolean;
 }
 
 export default function ContentPanel({ activeSection, isSidebarOpen }: ContentPanelProps) {
   const { connected } = useDgraph();
+  const [queryResult, setQueryResult] = useState<any>(null);
 
   const renderConnectionSection = () => (
     <VStack gap={6} align="stretch">
@@ -96,6 +102,47 @@ export default function ContentPanel({ activeSection, isSidebarOpen }: ContentPa
     </VStack>
   );
 
+  const renderQuerySection = () => {
+    return (
+      <VStack gap={6} align="stretch">
+        <Box>
+          <Heading as="h2" size="lg" color="fg.primary" mb={2}>
+            Query Editor
+          </Heading>
+          <Text color="fg.secondary" fontSize="sm">
+            Write and execute DQL queries against your connected database
+          </Text>
+        </Box>
+
+        {/* Query and Visualization with resizable container */}
+        <Box h="calc(100vh - 300px)">
+          <ResizableContainer
+            direction="vertical"
+            initialSplit={40}
+            minFirstSize={20}
+            minSecondSize={20}
+            firstComponent={
+              <QueryEditor onQueryResult={setQueryResult} />
+            }
+            secondComponent={
+              <>
+                {queryResult && <GraphVisualization data={queryResult} />}
+                {queryResult && hasGeoData(queryResult) && <GeoVisualization data={queryResult} />}
+                {!queryResult && (
+                  <Box>
+                    <Text color="fg.secondary" textAlign="center" py={8}>
+                      Run a query to see results here
+                    </Text>
+                  </Box>
+                )}
+              </>
+            }
+          />
+        </Box>
+      </VStack>
+    );
+  };
+
   const renderContent = () => {
     switch (activeSection) {
       case 'connection':
@@ -104,6 +151,8 @@ export default function ContentPanel({ activeSection, isSidebarOpen }: ContentPa
         return renderSchemaSection();
       case 'guides':
         return renderGuidesSection();
+      case 'query':
+        return renderQuerySection();
       default:
         return renderConnectionSection();
     }

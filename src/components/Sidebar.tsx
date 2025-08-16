@@ -16,8 +16,8 @@ import { useDgraph } from '@/context/DgraphContext';
 interface SidebarProps {
   isOpen: boolean;
   onToggle: () => void;
-  activeSection: 'connection' | 'schema' | 'guides';
-  onSectionChange: (section: 'connection' | 'schema' | 'guides') => void;
+  activeSection: 'connection' | 'schema' | 'guides' | 'query';
+  onSectionChange: (section: 'connection' | 'schema' | 'guides' | 'query') => void;
 }
 
 interface SidebarItemProps {
@@ -154,27 +154,32 @@ export default function Sidebar({ isOpen, onToggle, activeSection, onSectionChan
       <Box px={isOpen ? 4 : 2} py={4} flex={1} overflowY="auto">
         <VStack gap={2} align="stretch">
           <SidebarItem
-            icon="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
+            icon="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
             label="Connection"
             isActive={activeSection === 'connection'}
             onClick={() => onSectionChange('connection')}
             badge={isOpen ? undefined : "C"}
           />
-
           <SidebarItem
-            icon="M9 3v1H4v2h1v13a2 2 0 002 2h10a2 2 0 002-2V6h1V4h-5V3H9zM7 6h10v13H7V6zm2 2v9h2V8H9zm4 0v9h2V8h-2z"
+            icon="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
             label="Schema"
             isActive={activeSection === 'schema'}
             onClick={() => onSectionChange('schema')}
             badge={isOpen ? undefined : "S"}
           />
-
           <SidebarItem
-            icon="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+            icon="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
             label="Guides"
             isActive={activeSection === 'guides'}
             onClick={() => onSectionChange('guides')}
             badge={isOpen ? undefined : "G"}
+          />
+          <SidebarItem
+            icon="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+            label="Query"
+            isActive={activeSection === 'query'}
+            onClick={() => onSectionChange('query')}
+            badge={isOpen ? undefined : "Q"}
           />
         </VStack>
       </Box>
