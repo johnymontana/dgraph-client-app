@@ -3,8 +3,13 @@
 import { ChakraProvider, defaultSystem } from '@chakra-ui/react'
 import { ReactNode } from 'react'
 import { ColorModeProvider } from './color-mode'
+import { devToolTheme } from './theme'
 
-// Using default Chakra UI system theme
+// Create a custom theme by merging with the default system
+const customTheme = {
+  ...defaultSystem,
+  ...devToolTheme,
+}
 
 interface ProviderProps {
   children: ReactNode
@@ -13,7 +18,7 @@ interface ProviderProps {
 export function Provider({ children }: ProviderProps) {
   return (
     <ColorModeProvider>
-      <ChakraProvider value={defaultSystem}>
+      <ChakraProvider value={customTheme}>
         {children}
       </ChakraProvider>
     </ColorModeProvider>

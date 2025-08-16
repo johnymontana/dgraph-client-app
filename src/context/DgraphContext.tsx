@@ -57,6 +57,8 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
   const [schemaText, setSchemaText] = useState('');
   const [parsedSchema, setParsedSchema] = useState<ParsedSchema>({ types: [] });
 
+  console.log('DgraphProvider state:', { connected, endpoint, apiKey, error });
+
   // Wrapper functions to update both state and localStorage
   const setEndpoint = (value: string) => {
     setEndpointState(value);
@@ -111,10 +113,12 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
 
   const connect = async () => {
     try {
+      console.log('DgraphContext.connect() called with endpoint:', endpoint);
       setError(null);
 
       // Parse the connection string to extract endpoint, SSL settings, and bearer token
       const parsedConnection = DgraphService.parseConnectionString(endpoint);
+      console.log('Parsed connection:', parsedConnection);
 
       const config = {
         endpoint: parsedConnection.endpoint,
@@ -122,6 +126,7 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
         sslMode: parsedConnection.sslMode,
         bearerToken: parsedConnection.bearerToken || apiKey || undefined,
       };
+      console.log('Service config:', config);
 
       // Mark that the user has explicitly connected (for auto-connect on refresh)
       try {
@@ -131,9 +136,12 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
       }
 
       const service = new DgraphService(config);
+      console.log('DgraphService instance created');
 
       // Test connection by fetching schema
+      console.log('Testing connection by fetching schema...');
       const schemaResult = await service.getSchema();
+      console.log('Schema result:', schemaResult);
 
       // Process schema for autocomplete
       if (schemaResult && schemaResult.data && schemaResult.data.schema) {

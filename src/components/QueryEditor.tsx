@@ -19,9 +19,7 @@ import {
   VStack,
   Text,
   Alert,
-  Icon,
 } from '@chakra-ui/react';
-import { useColorModeValue } from '@/components/ui/color-mode';
 
 interface QueryEditorProps {
   onQueryResult: (data: any) => void;
@@ -70,14 +68,6 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
   const [guidesLoading, setGuidesLoading] = useState(false);
   const [queryVariables, setQueryVariables] = useState<Record<string, any>>({});
   const editorRef = useRef<HTMLDivElement>(null);
-
-  // Color mode values
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.600');
-  const textColor = useColorModeValue('gray.900', 'white');
-  const mutedTextColor = useColorModeValue('gray.500', 'gray.400');
-  const activeTabColor = useColorModeValue('blue.600', 'blue.400');
-  const inactiveTabColor = useColorModeValue('gray.500', 'gray.400');
 
   // Load query history from localStorage on component mount
   useEffect(() => {
@@ -260,8 +250,7 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
 
   return (
     <Card.Root
-      bg={bgColor}
-      shadow="md"
+      variant="elevated"
       p={6}
       mb={!isFullscreen ? 6 : 0}
       position={isFullscreen ? 'absolute' : 'relative'}
@@ -271,9 +260,14 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
       <VStack gap={4} align="stretch">
         {/* Header */}
         <HStack justify="space-between" align="center">
-          <Heading as="h2" size="lg" color={textColor}>
-            Dgraph Operations
-          </Heading>
+          <Box>
+            <Heading as="h3" size="md" color="fg.primary" mb={1}>
+              DQL Editor
+            </Heading>
+            <Text color="fg.secondary" fontSize="sm">
+              Write and execute DQL queries and mutations
+            </Text>
+          </Box>
           <HStack gap={2} align="center">
             <FullscreenToggle
               isFullscreen={isFullscreen}
@@ -288,12 +282,9 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
               colorPalette={showGuide ? 'blue' : 'gray'}
               size="sm"
             >
-              <Icon viewBox="0 0 24 24">
-                <path
-                  fill="currentColor"
-                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                />
-              </Icon>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ marginRight: '8px' }}>
+                <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
               Guide
             </Button>
             <Button
@@ -305,12 +296,9 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
               colorPalette={showHistory ? 'blue' : 'gray'}
               size="sm"
             >
-              <Icon viewBox="0 0 24 24">
-                <path
-                  fill="currentColor"
-                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </Icon>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ marginRight: '8px' }}>
+                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
               History
             </Button>
             <Button
@@ -320,23 +308,29 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
               disabled={!connected}
               colorPalette="blue"
               size="md"
+              h="40px"
             >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ marginRight: '8px' }}>
+                <path d="M8 5v14l11-7z" />
+              </svg>
               {`Run ${activeTab === 'query' ? 'Query' : 'Mutation'}`}
             </Button>
           </HStack>
         </HStack>
 
         {/* Tabs */}
-        <HStack borderBottom="1px" borderColor={borderColor} gap={0}>
+        <HStack borderBottom="1px" borderColor="border.primary" gap={0}>
           <Button
             onClick={() => setActiveTab('query')}
             variant="ghost"
             size="sm"
-            color={activeTab === 'query' ? activeTabColor : inactiveTabColor}
+            color={activeTab === 'query' ? 'accent.primary' : 'fg.secondary'}
             borderBottom="2px"
-            borderColor={activeTab === 'query' ? activeTabColor : 'transparent'}
+            borderColor={activeTab === 'query' ? 'accent.primary' : 'transparent'}
             borderRadius="0"
             _hover={{ bg: 'transparent' }}
+            px={4}
+            py={2}
           >
             Query
           </Button>
@@ -344,21 +338,23 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
             onClick={() => setActiveTab('mutation')}
             variant="ghost"
             size="sm"
-            color={activeTab === 'mutation' ? activeTabColor : inactiveTabColor}
+            color={activeTab === 'mutation' ? 'accent.primary' : 'fg.secondary'}
             borderBottom="2px"
-            borderColor={activeTab === 'mutation' ? activeTabColor : 'transparent'}
+            borderColor={activeTab === 'mutation' ? 'accent.primary' : 'transparent'}
             borderRadius="0"
             _hover={{ bg: 'transparent' }}
+            px={4}
+            py={2}
           >
             Mutation
           </Button>
         </HStack>
 
         {error && (
-          <Alert.Root status="error">
+          <Alert.Root status="error" variant="subtle">
             <Alert.Indicator />
             <Alert.Content>
-              {error}
+              <Text fontSize="sm">{error}</Text>
             </Alert.Content>
           </Alert.Root>
         )}
@@ -384,7 +380,12 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
           />
         )}
 
-                  <Box position="relative">
+        <Box position="relative">
+          <Box
+            layerStyle="code-editor"
+            borderRadius="md"
+            overflow="hidden"
+          >
             <CodeMirror
               value={activeTab === 'query' ? query : mutation}
               height={isFullscreen ? 'calc(100vh - 230px)' : '200px'}
@@ -392,8 +393,9 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
               theme="light"
               className="text-sm"
             />
+          </Box>
 
-            {/* Variable inputs */}
+          {/* Variable inputs */}
           <DQLVariableInputs
             query={activeTab === 'query' ? query : mutation}
             onChange={handleVariablesChange}
@@ -422,11 +424,11 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
         </Box>
 
         <VStack gap={1} align="start">
-          <Text fontSize="sm" color={mutedTextColor}>
+          <Text fontSize="sm" color="fg.secondary">
             Enter a DQL query to execute against your Dgraph database.
           </Text>
-          <Text fontSize="sm" color={mutedTextColor}>
-            Example: <code>{`{ q(func: has(name)) { uid name } }`}</code>
+          <Text fontSize="sm" color="fg.tertiary">
+            Example: <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-xs">{`{ q(func: has(name)) { uid name } }`}</code>
           </Text>
         </VStack>
       </VStack>
