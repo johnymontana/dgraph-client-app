@@ -11,6 +11,7 @@ import {
   Badge,
 } from '@chakra-ui/react';
 import { useDgraph } from '@/context/DgraphContext';
+import { Icons } from '@/components/ui/icons';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -22,86 +23,68 @@ interface SidebarProps {
 }
 
 interface SidebarItemProps {
-  icon: string;
+  icon: React.ComponentType<{ size?: number }>;
   label: string;
   isActive?: boolean;
   onClick: () => void;
   badge?: string;
   children?: React.ReactNode;
-  isMobile?: boolean;
   isOpen: boolean;
 }
 
 function SidebarItem({
-  icon,
+  icon: IconComponent,
   label,
   isActive,
   onClick,
   badge,
   children,
-  isMobile,
   isOpen
 }: SidebarItemProps) {
   return (
     <Button
-      variant="ghost"
-      size={{ base: "lg", md: "md" }}
-      w="full"
-      justifyContent="flex-start"
-      px={{ base: 4, md: 4 }}
-      py={{ base: 3, md: 2 }}
-      h={{ base: "auto", md: "auto" }}
-      minH={{ base: "48px", md: "40px" }}
-      bg={isActive ? "accent.primary" : "transparent"}
-      color={isActive ? "white" : "fg.primary"}
-      _hover={{
-        bg: isActive ? "accent.primary" : "bg.tertiary",
-        color: isActive ? "white" : "fg.primary"
-      }}
-      _active={{
-        bg: isActive ? "accent.primary" : "bg.tertiary",
-        color: isActive ? "white" : "fg.primary"
-      }}
+      layerStyle={isActive ? "nav-item.active" : "nav-item"}
       onClick={onClick}
       position="relative"
-      borderRadius="md"
-      transition="all 0.2s"
+      h="auto"
+      minH={{ base: "48px", md: "44px" }}
     >
       <HStack gap={3} align="center" w="full" justify="flex-start">
         <Box
-          w={{ base: "20px", md: "16px" }}
-          h={{ base: "20px", md: "16px" }}
           display="flex"
           alignItems="center"
           justifyContent="center"
+          flexShrink={0}
         >
-          <svg viewBox="0 0 24 24" width="100%" height="100%" fill="currentColor">
-            <path d={icon} />
-          </svg>
+          <IconComponent size={isOpen ? 18 : 20} />
         </Box>
         
-        <Text
-          fontSize={{ base: "md", md: "sm" }}
-          fontWeight="medium"
-          flex={1}
-          textAlign="left"
-          display={isOpen ? "block" : "none"}
-        >
-          {label}
-        </Text>
+        {isOpen && (
+          <Text
+            fontSize="sm"
+            fontWeight="medium"
+            flex={1}
+            textAlign="left"
+          >
+            {label}
+          </Text>
+        )}
         
-        {badge && (
+        {badge && !isOpen && (
           <Badge
             variant="solid"
             colorPalette="blue"
-            size="sm"
+            size="xs"
             borderRadius="full"
             position="absolute"
-            top={2}
-            right={2}
-            fontSize="xs"
-            px={1}
-            py={0.5}
+            top={1}
+            right={1}
+            fontSize="2xs"
+            w={4}
+            h={4}
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
           >
             {badge}
           </Badge>
@@ -113,7 +96,7 @@ function SidebarItem({
   );
 }
 
-export default function Sidebar({ isOpen, activeSection, onSectionChange, isMobile, isTablet }: SidebarProps) {
+export default function Sidebar({ isOpen, activeSection, onSectionChange, isMobile }: SidebarProps) {
   const { connected, endpoint } = useDgraph();
   const [mounted, setMounted] = useState(false);
 
@@ -135,10 +118,16 @@ export default function Sidebar({ isOpen, activeSection, onSectionChange, isMobi
   const connectionStatus = getConnectionStatus();
 
   // Responsive sidebar behavior
-  const sidebarWidth = isMobile ? "100vw" : isTablet ? "320px" : "280px";
-  const transformValue = isOpen ? "translateX(0)" : isMobile ? "translateX(-100%)" : `translateX(-${sidebarWidth})`;
-  
-  console.log('Sidebar state:', { isOpen, isMobile, isTablet, sidebarWidth, transformValue });
+  const sidebarWidth = isMobile ? "100vw" : isOpen ? "280px" : "72px";
+  const transformValue = isOpen ? "translateX(0)" : isMobile ? "translateX(-100%)" : "translateX(0)";
+
+  // Navigation items configuration
+  const navItems = [
+    { icon: Icons.database, label: "Connection", key: "connection" as const },
+    { icon: Icons.schema, label: "Schema", key: "schema" as const },
+    { icon: Icons.guides, label: "Guides", key: "guides" as const },
+    { icon: Icons.query, label: "Query", key: "query" as const },
+  ];
 
   // Don't render connection status until mounted to prevent hydration mismatch
   if (!mounted) {
@@ -146,100 +135,60 @@ export default function Sidebar({ isOpen, activeSection, onSectionChange, isMobi
       <Box
         position="fixed"
         left={0}
-        top={0}
-        h="100vh"
+        top="60px"
+        h="calc(100vh - 60px)"
         w={sidebarWidth}
         layerStyle="sidebar"
         transform={transformValue}
-        transition="transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+        transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
         zIndex={40}
         overflow="hidden"
       >
         {/* Header */}
-        <Box
-          layerStyle="toolbar"
-          px={{ base: 4, md: isOpen ? 4 : 2 }}
-          py={3}
-          position="relative"
-        >
-          <HStack justify="space-between" align="center">
-            {isOpen && (
-              <Text fontSize={{ base: "lg", md: "lg" }} fontWeight="bold" color="fg.primary">
-                DGraph Client
-              </Text>
-            )}
-            {!isOpen && !isMobile && (
-              <Text fontSize="lg" fontWeight="bold" color="fg.primary" textAlign="center" w="full">
-                DG
-              </Text>
-            )}
-          </HStack>
+        <Box px={4} py={4}>
+          {isOpen && (
+            <Text textStyle="heading.card">
+              Navigation
+            </Text>
+          )}
         </Box>
 
         {/* Placeholder for connection status */}
-        <Box px={{ base: 4, md: isOpen ? 4 : 2 }} py={3}>
+        <Box px={4} pb={4}>
           <Box
             layerStyle="status-badge"
-            bg="status.disconnected"
+            bg="status.loading"
             color="white"
-            textAlign={isOpen ? "left" : "center"}
+            justifyContent={isOpen ? "flex-start" : "center"}
           >
-            {isOpen ? "Loading..." : "L"}
+            <Icons.loading size={12} />
+            {isOpen && <Text ml={2}>Loading...</Text>}
           </Box>
         </Box>
 
-        <Separator />
+        <Separator mx={4} />
 
         {/* Navigation Items */}
-        <Box px={{ base: 4, md: isOpen ? 4 : 2 }} py={4} flex={1} overflowY="auto">
-          <VStack gap={{ base: 3, md: 2 }} align="stretch">
-            <SidebarItem
-              icon="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-              label="Connection"
-              isActive={activeSection === 'connection'}
-              onClick={() => onSectionChange('connection')}
-              badge={isOpen ? undefined : "C"}
-              isMobile={isMobile}
-              isOpen={isOpen}
-            />
-            <SidebarItem
-              icon="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-              label="Schema"
-              isActive={activeSection === 'schema'}
-              onClick={() => onSectionChange('schema')}
-              badge={isOpen ? undefined : "S"}
-              isMobile={isMobile}
-              isOpen={isOpen}
-            />
-            <SidebarItem
-              icon="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-              label="Guides"
-              isActive={activeSection === 'guides'}
-              onClick={() => onSectionChange('guides')}
-              badge={isOpen ? undefined : "G"}
-              isMobile={isMobile}
-              isOpen={isOpen}
-            />
-            <SidebarItem
-              icon="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-              label="Query"
-              isActive={activeSection === 'query'}
-              onClick={() => onSectionChange('query')}
-              badge={isOpen ? undefined : "Q"}
-              isMobile={isMobile}
-              isOpen={isOpen}
-            />
+        <Box px={4} py={4} flex={1} overflowY="auto">
+          <VStack gap={1} align="stretch">
+            {navItems.map((item) => (
+              <SidebarItem
+                key={item.key}
+                icon={item.icon}
+                label={item.label}
+                isActive={activeSection === item.key}
+                onClick={() => onSectionChange(item.key)}
+                badge={isOpen ? undefined : item.label.charAt(0)}
+                isOpen={isOpen}
+              />
+            ))}
           </VStack>
         </Box>
 
         {/* Footer */}
-        <Box px={{ base: 4, md: isOpen ? 4 : 2 }} py={3} borderTop="1px" borderColor="border.primary">
-          <Text
-            fontSize="xs"
-            color="fg.tertiary"
-            textAlign={isOpen ? "left" : "center"}
-          >
-            {isOpen ? "DGraph Client v0.1.0" : "v0.1.0"}
+        <Box px={4} py={4} borderTop="1px" borderColor="border.primary">
+          <Text textStyle="body.small" textAlign={isOpen ? "left" : "center"}>
+            {isOpen ? "DGraph Client v0.1.0" : "v0.1"}
           </Text>
         </Box>
       </Box>
@@ -250,100 +199,62 @@ export default function Sidebar({ isOpen, activeSection, onSectionChange, isMobi
     <Box
       position="fixed"
       left={0}
-      top={0}
-      h="100vh"
+      top="60px"
+      h="calc(100vh - 60px)"
       w={sidebarWidth}
       layerStyle="sidebar"
       transform={transformValue}
-      transition="transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+      transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
       zIndex={40}
       overflow="hidden"
     >
       {/* Header */}
-      <Box
-        layerStyle="toolbar"
-        px={{ base: 4, md: isOpen ? 4 : 2 }}
-        py={3}
-        position="relative"
-      >
-        <HStack justify="space-between" align="center">
-          {isOpen && (
-            <Text fontSize={{ base: "lg", md: "lg" }} fontWeight="bold" color="fg.primary">
-              DGraph Client
-            </Text>
-          )}
-          {!isOpen && !isMobile && (
-            <Text fontSize="lg" fontWeight="bold" color="fg.primary" textAlign="center" w="full">
-              DG
-            </Text>
-          )}
-        </HStack>
+      <Box px={4} py={4}>
+        {isOpen && (
+          <Text textStyle="heading.card">
+            Navigation
+          </Text>
+        )}
       </Box>
 
       {/* Connection Status */}
-      <Box px={{ base: 4, md: isOpen ? 4 : 2 }} py={3}>
+      <Box px={4} pb={4}>
         <Box
           layerStyle="status-badge"
           bg={`status.${connectionStatus.status}`}
           color="white"
-          textAlign={isOpen ? "left" : "center"}
+          justifyContent={isOpen ? "flex-start" : "center"}
         >
-          {isOpen ? connectionStatus.label : connectionStatus.label.charAt(0)}
+          {connectionStatus.status === 'connected' && <Icons.success size={12} />}
+          {connectionStatus.status === 'disconnected' && <Icons.error size={12} />}
+          {connectionStatus.status === 'loading' && <Icons.loading size={12} />}
+          {isOpen && <Text ml={2}>{connectionStatus.label}</Text>}
         </Box>
       </Box>
 
-      <Separator />
+      <Separator mx={4} />
 
       {/* Navigation Items */}
-      <Box px={{ base: 4, md: isOpen ? 4 : 2 }} py={4} flex={1} overflowY="auto">
-        <VStack gap={{ base: 3, md: 2 }} align="stretch">
-          <SidebarItem
-            icon="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-            label="Connection"
-            isActive={activeSection === 'connection'}
-            onClick={() => onSectionChange('connection')}
-            badge={isOpen ? undefined : "C"}
-            isMobile={isMobile}
-            isOpen={isOpen}
-          />
-          <SidebarItem
-            icon="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-            label="Schema"
-            isActive={activeSection === 'schema'}
-            onClick={() => onSectionChange('schema')}
-            badge={isOpen ? undefined : "S"}
-            isMobile={isMobile}
-            isOpen={isOpen}
-          />
-          <SidebarItem
-            icon="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-            label="Guides"
-            isActive={activeSection === 'guides'}
-            onClick={() => onSectionChange('guides')}
-            badge={isOpen ? undefined : "G"}
-            isMobile={isMobile}
-            isOpen={isOpen}
-          />
-          <SidebarItem
-            icon="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-            label="Query"
-            isActive={activeSection === 'query'}
-            onClick={() => onSectionChange('query')}
-            badge={isOpen ? undefined : "Q"}
-            isMobile={isMobile}
-            isOpen={isOpen}
-          />
+      <Box px={4} py={4} flex={1} overflowY="auto">
+        <VStack gap={1} align="stretch">
+          {navItems.map((item) => (
+            <SidebarItem
+              key={item.key}
+              icon={item.icon}
+              label={item.label}
+              isActive={activeSection === item.key}
+              onClick={() => onSectionChange(item.key)}
+              badge={isOpen ? undefined : item.label.charAt(0)}
+              isOpen={isOpen}
+            />
+          ))}
         </VStack>
       </Box>
 
       {/* Footer */}
-      <Box px={{ base: 4, md: isOpen ? 4 : 2 }} py={3} borderTop="1px" borderColor="border.primary">
-        <Text
-          fontSize="xs"
-          color="fg.tertiary"
-          textAlign={isOpen ? "left" : "center"}
-        >
-          {isOpen ? "DGraph Client v0.1.0" : "v0.1.0"}
+      <Box px={4} py={4} borderTop="1px" borderColor="border.primary">
+        <Text textStyle="body.small" textAlign={isOpen ? "left" : "center"}>
+          {isOpen ? "DGraph Client v0.1.0" : "v0.1"}
         </Text>
       </Box>
     </Box>

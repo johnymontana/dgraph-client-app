@@ -15,6 +15,7 @@ import {
 } from '@chakra-ui/react';
 import { useColorMode } from '@/components/ui/color-mode';
 import { useDgraph } from '@/context/DgraphContext';
+import { Icons } from '@/components/ui/icons';
 import StatusIndicator from './StatusIndicator';
 
 interface ToolbarProps {
@@ -23,7 +24,7 @@ interface ToolbarProps {
   isMobile?: boolean;
 }
 
-export default function Toolbar({ isSidebarOpen, onToggleSidebar, isMobile }: ToolbarProps) {
+export default function Toolbar({ isSidebarOpen, onToggleSidebar }: ToolbarProps) {
   const { isLight, toggleColorMode } = useColorMode();
   const { connected, disconnect } = useDgraph();
 
@@ -43,80 +44,72 @@ export default function Toolbar({ isSidebarOpen, onToggleSidebar, isMobile }: To
       right={0}
       zIndex={30}
     >
-      <Container maxW="7xl" py={{ base: 2, md: 3 }} px={{ base: 3, sm: 4, md: 6, lg: 8 }}>
-        <Flex justify="space-between" align="center" direction={{ base: "column", md: "row" }} gap={{ base: 2, md: 0 }}>
+      <Container maxW="full" py={3} px={{ base: 4, md: 6 }}>
+        <Flex justify="space-between" align="center" h="48px">
           {/* Left Section */}
-          <HStack gap={{ base: 2, md: 4 }} w={{ base: "full", md: "auto" }} justify={{ base: "space-between", md: "flex-start" }}>
+          <HStack gap={4} flex={1}>
             <IconButton
               onClick={onToggleSidebar}
               aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
               variant="ghost"
-              size={{ base: "sm", md: "sm" }}
-              display={{ base: "flex", md: "flex" }}
+              size="sm"
             >
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
-              </svg>
+              <Icons.menu size={18} />
             </IconButton>
             
-            <VStack align="start" gap={0} flex={1}>
-              <Heading as="h1" size={{ base: "md", md: "lg" }} color="fg.primary">
+            <VStack align="start" gap={0} flex={1} minW={0}>
+              <Heading textStyle="heading.card">
                 DGraph Client
               </Heading>
-              <Text fontSize={{ base: "2xs", md: "xs" }} color="fg.tertiary">
+              <Text textStyle="body.small">
                 Graph Database Explorer
               </Text>
             </VStack>
             
             <Badge
-              variant="solid"
+              variant="subtle"
               colorPalette="blue"
               size="sm"
               borderRadius="full"
-              px={2}
+              px={3}
               py={1}
-              display={{ base: "none", sm: "inline-flex" }}
+              display={{ base: "none", lg: "inline-flex" }}
+              bg="accent.subtle"
+              color="accent.primary"
+              border="1px solid"
+              borderColor="border.accent"
             >
               DQL Explorer
             </Badge>
           </HStack>
 
           {/* Center Section - Connection Status */}
-          <Box textAlign="center" order={{ base: 2, md: 1 }}>
+          <Box textAlign="center" flex="0 0 auto" mx={6}>
             <StatusIndicator />
           </Box>
 
           {/* Right Section */}
-          <HStack gap={{ base: 2, md: 3 }} order={{ base: 3, md: 2 }}>
+          <HStack gap={2} flex="0 0 auto">
             {/* Theme Toggle */}
             <IconButton
               onClick={toggleColorMode}
               aria-label={`Switch to ${isLight ? 'dark' : 'light'} mode`}
               variant="ghost"
-              size={{ base: "sm", md: "sm" }}
+              size="sm"
             >
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                {isLight ? (
-                  <path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                ) : (
-                  <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                )}
-              </svg>
+              {isLight ? <Icons.moon size={16} /> : <Icons.sun size={16} />}
             </IconButton>
 
             {/* Help Button */}
             <Button
               variant="ghost"
-              size={{ base: "xs", md: "sm" }}
-              color="fg.secondary"
-              _hover={{ color: "fg.primary" }}
+              size="sm"
               title="Documentation and Help"
-              display={{ base: "none", sm: "inline-flex" }}
+              display={{ base: "none", md: "inline-flex" }}
+              gap={2}
             >
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ marginRight: '8px' }}>
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-              </svg>
-              Help
+              <Icons.help size={16} />
+              <Text>Help</Text>
             </Button>
 
             {/* Connection Actions */}
@@ -125,13 +118,12 @@ export default function Toolbar({ isSidebarOpen, onToggleSidebar, isMobile }: To
                 onClick={handleDisconnect}
                 variant="outline"
                 colorPalette="red"
-                size={{ base: "xs", md: "sm" }}
-                display={{ base: "none", sm: "inline-flex" }}
+                size="sm"
+                display={{ base: "none", lg: "inline-flex" }}
+                gap={2}
               >
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ marginRight: '8px' }}>
-                  <path d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Disconnect
+                <Icons.close size={14} />
+                <Text>Disconnect</Text>
               </Button>
             )}
           </HStack>

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import {
   Box,
   VStack,
+  HStack,
   Text,
   Card,
   Heading,
@@ -17,6 +18,7 @@ import GraphVisualization from './GraphVisualization';
 import GeoVisualization from './GeoVisualization';
 import { hasGeoData } from '@/utils/geoUtils';
 import { useDgraph } from '@/context/DgraphContext';
+import { Icons } from '@/components/ui/icons';
 
 interface ContentPanelProps {
   activeSection: 'connection' | 'schema' | 'guides' | 'query';
@@ -35,12 +37,12 @@ export default function ContentPanel({
   const [queryResult, setQueryResult] = useState<any>(null);
 
   const renderConnectionSection = () => (
-    <VStack gap={{ base: 4, md: 6 }} align="stretch">
+    <VStack gap={6} align="stretch">
       <Box>
-        <Heading as="h2" size={{ base: "lg", md: "xl" }} color="fg.primary" mb={2}>
+        <Heading textStyle="heading.section" mb={3}>
           Database Connection
         </Heading>
-        <Text color="fg.secondary" fontSize={{ base: "sm", md: "md" }}>
+        <Text textStyle="body.medium">
           Connect to your DGraph database to start exploring and querying data
         </Text>
       </Box>
@@ -49,39 +51,58 @@ export default function ContentPanel({
 
       {connected && (
         <Box
-          bg="green.50"
-          border="1px solid"
-          borderColor="green.200"
-          borderRadius="md"
+          bg="status.success"
+          color="white"
+          borderRadius="lg"
           p={4}
-          color="green.800"
+          shadow="shadow.sm"
         >
-          <Text fontWeight="medium">Successfully connected to DGraph</Text>
+          <HStack gap={3}>
+            <Icons.success size={20} />
+            <VStack align="start" gap={0}>
+              <Text fontWeight="semibold" fontSize="sm">
+                Successfully Connected
+              </Text>
+              <Text fontSize="xs" opacity={0.9}>
+                Ready to explore your DGraph database
+              </Text>
+            </VStack>
+          </HStack>
         </Box>
       )}
     </VStack>
   );
 
   const renderSchemaSection = () => (
-    <VStack gap={{ base: 4, md: 6 }} align="stretch">
+    <VStack gap={6} align="stretch">
       <Box>
-        <Heading as="h2" size={{ base: "lg", md: "xl" }} color="fg.primary" mb={2}>
+        <Heading textStyle="heading.section" mb={3}>
           Schema Management
         </Heading>
-        <Text color="fg.secondary" fontSize={{ base: "sm", md: "md" }}>
+        <Text textStyle="body.medium">
           View and manage your database schema, types, and predicates
         </Text>
       </Box>
 
       {!connected ? (
-        <Card.Root variant="elevated" p={6}>
-          <VStack gap={4} align="center" py={8}>
-            <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor" style={{ color: 'var(--chakra-colors-fg-tertiary)' }}>
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-            </svg>
-            <Text color="fg.secondary" textAlign="center">
-              Connect to a database first to view and manage schema
-            </Text>
+        <Card.Root variant="elevated">
+          <VStack gap={4} align="center" py={12}>
+            <Box
+              p={4}
+              borderRadius="full"
+              bg="bg.muted"
+              color="fg.tertiary"
+            >
+              <Icons.database size={32} />
+            </Box>
+            <VStack gap={2} align="center">
+              <Text textStyle="body.medium" textAlign="center">
+                Database Connection Required
+              </Text>
+              <Text textStyle="body.small" textAlign="center" maxW="md">
+                Connect to a database first to view and manage schema
+              </Text>
+            </VStack>
           </VStack>
         </Card.Root>
       ) : (
@@ -96,18 +117,18 @@ export default function ContentPanel({
 
   const renderQuerySection = () => {
     return (
-      <VStack gap={{ base: 4, md: 6 }} align="stretch">
+      <VStack gap={6} align="stretch">
         <Box>
-          <Heading as="h2" size={{ base: "lg", md: "xl" }} color="fg.primary" mb={2}>
+          <Heading textStyle="heading.section" mb={3}>
             Query Editor
           </Heading>
-          <Text color="fg.secondary" fontSize={{ base: "sm", md: "md" }}>
+          <Text textStyle="body.medium">
             Write and execute DQL queries against your connected database
           </Text>
         </Box>
 
         {/* Query and Visualization with resizable container */}
-        <Box h={{ base: "calc(100vh - 400px)", md: "calc(100vh - 300px)" }}>
+        <Box h="calc(100vh - 280px)" borderRadius="lg" overflow="hidden">
           <ResizableContainer
             direction="vertical"
             initialSplit={40}
@@ -121,11 +142,26 @@ export default function ContentPanel({
                 {queryResult && <GraphVisualization data={queryResult} />}
                 {queryResult && hasGeoData(queryResult) && <GeoVisualization data={queryResult} />}
                 {!queryResult && (
-                  <Box>
-                    <Text color="fg.secondary" textAlign="center" py={8}>
-                      Run a query to see results here
-                    </Text>
-                  </Box>
+                  <Card.Root variant="subtle" h="full" bg="bg.muted">
+                    <VStack gap={4} align="center" justify="center" h="full">
+                      <Box
+                        p={4}
+                        borderRadius="full"
+                        bg="bg.muted"
+                        color="fg.tertiary"
+                      >
+                        <Icons.play size={24} />
+                      </Box>
+                      <VStack gap={1} align="center">
+                        <Text textStyle="body.medium">
+                          No Results Yet
+                        </Text>
+                        <Text textStyle="body.small" textAlign="center">
+                          Run a query to see visualization results here
+                        </Text>
+                      </VStack>
+                    </VStack>
+                  </Card.Root>
                 )}
               </>
             }
@@ -153,22 +189,22 @@ export default function ContentPanel({
   // Responsive margin logic
   const getMarginLeft = () => {
     if (isMobile) return "0px";
-    if (isTablet) return isSidebarOpen ? "320px" : "0px";
-    return isSidebarOpen ? "280px" : "0px";
+    if (isTablet) return isSidebarOpen ? "280px" : "72px";
+    return isSidebarOpen ? "280px" : "72px";
   };
 
   return (
     <Box
       ml={getMarginLeft()}
       transition="margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
-      minH="100vh"
+      minH="calc(100vh - 60px)"
       bg="bg.primary"
     >
       <Box
-        maxW={{ base: "full", md: "4xl", xl: "6xl" }}
-        mx="auto"
-        py={{ base: 4, md: 6, lg: 8 }}
-        px={{ base: 3, sm: 4, md: 6, lg: 8 }}
+        maxW="full"
+        h="full"
+        py={6}
+        px={{ base: 4, md: 6, lg: 8 }}
       >
         {renderContent()}
       </Box>

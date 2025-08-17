@@ -7,10 +7,13 @@ A modern, responsive web-based client for interacting with Dgraph databases usin
 ## ✨ Features
 
 - **🎯 Modern UI/UX**
+  - **Professional Design System**: Modern browser-based development tool interface
   - **Chakra UI v3**: Beautiful, accessible components with semantic design tokens
+  - **Lucide Icons**: Consistent, scalable icon system throughout the application
   - **Responsive Design**: Mobile-first design that works perfectly on all devices
   - **Dark/Light Themes**: Automatic theme switching with system preference detection
-  - **Accessibility**: WCAG compliant components with keyboard navigation
+  - **Enhanced Accessibility**: WCAG compliant components with full keyboard navigation
+  - **Smooth Animations**: Micro-interactions and transitions for better UX
 
 - **🔌 Connection Management**
   - Connect to any Dgraph instance with endpoint URL configuration
@@ -136,10 +139,51 @@ dgraph-client-app/
    - Reusable UI elements with consistent styling
    - Responsive design patterns throughout
 
-4. **Semantic Design System**
-   - Custom Chakra UI theme with semantic color tokens
-   - Consistent spacing, typography, and component variants
-   - Dark/light mode support with system preference detection
+4. **Modern Design System**
+   - Professional development tool interface with semantic design tokens
+   - Lucide React icon system for consistent visual language
+   - Enhanced accessibility with focus management and keyboard navigation
+   - Micro-interactions and smooth animations for better UX
+
+## 🎨 Modern Design & User Experience
+
+### Development Tool Interface
+The application follows modern browser-based development tool design patterns, drawing inspiration from VS Code, GitHub, and other professional developer tools:
+
+#### Visual Design
+- **Clean Layout**: Minimalist design focused on content and functionality
+- **Consistent Spacing**: Systematic spacing scale using Chakra UI design tokens
+- **Professional Typography**: Hierarchy with proper font weights and sizes
+- **Subtle Shadows**: Layered elevation system for visual depth
+- **Border Radius**: Consistent rounded corners (lg: 12px for cards, md: 8px for buttons)
+
+#### Interactive Elements
+- **Hover Effects**: Subtle color changes and elevation on interactive elements
+- **Focus States**: Clear, accessible focus indicators for keyboard users
+- **Loading States**: Professional loading indicators and disabled states
+- **Micro-animations**: Smooth transitions (0.15s ease-in-out) for better perceived performance
+
+#### Icon System
+- **Lucide React**: Professional icon library with 1000+ consistent icons
+- **Semantic Usage**: Icons that clearly communicate function and state
+- **Consistent Sizing**: 16px default with larger sizes (18-20px) for important actions
+- **Accessibility**: All icons include proper ARIA labels and tooltips
+
+#### Status & Feedback
+- **Connection Status**: Real-time visual indicators with color-coded states
+- **Error Handling**: Clear, actionable error messages with appropriate styling
+- **Success States**: Positive feedback for completed actions
+- **Loading States**: Professional spinners and skeleton states
+
+### Keyboard Navigation
+The application supports comprehensive keyboard navigation for power users:
+- **Cmd/Ctrl + B**: Toggle sidebar visibility
+- **Cmd/Ctrl + 1**: Navigate to Connection section
+- **Cmd/Ctrl + 2**: Navigate to Schema section  
+- **Cmd/Ctrl + 3**: Navigate to Guides section
+- **Cmd/Ctrl + 4**: Navigate to Query section
+- **Tab Navigation**: Logical tab order through all interactive elements
+- **Focus Trapping**: Proper focus management in modals and panels
 
 ## 🛠️ Technology Stack
 
@@ -150,7 +194,9 @@ dgraph-client-app/
 
 ### UI and Styling
 - **Chakra UI v3** - Modern component library with semantic design tokens
+- **Lucide React** - Professional icon system with 1000+ consistent icons
 - **Emotion** - CSS-in-JS styling solution
+- **Custom Theme System** - Semantic color tokens and layer styles
 - **Responsive Design** - Mobile-first approach with breakpoint system
 
 ### Package Management
@@ -187,31 +233,43 @@ The application is built with a **mobile-first approach** and provides an excell
 - **Desktop**: 992px+ (standard sidebar width)
 
 ### Responsive Features
-- **Adaptive Layout**: Content adjusts based on screen size
-- **Touch-Friendly**: Optimized for mobile and tablet interaction
-- **Collapsible Sidebar**: Auto-hides on mobile for better space usage
-- **Flexible Content**: Main content expands to use available space
-- **Mobile Overlay**: Dark backdrop when sidebar is open on mobile
+- **Adaptive Layout**: Content adjusts based on screen size with consistent spacing
+- **Touch-Friendly**: Optimized for mobile and tablet interaction with larger touch targets
+- **Smart Sidebar**: Collapsible with icon-only mode (72px width) for efficient space usage
+- **Smooth Transitions**: 300ms cubic-bezier animations for sidebar and content adjustments
+- **Fixed Toolbar**: 60px height toolbar that stays accessible across all screen sizes
+- **Flexible Content**: Main content expands dynamically to use available space
+- **Mobile Overlay**: Intuitive dark backdrop when sidebar is open on mobile
+- **Progressive Enhancement**: Enhanced features and labels appear on larger screens
 
 ## 🎨 Theme System
 
-### Semantic Design Tokens
-The application uses a custom Chakra UI theme with semantic color tokens:
+### Professional Design System
+The application features a comprehensive design system inspired by modern development tools like VS Code and GitHub:
 
+#### Semantic Design Tokens
 ```typescript
-// Background colors
-'bg.primary': { _light: 'gray.50', _dark: 'gray.950' }
-'bg.secondary': { _light: 'white', _dark: 'gray.900' }
-'bg.sidebar': { _light: 'white', _dark: 'gray.900' }
-
-// Foreground colors
-'fg.primary': { _light: 'gray.900', _dark: 'white' }
-'fg.secondary': { _light: 'gray.700', _dark: 'gray.300' }
-
-// Accent colors
-'accent.primary': { _light: 'blue.600', _dark: 'blue.400' }
-'accent.success': { _light: 'green.600', _dark: 'green.400' }
+// Sophisticated color palette
+'bg.primary': { _light: '#fafafa', _dark: '#0a0a0a' }
+'bg.secondary': { _light: '#ffffff', _dark: '#111111' }
+'fg.primary': { _light: '#18181b', _dark: '#fafafa' }
+'accent.primary': { _light: '#2563eb', _dark: '#3b82f6' }
+'status.success': { _light: '#059669', _dark: '#10b981' }
 ```
+
+#### Layer Styles & Components
+- **Navigation Items**: Interactive hover states with smooth micro-animations and subtle transforms
+- **Status Badges**: Professional indicators with icon and label combinations
+- **Code Editors**: Enhanced focus states with custom border highlighting and shadows
+- **Cards & Panels**: Elevated designs with consistent border radius (lg) and hover effects
+- **Buttons**: Multiple variants (primary, secondary, ghost, toolbar) with proper states
+- **Input Fields**: Large touch-friendly inputs with focus indicators
+
+#### Accessibility Features
+- **Focus Management**: Visible focus rings and logical tab order
+- **Keyboard Navigation**: Cmd/Ctrl+B (sidebar), Cmd/Ctrl+1-4 (sections)
+- **Screen Reader Support**: Proper ARIA labels and semantic markup
+- **Color Contrast**: WCAG AA compliant color combinations
 
 ### Theme Switching
 - **Automatic Detection**: Follows system preference by default

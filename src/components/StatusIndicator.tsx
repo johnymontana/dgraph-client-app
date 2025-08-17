@@ -7,6 +7,7 @@ import {
   Text,
 } from '@chakra-ui/react';
 import { useDgraph } from '@/context/DgraphContext';
+import { Icons } from '@/components/ui/icons';
 
 export default function StatusIndicator() {
   const { connected, endpoint, error } = useDgraph();
@@ -19,15 +20,16 @@ export default function StatusIndicator() {
 
   if (!mounted) {
     return (
-      <Box>
+      <Box
+        layerStyle="status-badge"
+        bg="status.loading"
+        color="white"
+        px={3}
+        py={1.5}
+      >
         <HStack gap={2} align="center">
-          <Box
-            w={2}
-            h={2}
-            borderRadius="full"
-            bg="gray.400"
-          />
-          <Text fontSize="sm" color="fg.secondary" fontWeight="medium">
+          <Icons.loading size={12} />
+          <Text fontSize="xs" fontWeight="semibold">
             Loading...
           </Text>
         </HStack>
@@ -40,8 +42,8 @@ export default function StatusIndicator() {
       return {
         status: 'error',
         label: 'Connection Error',
-        color: 'red',
-        icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z',
+        icon: Icons.error,
+        bg: 'status.error',
         description: error
       };
     }
@@ -50,8 +52,8 @@ export default function StatusIndicator() {
       return {
         status: 'connected',
         label: 'Connected',
-        color: 'green',
-        icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+        icon: Icons.success,
+        bg: 'status.success',
         description: `Connected to ${endpoint}`
       };
     }
@@ -59,9 +61,9 @@ export default function StatusIndicator() {
     if (endpoint) {
       return {
         status: 'disconnected',
-        label: 'Disconnected',
-        color: 'orange',
-        icon: 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+        label: 'Configured',
+        icon: Icons.warning,
+        bg: 'status.warning',
         description: `Endpoint configured: ${endpoint}`
       };
     }
@@ -69,30 +71,30 @@ export default function StatusIndicator() {
     return {
       status: 'none',
       label: 'Not Configured',
-      color: 'gray',
-      icon: 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+      icon: Icons.database,
+      bg: 'fg.muted',
       description: 'No endpoint configured'
     };
   };
 
   const statusInfo = getStatusInfo();
+  const IconComponent = statusInfo.icon;
 
   return (
-    <Box title={statusInfo.description}>
+    <Box
+      layerStyle="status-badge"
+      bg={statusInfo.bg}
+      color="white"
+      px={3}
+      py={1.5}
+      title={statusInfo.description}
+      cursor="help"
+    >
       <HStack gap={2} align="center">
-        <Box
-          w={2}
-          h={2}
-          borderRadius="full"
-          bg={`${statusInfo.color}.500`}
-          animation={statusInfo.status === 'connected' ? 'pulse 2s infinite' : 'none'}
-        />
-        <Text fontSize="sm" color="fg.secondary" fontWeight="medium">
+        <IconComponent size={12} />
+        <Text fontSize="xs" fontWeight="semibold">
           {statusInfo.label}
         </Text>
-        <svg viewBox="0 0 24 24" width="12" height="12" fill={`${statusInfo.color}.500`}>
-          <path d={statusInfo.icon} />
-        </svg>
       </HStack>
     </Box>
   );

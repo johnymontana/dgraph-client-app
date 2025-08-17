@@ -16,7 +16,7 @@ import {
   HStack,
   Badge,
 } from '@chakra-ui/react';
-import { useColorMode } from '@/components/ui/color-mode';
+import { Icons } from '@/components/ui/icons';
 
 export default function ConnectionForm() {
   const {
@@ -33,8 +33,6 @@ export default function ConnectionForm() {
   } = useDgraph();
   const [isLoading, setIsLoading] = useState(false);
   const [isHypermodeExpanded, setIsHypermodeExpanded] = useState(false);
-
-  const { isLight } = useColorMode();
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,52 +67,59 @@ export default function ConnectionForm() {
       <VStack gap={{ base: 4, md: 6 }} align="stretch">
         {/* Header */}
         <Box>
-          <VStack align={{ base: "stretch", md: "flex-start" }} gap={2} mb={2}>
-            <HStack justify="space-between" align="center" w="full">
-              <Heading as="h3" size={{ base: "md", md: "lg" }} color="fg.primary">
+          <HStack justify="space-between" align="start" w="full" mb={3}>
+            <VStack align="start" gap={1} flex={1}>
+              <Heading textStyle="heading.card">
                 Database Connection
               </Heading>
-              {connected && (
-                <Badge
-                  variant="solid"
-                  colorPalette="green"
-                  size="sm"
-                  borderRadius="full"
-                  px={3}
-                  py={1}
-                >
-                  Connected
-                </Badge>
-              )}
-            </HStack>
-            <Text color="fg.secondary" fontSize={{ base: "sm", md: "md" }}>
-              Configure your DGraph database connection settings
-            </Text>
-          </VStack>
+              <Text textStyle="body.medium">
+                Configure your DGraph database connection settings
+              </Text>
+            </VStack>
+            {connected && (
+              <Badge
+                variant="solid"
+                colorPalette="green"
+                size="sm"
+                borderRadius="full"
+                px={3}
+                py={1}
+                gap={2}
+                bg="status.success"
+              >
+                <Icons.success size={12} />
+                <Text>Connected</Text>
+              </Badge>
+            )}
+          </HStack>
         </Box>
 
         {/* Quick Connect Button */}
         <Box>
           <Button
             variant="outline"
-            colorPalette="blue"
-            size={{ base: "md", md: "sm" }}
+            size="md"
             onClick={handleQuickConnect}
             disabled={connected}
             w="full"
+            gap={2}
+            h="44px"
+            borderRadius="lg"
+            _hover={{
+              bg: 'bg.hover',
+              borderColor: 'accent.primary'
+            }}
           >
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ marginRight: '8px' }}>
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-            </svg>
-            Quick Connect (Patient Graph)
+            <Icons.zap size={16} />
+            <Text>Quick Connect (Patient Graph)</Text>
           </Button>
         </Box>
 
         {error && (
-          <Alert.Root status="error" variant="subtle">
+          <Alert.Root status="error" variant="subtle" borderRadius="lg">
             <Alert.Indicator />
             <Alert.Content>
-              <Text fontSize="sm">{error}</Text>
+              <Text textStyle="body.medium">{error}</Text>
             </Alert.Content>
           </Alert.Root>
         )}
@@ -122,7 +127,7 @@ export default function ConnectionForm() {
         <Box as="form" onSubmit={handleConnect}>
           <VStack gap={4} align="stretch">
             <Field.Root required>
-              <Field.Label color="fg.primary" fontSize="sm" fontWeight="medium">
+              <Field.Label textStyle="label">
                 DGraph Endpoint
               </Field.Label>
               <Input
@@ -131,17 +136,25 @@ export default function ConnectionForm() {
                 onChange={(e) => setEndpoint(e.target.value)}
                 disabled={connected}
                 placeholder="dgraph://host:port?sslmode=verify-ca&bearertoken=xxx"
-                size="md"
-                variant="outline"
-                _focus={{ ring: 2, ringColor: 'accent.primary', borderColor: 'accent.primary' }}
+                size="lg"
+                borderRadius="lg"
+                _focus={{ 
+                  borderColor: 'accent.primary',
+                  shadow: 'shadow.focus',
+                  ring: 'none'
+                }}
+                _disabled={{
+                  opacity: 0.6,
+                  cursor: 'not-allowed'
+                }}
               />
-              <Field.HelperText fontSize="xs" color="fg.tertiary">
+              <Field.HelperText textStyle="helper">
                 Supports: dgraph://host:port?sslmode=verify-ca&bearertoken=xxx, https://host:port, or http://localhost:8080
               </Field.HelperText>
             </Field.Root>
 
             <Field.Root>
-              <Field.Label color="fg.primary" fontSize="sm" fontWeight="medium">
+              <Field.Label textStyle="label">
                 API Key (optional)
               </Field.Label>
               <Input
@@ -150,17 +163,25 @@ export default function ConnectionForm() {
                 onChange={(e) => setApiKey(e.target.value)}
                 disabled={connected}
                 placeholder="Enter API key if required"
-                size="md"
-                variant="outline"
-                _focus={{ ring: 2, ringColor: 'accent.primary', borderColor: 'accent.primary' }}
+                size="lg"
+                borderRadius="lg"
+                _focus={{ 
+                  borderColor: 'accent.primary',
+                  shadow: 'shadow.focus',
+                  ring: 'none'
+                }}
+                _disabled={{
+                  opacity: 0.6,
+                  cursor: 'not-allowed'
+                }}
               />
-              <Field.HelperText fontSize="xs" color="fg.tertiary">
+              <Field.HelperText textStyle="helper">
                 Optional if using bearer token in connection string
               </Field.HelperText>
             </Field.Root>
 
             {/* Hypermode Settings Section */}
-            <Box border="1px" borderColor="border.primary" borderRadius="md">
+            <Box border="1px" borderColor="border.primary" borderRadius="lg" overflow="hidden">
               <Button
                 type="button"
                 onClick={() => setIsHypermodeExpanded(!isHypermodeExpanded)}
@@ -168,38 +189,35 @@ export default function ConnectionForm() {
                 variant="ghost"
                 justifyContent="space-between"
                 px={4}
-                py={2}
-                bg="bg.tertiary"
-                _hover={{ bg: isLight ? 'gray.100' : 'gray.600' }}
-                _focus={{ outline: 'none' }}
+                py={3}
+                bg="bg.muted"
+                borderRadius="0"
+                _hover={{ bg: 'bg.hover' }}
+                _focus={{ 
+                  outline: '2px solid',
+                  outlineColor: 'accent.primary',
+                  outlineOffset: '-2px'
+                }}
               >
-                <HStack gap={2}>
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                  </svg>
-                  <Text fontWeight="medium" color="fg.primary">
+                <HStack gap={3}>
+                  <Icons.ai size={16} />
+                  <Text textStyle="label">
                     AI-Powered Features
                   </Text>
                 </HStack>
-                <svg
-                  viewBox="0 0 20 20"
-                  width="16"
-                  height="16"
-                  fill="currentColor"
-                  style={{
-                    transform: isHypermodeExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                    transition: 'transform 0.2s'
-                  }}
+                <Box
+                  transform={isHypermodeExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}
+                  transition="transform 0.2s ease-in-out"
                 >
-                  <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                </svg>
+                  <Icons.chevronDown size={16} />
+                </Box>
               </Button>
 
               <Collapsible.Root open={isHypermodeExpanded}>
                 <Collapsible.Content>
-                  <Box p={4} borderTop="1px" borderColor="border.primary">
+                  <Box p={4} borderTop="1px" borderColor="border.primary" bg="bg.secondary">
                     <Field.Root>
-                      <Field.Label color="fg.primary" fontSize="sm" fontWeight="medium">
+                      <Field.Label textStyle="label">
                         Model Router Key
                       </Field.Label>
                       <Input
@@ -208,11 +226,19 @@ export default function ConnectionForm() {
                         onChange={(e) => setHypermodeRouterKey(e.target.value)}
                         disabled={connected}
                         placeholder="Enter Hypermode Model Router Key"
-                        size="md"
-                        variant="outline"
-                        _focus={{ ring: 2, ringColor: 'accent.primary', borderColor: 'accent.primary' }}
+                        size="lg"
+                        borderRadius="lg"
+                        _focus={{ 
+                          borderColor: 'accent.primary',
+                          shadow: 'shadow.focus',
+                          ring: 'none'
+                        }}
+                        _disabled={{
+                          opacity: 0.6,
+                          cursor: 'not-allowed'
+                        }}
                       />
-                      <Field.HelperText fontSize="xs" color="fg.tertiary">
+                      <Field.HelperText textStyle="helper">
                         Your Hypermode Model Router API key for AI-powered features
                       </Field.HelperText>
                     </Field.Root>
@@ -228,28 +254,29 @@ export default function ConnectionForm() {
                 loadingText="Connecting..."
                 w="full"
                 colorPalette="blue"
-                size="md"
+                size="lg"
                 disabled={isLoading}
-                h="44px"
+                h="48px"
+                gap={2}
+                borderRadius="lg"
               >
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ marginRight: '8px' }}>
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                </svg>
-                Connect to Database
+                <Icons.database size={18} />
+                <Text>Connect to Database</Text>
               </Button>
             ) : (
               <Button
                 type="button"
                 onClick={handleDisconnect}
                 w="full"
+                variant="outline"
                 colorPalette="red"
-                size="md"
-                h="44px"
+                size="lg"
+                h="48px"
+                gap={2}
+                borderRadius="lg"
               >
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ marginRight: '8px' }}>
-                  <path d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Disconnect
+                <Icons.close size={16} />
+                <Text>Disconnect</Text>
               </Button>
             )}
           </VStack>

@@ -1,4 +1,45 @@
-/* Chakra UI will handle all styling */
+/* Modern development tool global styles */
+
+/* Focus ring styles for accessibility */
+*:focus {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--chakra-colors-accent-primary);
+  outline-offset: 2px;
+}
+
+/* Smooth transitions for better UX */
+* {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--chakra-colors-bg-muted);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--chakra-colors-border-primary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--chakra-colors-fg-muted);
+}
+
+/* Firefox scrollbar support */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--chakra-colors-border-primary) var(--chakra-colors-bg-muted);
+}
 
 /* vis-network styles for graph visualization */
 .vis-network {
@@ -48,29 +89,29 @@
   box-shadow: 0 0 5px #ffa500;
 }
 
-/* Custom scrollbar styles for guide pane */
+/* Enhanced scrollbar styles for guide pane */
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: var(--chakra-colors-bg-muted);
   border-radius: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #c5c5c5;
+  background: var(--chakra-colors-border-primary);
   border-radius: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #a0a0a0;
+  background: var(--chakra-colors-fg-muted);
 }
 
 /* Firefox scrollbar support */
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #c5c5c5 #f1f1f1;
+  scrollbar-color: var(--chakra-colors-border-primary) var(--chakra-colors-bg-muted);
 }
 
 .vis-edge {

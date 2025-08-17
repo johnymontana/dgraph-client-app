@@ -16,7 +16,9 @@ import {
   VStack,
   Text,
   Alert,
+  Flex,
 } from '@chakra-ui/react';
+import { Icons } from '@/components/ui/icons';
 
 interface QueryEditorProps {
   onQueryResult: (data: any) => void;
@@ -220,164 +222,178 @@ export default function QueryEditor({ onQueryResult, initialQuery, compact = fal
   };
 
   return (
-    <Card.Root variant="elevated">
+    <Card.Root variant="elevated" h="full">
       {/* Header */}
-      <Box p={{ base: 3, md: 4 }} borderBottom="1px" borderColor="border.primary">
-        <VStack gap={3} align="stretch">
-          <HStack justify="space-between" align="center" flexWrap={{ base: "wrap", md: "nowrap" }}>
-            <VStack align="start" gap={1}>
-              <Heading as="h3" size={{ base: "md", md: "lg" }} color="fg.primary">
-                DQL Editor
-              </Heading>
-              <Text color="fg.secondary" fontSize={{ base: "xs", md: "sm" }}>
-                Write and execute DQL queries and mutations
-              </Text>
-            </VStack>
-            
-            <HStack gap={2} flexWrap="wrap">
-              {!compact && (
-                <Button
-                  variant="ghost"
-                  size={{ base: "sm", md: "sm" }}
-                  onClick={() => setShowHistory(!showHistory)}
-                  color="fg.secondary"
-                  _hover={{ color: "fg.primary" }}
-                >
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ marginRight: '8px' }}>
-                    <path d="M13 3a9 9 0 00-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" />
-                  </svg>
-                  History
-                </Button>
-              )}
-              
+      <Box p={4} borderBottom="1px" borderColor="border.primary">
+        <Flex justify="space-between" align="center" gap={4}>
+          <VStack align="start" gap={1} flex={1} minW={0}>
+            <Heading textStyle="heading.card">
+              DQL Editor
+            </Heading>
+            <Text textStyle="body.small">
+              Write and execute DQL queries and mutations
+            </Text>
+          </VStack>
+          
+          <HStack gap={2} flexShrink={0}>
+            {!compact && (
               <Button
-                onClick={handleRunOperation}
-                loading={isLoading}
-                loadingText="Running..."
-                disabled={!connected}
-                colorPalette="blue"
-                size={{ base: "md", md: "md" }}
-                h="40px"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowHistory(!showHistory)}
+                gap={2}
               >
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ marginRight: '8px' }}>
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-                {`Run ${activeTab === 'query' ? 'Query' : 'Mutation'}`}
+                <Icons.history size={16} />
+                <Text>History</Text>
               </Button>
-              
-              {!compact && (
-                <FullscreenToggle
-                  isFullscreen={isFullscreen}
-                  onToggle={() => setIsFullscreen(!isFullscreen)}
-                />
-              )}
-            </HStack>
+            )}
+            
+            <Button
+              onClick={handleRunOperation}
+              loading={isLoading}
+              loadingText="Running..."
+              disabled={!connected}
+              colorPalette="blue"
+              size="sm"
+              gap={2}
+              borderRadius="lg"
+            >
+              <Icons.play size={16} />
+              <Text>{`Run ${activeTab === 'query' ? 'Query' : 'Mutation'}`}</Text>
+            </Button>
+            
+            {!compact && (
+              <FullscreenToggle
+                isFullscreen={isFullscreen}
+                onToggle={() => setIsFullscreen(!isFullscreen)}
+              />
+            )}
           </HStack>
-        </VStack>
+        </Flex>
       </Box>
 
-        {/* Tabs */}
-        <HStack borderBottom="1px" borderColor="border.primary" gap={0}>
-          <Button
-            onClick={() => setActiveTab('query')}
-            variant="ghost"
-            size="sm"
-            color={activeTab === 'query' ? 'accent.primary' : 'fg.secondary'}
-            borderBottom="2px"
-            borderColor={activeTab === 'query' ? 'accent.primary' : 'transparent'}
-            borderRadius="0"
-            _hover={{ bg: 'transparent' }}
-            px={4}
-            py={2}
-          >
-            Query
-          </Button>
-          <Button
-            onClick={() => setActiveTab('mutation')}
-            variant="ghost"
-            size="sm"
-            color={activeTab === 'mutation' ? 'accent.primary' : 'fg.secondary'}
-            borderBottom="2px"
-            borderColor={activeTab === 'mutation' ? 'accent.primary' : 'transparent'}
-            borderRadius="0"
-            _hover={{ bg: 'transparent' }}
-            px={4}
-            py={2}
-          >
-            Mutation
-          </Button>
-        </HStack>
+      {/* Tabs */}
+      <HStack borderBottom="1px" borderColor="border.primary" gap={0} px={4}>
+        <Button
+          onClick={() => setActiveTab('query')}
+          variant="ghost"
+          size="sm"
+          color={activeTab === 'query' ? 'accent.primary' : 'fg.secondary'}
+          borderBottom="2px"
+          borderColor={activeTab === 'query' ? 'accent.primary' : 'transparent'}
+          borderRadius="0"
+          _hover={{ 
+            bg: 'transparent',
+            color: activeTab === 'query' ? 'accent.primary' : 'fg.primary'
+          }}
+          px={4}
+          py={3}
+          fontWeight="semibold"
+          gap={2}
+        >
+          <Icons.database size={14} />
+          <Text>Query</Text>
+        </Button>
+        <Button
+          onClick={() => setActiveTab('mutation')}
+          variant="ghost"
+          size="sm"
+          color={activeTab === 'mutation' ? 'accent.primary' : 'fg.secondary'}
+          borderBottom="2px"
+          borderColor={activeTab === 'mutation' ? 'accent.primary' : 'transparent'}
+          borderRadius="0"
+          _hover={{ 
+            bg: 'transparent',
+            color: activeTab === 'mutation' ? 'accent.primary' : 'fg.primary'
+          }}
+          px={4}
+          py={3}
+          fontWeight="semibold"
+          gap={2}
+        >
+          <Icons.settings size={14} />
+          <Text>Mutation</Text>
+        </Button>
+      </HStack>
 
-        {error && (
-          <Alert.Root status="error" variant="subtle">
+      {error && (
+        <Box p={4}>
+          <Alert.Root status="error" variant="subtle" borderRadius="lg">
             <Alert.Indicator />
             <Alert.Content>
-              <Text fontSize="sm">{error}</Text>
+              <Text textStyle="body.medium">{error}</Text>
             </Alert.Content>
           </Alert.Root>
-        )}
+        </Box>
+      )}
 
 
-        {showHistory && !compact && (
+      {showHistory && !compact && (
+        <Box p={4} borderBottom="1px" borderColor="border.secondary">
           <QueryHistory
             history={queryHistory}
             onSelectQuery={handleSelectQuery}
             onClearHistory={handleClearHistory}
             onDeleteQuery={handleDeleteQuery}
           />
-        )}
+        </Box>
+      )}
 
-        <Box position="relative">
-          <Box
-            layerStyle="code-editor"
-            borderRadius="md"
-            overflow="hidden"
-          >
-            <CodeMirror
-              value={activeTab === 'query' ? query : mutation}
-              height={compact ? '150px' : (isFullscreen ? 'calc(100vh - 230px)' : '200px')}
-              onChange={handleEditorChange}
-              theme="light"
-              className="text-sm"
-            />
-          </Box>
-
-          {/* Variable inputs */}
-          <DQLVariableInputs
-            query={activeTab === 'query' ? query : mutation}
-            onChange={handleVariablesChange}
+      <Box position="relative" flex={1} p={4}>
+        <Box
+          layerStyle="code-editor"
+          overflow="hidden"
+          h={compact ? '150px' : (isFullscreen ? 'calc(100vh - 280px)' : 'calc(100% - 80px)')}
+        >
+          <CodeMirror
+            value={activeTab === 'query' ? query : mutation}
+            height="100%"
+            onChange={handleEditorChange}
+            theme="light"
+            className="text-sm"
           />
-          <Box
-            ref={editorRef}
-            tabIndex={0}
-            onKeyDown={() => {
-              if (autocompleteInputRef.current) autocompleteInputRef.current();
-            }}
-            onInput={() => {
-              if (autocompleteInputRef.current) autocompleteInputRef.current();
-            }}
-          >
-            <DQLAutocomplete
-              editorRef={editorRef}
-              query={query}
-              cursorPosition={cursorPosition}
-              schema={parsedSchema}
-              onSuggestionSelect={handleSuggestionSelect}
-              registerHandleInput={(handle: () => void) => {
-                autocompleteInputRef.current = handle;
-              }}
-            />
-          </Box>
         </Box>
 
-        <VStack gap={1} align="start">
-          <Text fontSize="sm" color="fg.secondary">
+        {/* Variable inputs */}
+        <DQLVariableInputs
+          query={activeTab === 'query' ? query : mutation}
+          onChange={handleVariablesChange}
+        />
+        
+        <Box
+          ref={editorRef}
+          tabIndex={0}
+          onKeyDown={() => {
+            if (autocompleteInputRef.current) autocompleteInputRef.current();
+          }}
+          onInput={() => {
+            if (autocompleteInputRef.current) autocompleteInputRef.current();
+          }}
+        >
+          <DQLAutocomplete
+            editorRef={editorRef}
+            query={query}
+            cursorPosition={cursorPosition}
+            schema={parsedSchema}
+            onSuggestionSelect={handleSuggestionSelect}
+            registerHandleInput={(handle: () => void) => {
+              autocompleteInputRef.current = handle;
+            }}
+          />
+        </Box>
+      </Box>
+
+      {/* Footer with help text */}
+      <Box p={4} borderTop="1px" borderColor="border.secondary" bg="bg.muted">
+        <VStack gap={2} align="start">
+          <Text textStyle="body.small">
             Enter a DQL query to execute against your Dgraph database.
           </Text>
-          <Text fontSize="sm" color="fg.tertiary">
-            Example: <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-xs">{`{ q(func: has(name)) { uid name } }`}</code>
+          <Text textStyle="helper">
+            Example: <Box as="code" textStyle="code.inline">{`{ q(func: has(name)) { uid name } }`}</Box>
           </Text>
         </VStack>
-      </Card.Root>
+      </Box>
+    </Card.Root>
   );
 }

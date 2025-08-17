@@ -5,7 +5,6 @@ import {
   Box,
   useBreakpointValue,
 } from '@chakra-ui/react';
-import { useDgraph } from '@/context/DgraphContext';
 import Toolbar from '@/components/Toolbar';
 import Sidebar from '@/components/Sidebar';
 import ContentPanel from '@/components/ContentPanel';
@@ -14,7 +13,6 @@ import { DgraphProvider } from '@/context/DgraphContext';
 function MainContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeSection, setActiveSection] = useState<'connection' | 'schema' | 'guides' | 'query'>('connection');
-  const { connected } = useDgraph();
 
   // Responsive sidebar behavior
   const isMobile = useBreakpointValue({ base: true, md: false });
@@ -43,6 +41,32 @@ function MainContent() {
     console.log('Sidebar toggle clicked. Current state:', isSidebarOpen, 'New state:', !isSidebarOpen);
     setIsSidebarOpen(!isSidebarOpen);
   };
+
+  // Keyboard navigation support
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Cmd/Ctrl + B to toggle sidebar
+      if ((event.metaKey || event.ctrlKey) && event.key === 'b') {
+        event.preventDefault();
+        handleToggleSidebar();
+      }
+      
+      // Cmd/Ctrl + 1-4 for quick section navigation
+      if ((event.metaKey || event.ctrlKey) && ['1', '2', '3', '4'].includes(event.key)) {
+        event.preventDefault();
+        const sectionMap = {
+          '1': 'connection' as const,
+          '2': 'schema' as const,
+          '3': 'guides' as const,
+          '4': 'query' as const,
+        };
+        handleSectionChange(sectionMap[event.key as keyof typeof sectionMap]);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSidebarOpen]);
 
   return (
     <>
@@ -79,7 +103,7 @@ function MainContent() {
 
       {/* Main Content Area */}
       <Box
-        pt={{ base: "56px", md: "60px" }} // Responsive header height
+        pt="60px" // Fixed header height
         minH="100vh"
       >
         {/* Content Panel */}
