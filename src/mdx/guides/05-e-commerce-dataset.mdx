@@ -1,0 +1,188 @@
+---
+title: "E-commerce Dataset Guide"
+description: "Explore an e-commerce graph database with products, customers, and orders"
+order: 5
+---
+
+# E-commerce Dataset Guide
+
+Let's explore how to model and query an e-commerce system using Dgraph. This guide will walk you through creating a complete e-commerce data model.
+
+## E-commerce Schema
+
+First, let's define our e-commerce schema:
+
+```dql-schema
+type Product {
+  name: string @index(term) .
+  description: string .
+  price: float @index(float) .
+  category: uid @reverse .
+  sku: string @index(exact) .
+  in_stock: int .
+}
+
+type Category {
+  name: string @index(term) .
+  products: [uid] @reverse .
+}
+
+type Customer {
+  name: string @index(term) .
+  email: string @index(exact) .
+  address: string .
+  orders: [uid] @reverse .
+}
+
+type Order {
+  order_id: string @index(exact) .
+  customer: uid @reverse .
+  items: [uid] @reverse .
+  total: float .
+  order_date: datetime @index(hour) .
+  status: string @index(exact) .
+}
+
+type OrderItem {
+  product: uid @reverse .
+  quantity: int .
+  price: float .
+}
+```
+
+## Sample E-commerce Data
+
+Let's create some sample data:
+
+```dql-mutation
+{
+  set {
+    # Categories
+    _:electronics <name> "Electronics" .
+    _:electronics <dgraph.type> "Category" .
+    
+    _:books <name> "Books" .
+    _:books <dgraph.type> "Category" .
+    
+    # Products
+    _:laptop <name> "Gaming Laptop" .
+    _:laptop <description> "High-performance gaming laptop with RTX graphics" .
+    _:laptop <price> "1299.99" .
+    _:laptop <sku> "LAP-001" .
+    _:laptop <in_stock> "15" .
+    _:laptop <category> _:electronics .
+    _:laptop <dgraph.type> "Product" .
+    
+    _:book1 <name> "Graph Databases" .
+    _:book1 <description> "A comprehensive guide to graph databases" .
+    _:book1 <price> "39.99" .
+    _:book1 <sku> "BOOK-001" .
+    _:book1 <in_stock> "25" .
+    _:book1 <category> _:books .
+    _:book1 <dgraph.type> "Product" .
+    
+    # Customers
+    _:customer1 <name> "Sarah Wilson" .
+    _:customer1 <email> "sarah@example.com" .
+    _:customer1 <address> "123 Main St, Seattle, WA" .
+    _:customer1 <dgraph.type> "Customer" .
+  }
+}
+```
+
+## Product Catalog Queries
+
+Find all products in a specific category:
+
+```dql-query
+{
+  electronics_products(func: eq(name, "Electronics")) {
+    name
+    products: ~category {
+      name
+      price
+      sku
+      in_stock
+    }
+  }
+}
+```
+
+## Price Range Filtering
+
+Find products within a price range:
+
+```dql-query
+{
+  affordable_products(func: between(price, 0, 100)) {
+    name
+    price
+    category {
+      name
+    }
+    sku
+    in_stock
+  }
+}
+```
+
+## Customer Order History
+
+Create an order and query customer order history:
+
+```dql-mutation
+{
+  set {
+    _:order1 <order_id> "ORD-12345" .
+    _:order1 <customer> uid(customer) .
+    _:order1 <total> "1299.99" .
+    _:order1 <order_date> "2024-01-15T10:30:00Z" .
+    _:order1 <status> "completed" .
+    _:order1 <dgraph.type> "Order" .
+    
+    _:item1 <product> uid(laptop) .
+    _:item1 <quantity> "1" .
+    _:item1 <price> "1299.99" .
+    _:item1 <dgraph.type> "OrderItem" .
+    
+    _:order1 <items> _:item1 .
+  }
+}
+
+query {
+  customer as var(func: eq(email, "sarah@example.com"))
+  laptop as var(func: eq(sku, "LAP-001"))
+}
+```
+
+## Customer Analytics Query
+
+Get comprehensive customer order analytics:
+
+```dql-query
+{
+  customer_analytics(func: has(email)) {
+    name
+    email
+    order_count: count(orders)
+    orders {
+      order_id
+      total
+      order_date
+      status
+      items {
+        quantity
+        price
+        product {
+          name
+          category {
+            name
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+This e-commerce example demonstrates how graph databases excel at modeling complex relationships between products, customers, and orders!

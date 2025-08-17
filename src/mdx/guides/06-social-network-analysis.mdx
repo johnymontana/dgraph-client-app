@@ -1,0 +1,190 @@
+---
+title: "Social Network Analysis"
+description: "Analyze social networks with graph algorithms and relationship queries"
+order: 6
+---
+
+# Social Network Analysis
+
+Social networks are perfect for graph databases. Let's explore how to analyze social connections, influence, and community structures.
+
+## Social Network Schema
+
+```dql-schema
+type Person {
+  name: string @index(term) .
+  username: string @index(exact) .
+  email: string @index(exact) .
+  bio: string .
+  follower_count: int @index(int) .
+  following_count: int @index(int) .
+  follows: [uid] @reverse .
+  location: string @index(term) .
+  joined_date: datetime @index(day) .
+}
+
+type Post {
+  content: string @index(fulltext) .
+  author: uid @reverse .
+  created_at: datetime @index(hour) .
+  likes: int @index(int) .
+  retweets: int @index(int) .
+  hashtags: [string] @index(exact) .
+}
+```
+
+## Creating a Social Network
+
+Let's create some users and their relationships:
+
+```dql-mutation
+{
+  set {
+    # Tech influencers
+    _:alice <name> "Alice Chen" .
+    _:alice <username> "@alice_codes" .
+    _:alice <email> "alice@example.com" .
+    _:alice <bio> "Software Engineer | Graph Database Enthusiast" .
+    _:alice <follower_count> "15420" .
+    _:alice <following_count> "892" .
+    _:alice <location> "San Francisco, CA" .
+    _:alice <joined_date> "2020-03-15T08:00:00Z" .
+    _:alice <dgraph.type> "Person" .
+    
+    _:bob <name> "Bob Martinez" .
+    _:bob <username> "@bobtech" .
+    _:bob <email> "bob@example.com" .
+    _:bob <bio> "DevOps Engineer | Cloud Architecture" .
+    _:bob <follower_count> "8934" .
+    _:bob <following_count> "567" .
+    _:bob <location> "Austin, TX" .
+    _:bob <joined_date> "2019-08-22T14:30:00Z" .
+    _:bob <dgraph.type> "Person" .
+    
+    _:carol <name> "Carol Davis" .
+    _:carol <username> "@carol_data" .
+    _:carol <email> "carol@example.com" .
+    _:carol <bio> "Data Scientist | Machine Learning Researcher" .
+    _:carol <follower_count> "23567" .
+    _:carol <following_count> "1234" .
+    _:carol <location> "New York, NY" .
+    _:carol <joined_date> "2018-11-03T09:15:00Z" .
+    _:carol <dgraph.type> "Person" .
+    
+    # Create following relationships
+    _:alice <follows> _:bob .
+    _:alice <follows> _:carol .
+    _:bob <follows> _:carol .
+    _:carol <follows> _:alice .
+  }
+}
+```
+
+## Analyzing Network Connections
+
+Find mutual connections between users:
+
+```dql-query
+{
+  # Find people Alice follows who also follow her back
+  mutual_connections(func: eq(username, "@alice_codes")) {
+    name
+    username
+    mutual_follows: follows @filter(uid_in(~follows, uid(me))) {
+      name
+      username
+      follower_count
+    }
+  }
+  
+  me as var(func: eq(username, "@alice_codes"))
+}
+```
+
+## Influence Analysis
+
+Find the most influential people (by follower count):
+
+```dql-query
+{
+  influencers(func: has(follower_count), orderasc: follower_count, first: 10) {
+    name
+    username
+    follower_count
+    following_count
+    location
+    bio
+  }
+}
+```
+
+## Content and Engagement
+
+Let's add some posts and analyze engagement:
+
+```dql-mutation
+{
+  set {
+    _:post1 <content> "Excited to share my latest graph database tutorial! 🚀 #GraphDB #Tutorial" .
+    _:post1 <author> uid(alice) .
+    _:post1 <created_at> "2024-01-20T15:30:00Z" .
+    _:post1 <likes> "245" .
+    _:post1 <retweets> "38" .
+    _:post1 <hashtags> "GraphDB" .
+    _:post1 <hashtags> "Tutorial" .
+    _:post1 <dgraph.type> "Post" .
+    
+    _:post2 <content> "DevOps best practices for 2024 - a thread 🧵" .
+    _:post2 <author> uid(bob) .
+    _:post2 <created_at> "2024-01-19T09:45:00Z" .
+    _:post2 <likes> "156" .
+    _:post2 <retweets> "23" .
+    _:post2 <hashtags> "DevOps" .
+    _:post2 <dgraph.type> "Post" .
+  }
+}
+
+query {
+  alice as var(func: eq(username, "@alice_codes"))
+  bob as var(func: eq(username, "@bobtech"))
+}
+```
+
+## Content Discovery
+
+Find trending content by hashtags:
+
+```dql-query
+{
+  trending_posts(func: eq(hashtags, "GraphDB")) @cascade {
+    content
+    likes
+    retweets
+    created_at
+    author {
+      name
+      username
+      follower_count
+    }
+  }
+}
+```
+
+## Network Growth Analysis
+
+Analyze user growth over time:
+
+```dql-query
+{
+  recent_users(func: has(joined_date)) @filter(ge(joined_date, "2020-01-01")) {
+    name
+    username
+    joined_date
+    follower_count
+    following_count
+    location
+  }
+}
+```
+
+This social network example shows how graph databases naturally represent relationships and enable complex social analytics!

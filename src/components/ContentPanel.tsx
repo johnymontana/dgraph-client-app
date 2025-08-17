@@ -10,7 +10,7 @@ import {
 } from '@chakra-ui/react';
 import ConnectionForm from './ConnectionForm';
 import SchemaEditor from './SchemaEditor';
-import GuidedExperience from './GuidedExperience';
+import GuidesTab from './GuidesTab';
 import QueryEditor from './QueryEditor';
 import ResizableContainer from './ResizableContainer';
 import GraphVisualization from './GraphVisualization';
@@ -91,22 +91,7 @@ export default function ContentPanel({
   );
 
   const renderGuidesSection = () => (
-    <VStack gap={{ base: 4, md: 6 }} align="stretch">
-      <Box>
-        <Heading as="h2" size={{ base: "lg", md: "xl" }} color="fg.primary" mb={2}>
-          Learning Guides
-        </Heading>
-        <Text color="fg.secondary" fontSize={{ base: "sm", md: "md" }}>
-          Interactive tutorials and examples to help you master DGraph DQL
-        </Text>
-      </Box>
-
-      <GuidedExperience
-        guides={[]}
-        onLoadQuery={() => {}}
-        onClose={() => {}}
-      />
-    </VStack>
+    <GuidesTab />
   );
 
   const renderQuerySection = () => {

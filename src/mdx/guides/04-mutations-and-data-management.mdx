@@ -1,0 +1,135 @@
+---
+title: "Mutations and Data Management"
+description: "Learn how to insert, update, and delete data using DQL mutations"
+order: 4
+---
+
+# Mutations and Data Management
+
+DQL mutations allow you to modify data in your graph database. Let's learn how to insert, update, and delete data.
+
+## Setting Up Your Schema
+
+Before inserting data, let's define a schema for a simple social network:
+
+```dql-schema
+type Person {
+  name: string @index(term) .
+  age: int .
+  email: string @index(exact) .
+  friend: [uid] @reverse .
+}
+
+type Post {
+  title: string @index(term) .
+  content: string .
+  author: uid @reverse .
+  created: datetime .
+}
+```
+
+## Inserting New Data
+
+Let's create some people in our social network:
+
+```dql-mutation
+{
+  set {
+    _:alice <name> "Alice Johnson" .
+    _:alice <age> "28" .
+    _:alice <email> "alice@example.com" .
+    _:alice <dgraph.type> "Person" .
+    
+    _:bob <name> "Bob Smith" .
+    _:bob <age> "32" .
+    _:bob <email> "bob@example.com" .
+    _:bob <dgraph.type> "Person" .
+    
+    _:charlie <name> "Charlie Brown" .
+    _:charlie <age> "25" .
+    _:charlie <email> "charlie@example.com" .
+    _:charlie <dgraph.type> "Person" .
+  }
+}
+```
+
+## Creating Relationships
+
+Now let's create friendships between our users:
+
+```dql-mutation
+{
+  set {
+    # Alice and Bob are friends
+    uid(alice) <friend> uid(bob) .
+    uid(bob) <friend> uid(alice) .
+    
+    # Alice and Charlie are friends
+    uid(alice) <friend> uid(charlie) .
+    uid(charlie) <friend> uid(alice) .
+  }
+}
+
+query {
+  alice as var(func: eq(email, "alice@example.com"))
+  bob as var(func: eq(email, "bob@example.com"))
+  charlie as var(func: eq(email, "charlie@example.com"))
+}
+```
+
+## Query the Social Network
+
+Let's verify our data was inserted correctly:
+
+```dql-query
+{
+  people(func: has(name)) {
+    uid
+    name
+    age
+    email
+    friend {
+      name
+      age
+    }
+  }
+}
+```
+
+## Updating Existing Data
+
+To update data, use a mutation with existing UIDs:
+
+```dql-mutation
+{
+  set {
+    uid(alice) <age> "29" .
+  }
+}
+
+query {
+  alice as var(func: eq(email, "alice@example.com"))
+}
+```
+
+## Deleting Data
+
+To delete specific predicates or entire nodes:
+
+```dql-mutation
+{
+  delete {
+    # Delete a specific predicate
+    uid(charlie) <age> * .
+    
+    # Or delete an entire node and all its predicates
+    # uid(charlie) * * .
+  }
+}
+
+query {
+  charlie as var(func: eq(email, "charlie@example.com"))
+}
+```
+
+Run these mutations in order to build up your social network dataset and see how mutations work in practice!

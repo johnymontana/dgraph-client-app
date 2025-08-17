@@ -330,14 +330,136 @@ pnpm run test:coverage
 pnpm run test QueryEditor.test.tsx
 ```
 
-## 📚 Learning Resources
+## 📚 Interactive Learning Guides
 
-### Interactive Guides
-The application includes built-in interactive tutorials:
-- **DQL Basics**: Introduction to DGraph Query Language
-- **Schema Design**: Best practices for database schemas
-- **Query Patterns**: Common query patterns and examples
-- **Advanced Features**: Complex queries and optimizations
+The application features a comprehensive interactive guides system that provides hands-on learning experiences for DQL and graph database concepts.
+
+### Available Guides
+
+1. **Introduction to Dgraph Query Language** (`01-introduction.mdx`)
+   - Basic DQL syntax and structure
+   - Setting up schemas and sample data
+   - Your first interactive queries
+
+2. **Filtering Data in DQL** (`02-filtering.mdx`)
+   - Predicate-based filtering
+   - Regular expression patterns
+   - Genre and type-based queries
+
+3. **Graph Traversal in DQL** (`03-graph-traversal.mdx`)
+   - Relationship traversal patterns
+   - Multi-level graph exploration
+   - Reverse edge navigation
+
+4. **Mutations and Data Management** (`04-mutations-and-data-management.mdx`)
+   - Schema definition and updates
+   - Data insertion and updates
+   - Relationship management
+
+5. **E-commerce Dataset Guide** (`05-e-commerce-dataset.mdx`)
+   - Complete e-commerce data model
+   - Product catalogs and customer analytics
+   - Order management queries
+
+6. **Social Network Analysis** (`06-social-network-analysis.mdx`)
+   - Social graph modeling
+   - Influence and engagement analytics
+   - Network growth analysis
+
+7. **Geospatial Data and Location Queries** (`07-geospatial-data.mdx`)
+   - Geographic data types
+   - Location-based queries
+   - Spatial analysis patterns
+
+8. **Advanced Analytics and Aggregations** (`08-advanced-analytics.mdx`)
+   - Complex aggregation functions
+   - Time-based analytics
+   - Business intelligence patterns
+
+### Creating New Guides
+
+To create a new interactive guide:
+
+1. **Create the MDX file** in `src/mdx/guides/` with the naming pattern `XX-guide-name.mdx`:
+   ```bash
+   touch src/mdx/guides/09-my-new-guide.mdx
+   ```
+
+2. **Add frontmatter metadata** at the top of your file:
+   ```yaml
+   ---
+   title: "Your Guide Title"
+   description: "Brief description of what this guide covers"
+   order: 9
+   ---
+   ```
+
+3. **Write your guide content** using standard Markdown syntax with special interactive code blocks:
+
+   ```markdown
+   # Your Guide Title
+   
+   Introduction to your topic...
+   
+   ## Interactive Query Example
+   
+   ```dql-query
+   {
+     your_query(func: has(predicate)) {
+       uid
+       predicate
+     }
+   }
+   ```
+   
+   ## Schema Updates
+   
+   ```dql-schema
+   type YourType {
+     field: string @index(term) .
+   }
+   ```
+   
+   ## Data Mutations
+   
+   ```dql-mutation
+   {
+     set {
+       _:node <predicate> "value" .
+       _:node <dgraph.type> "YourType" .
+     }
+   }
+   ```
+   ```
+
+4. **Interactive Code Block Types**:
+   - **`dql-query`**: Runnable DQL queries with "Run Query" button
+   - **`dql-mutation`**: Executable mutations with "Run Mutation" button  
+   - **`dql-schema`**: Schema definitions with "View Schema" and "Apply Schema" buttons
+   - **Regular code blocks**: Standard syntax highlighting
+
+5. **Guide Structure Best Practices**:
+   - Start with schema definition when introducing new concepts
+   - Provide sample data through mutations
+   - Follow with progressive query examples
+   - Include real-world use cases and scenarios
+   - Use consistent naming conventions
+   - Always include `uid` in queries for proper visualization
+
+6. **Testing Your Guide**:
+   - Restart the development server: `npm run dev`
+   - Navigate to the Guides tab
+   - Your new guide will appear in the selection interface
+   - Test all interactive code blocks work correctly
+
+### Guide Content Guidelines
+
+- **Educational Flow**: Structure content from basic to advanced
+- **Interactive Examples**: Include clickable code blocks for key concepts
+- **Real Datasets**: Use relatable examples (movies, e-commerce, social networks)
+- **Visualization Ready**: Ensure queries return data suitable for graph visualization
+- **Error Handling**: Provide alternative queries if data might not exist
+- **Cross-References**: Link concepts between different guides
 
 ### External Resources
 - [Dgraph Documentation](https://dgraph.io/docs/) - Official Dgraph guides

@@ -10,32 +10,67 @@ One of the most powerful features of Dgraph is the ability to traverse relations
 
 ## Basic Relationship Traversal
 
-This query finds people and their friends:
+This query finds actors and the movies they've starred in:
 
 ```dql-query
 {
-  people(func: has(name)) {
+  actors(func: has(name)) @filter(type(Person)) {
+    uid
     name
     age
-    friend {
-      name
-      age
+    movies: ~starring {
+      uid
+      title
+      year
+      genre
     }
   }
 }
 ```
 
-## Multi-level Traversal
+## Multi-level Traversal with Co-stars
 
-You can traverse multiple levels of relationships:
+Find actors, their movies, and their co-stars:
 
 ```dql-query
 {
-  people(func: has(name)) @cascade {
+  actors_and_costars(func: has(name)) @filter(type(Person)) @cascade {
+    uid
     name
-    friend {
-      name
-      friend {
+    movies: ~starring {
+      uid
+      title
+      year
+      co_stars: starring @filter(not eq(name, val(actor_name))) {
+        uid
+        name
+        age
+      }
+    }
+  }
+  
+  # Get the actor's name for filtering
+  var(func: has(name)) @filter(type(Person)) {
+    actor_name as name
+  }
+}
+```
+
+## Reverse Edge Traversal
+
+Use reverse edges to find relationships from different perspectives:
+
+```dql-query
+{
+  movies_by_actor(func: eq(name, "Tom Hanks")) {
+    name
+    age
+    filmography: ~starring {
+      uid
+      title
+      year
+      genre
+      other_actors: starring @filter(not eq(name, "Tom Hanks")) {
         name
       }
     }
@@ -43,4 +78,4 @@ You can traverse multiple levels of relationships:
 }
 ```
 
-This query finds people, their friends, and their friends' friends, creating a 2-level social network visualization.
+This demonstrates how graph databases excel at representing and querying complex relationships!

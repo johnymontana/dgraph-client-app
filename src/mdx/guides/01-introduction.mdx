@@ -8,19 +8,80 @@ order: 1
 
 Dgraph Query Language (DQL) is a query language designed to efficiently query graph data stored in Dgraph databases.
 
-## Your First Query
+## Setting Up Your First Schema
 
-Try this simple query to get all nodes that have a `name` property:
+Before we start querying, let's define a simple schema for a movie database:
 
-```dql-query
+```dql-schema
+type Person {
+  name: string @index(term) .
+  age: int .
+  starred_in: [uid] @reverse .
+}
+
+type Movie {
+  title: string @index(term) .
+  year: int @index(int) .
+  genre: string @index(exact) .
+  director: uid @reverse .
+  starring: [uid] @reverse .
+}
+```
+
+## Adding Sample Data
+
+Let's insert some sample movie data to work with:
+
+```dql-mutation
 {
-  q(func: has(name)) {
-    uid
-    name
+  set {
+    _:tom <name> "Tom Hanks" .
+    _:tom <age> "67" .
+    _:tom <dgraph.type> "Person" .
+    
+    _:meg <name> "Meg Ryan" .
+    _:meg <age> "62" .
+    _:meg <dgraph.type> "Person" .
+    
+    _:forrest <title> "Forrest Gump" .
+    _:forrest <year> "1994" .
+    _:forrest <genre> "Drama" .
+    _:forrest <starring> _:tom .
+    _:forrest <dgraph.type> "Movie" .
+    
+    _:seattle <title> "Sleepless in Seattle" .
+    _:seattle <year> "1993" .
+    _:seattle <genre> "Romance" .
+    _:seattle <starring> _:tom .
+    _:seattle <starring> _:meg .
+    _:seattle <dgraph.type> "Movie" .
   }
 }
 ```
 
-Click the query above to load it into the editor, then click "Run Query" to execute it.
+## Your First Query
 
-DQL uses a GraphQL-like syntax but with functions specifically designed for graph databases.
+Now let's query our movie database to find all people and their movies:
+
+```dql-query
+{
+  people(func: has(name)) {
+    uid
+    name
+    age
+    movies: ~starring {
+      title
+      year
+      genre
+    }
+  }
+}
+```
+
+Click the queries above to run them interactively! DQL uses a GraphQL-like syntax but with functions specifically designed for graph databases.
+
+## Understanding the Query Structure
+
+- `func: has(name)` - Finds all nodes that have a `name` predicate
+- `~starring` - Reverse edge traversal (movies where this person starred)
+- `uid` - Always include this for proper graph visualization

@@ -6,10 +6,7 @@ import { useDgraph } from '@/context/DgraphContext';
 import DQLAutocomplete from './DQLAutocomplete';
 import QueryHistory, { QueryHistoryItem } from './QueryHistory';
 import FullscreenToggle from './FullscreenToggle';
-import GuidedExperience from './GuidedExperience';
 import DQLVariableInputs from './DQLVariableInputs';
-import { GuideMetadata } from '@/utils/mdxLoader';
-import axios from 'axios';
 import {
   Box,
   Card,
@@ -23,6 +20,8 @@ import {
 
 interface QueryEditorProps {
   onQueryResult: (data: any) => void;
+  initialQuery?: string;
+  compact?: boolean;
 }
 
 type TabType = 'query' | 'mutation';
@@ -50,7 +49,7 @@ const DEFAULT_MUTATION = `{
   # }
 }`;
 
-export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
+export default function QueryEditor({ onQueryResult, initialQuery, compact = false }: QueryEditorProps) {
   // Ref for DQLAutocomplete's handleInput
   const autocompleteInputRef = useRef<(() => void) | null>(null);
   const { dgraphService, connected, parsedSchema } = useDgraph();
@@ -63,9 +62,6 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
   const [queryHistory, setQueryHistory] = useState<QueryHistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showGuide, setShowGuide] = useState(false);
-  const [guides, setGuides] = useState<{ content: string; metadata: GuideMetadata }[]>([]);
-  const [guidesLoading, setGuidesLoading] = useState(false);
   const [queryVariables, setQueryVariables] = useState<Record<string, any>>({});
   const editorRef = useRef<HTMLDivElement>(null);
 
@@ -88,37 +84,12 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
     loadQueryHistory();
   }, []);
   
-  // Load guides when guided experience is toggled on
+  // Set initial query if provided
   useEffect(() => {
-    if (showGuide && guides.length === 0 && !guidesLoading) {
-      setGuidesLoading(true);
-
-      const fetchGuides = async () => {
-        try {
-          // First get all guide metadata
-          const metadataResponse = await axios.get('/api/guides');
-          const guidesMetadata = metadataResponse.data as GuideMetadata[];
-
-          // Then fetch content for each guide
-          const guidesWithContent = await Promise.all(
-            guidesMetadata.map(async (metadata) => {
-              const guideResponse = await axios.get(`/api/guides?slug=${metadata.slug}`);
-              return guideResponse.data;
-            })
-          );
-
-          setGuides(guidesWithContent);
-        } catch (error) {
-          console.error('Error loading guides:', error);
-          setError('Failed to load tutorial guides');
-        } finally {
-          setGuidesLoading(false);
-        }
-      };
-
-      fetchGuides();
+    if (initialQuery && initialQuery !== query) {
+      setQuery(initialQuery);
     }
-  }, [showGuide, guides.length, guidesLoading]);
+  }, [initialQuery, query]);
 
   // Handle cursor position changes
   const handleEditorChange = (value: string, viewUpdate: any) => {
@@ -264,31 +235,20 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
             </VStack>
             
             <HStack gap={2} flexWrap="wrap">
-              <Button
-                variant="ghost"
-                size={{ base: "sm", md: "sm" }}
-                onClick={() => setShowGuide(!showGuide)}
-                color="fg.secondary"
-                _hover={{ color: "fg.primary" }}
-              >
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ marginRight: '8px' }}>
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                </svg>
-                Guide
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size={{ base: "sm", md: "sm" }}
-                onClick={() => setShowHistory(!showHistory)}
-                color="fg.secondary"
-                _hover={{ color: "fg.primary" }}
-              >
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ marginRight: '8px' }}>
-                  <path d="M13 3a9 9 0 00-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" />
-                </svg>
-                History
-              </Button>
+              {!compact && (
+                <Button
+                  variant="ghost"
+                  size={{ base: "sm", md: "sm" }}
+                  onClick={() => setShowHistory(!showHistory)}
+                  color="fg.secondary"
+                  _hover={{ color: "fg.primary" }}
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ marginRight: '8px' }}>
+                    <path d="M13 3a9 9 0 00-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" />
+                  </svg>
+                  History
+                </Button>
+              )}
               
               <Button
                 onClick={handleRunOperation}
@@ -305,10 +265,12 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
                 {`Run ${activeTab === 'query' ? 'Query' : 'Mutation'}`}
               </Button>
               
-              <FullscreenToggle
-                isFullscreen={isFullscreen}
-                onToggle={() => setIsFullscreen(!isFullscreen)}
-              />
+              {!compact && (
+                <FullscreenToggle
+                  isFullscreen={isFullscreen}
+                  onToggle={() => setIsFullscreen(!isFullscreen)}
+                />
+              )}
             </HStack>
           </HStack>
         </VStack>
@@ -355,19 +317,8 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
           </Alert.Root>
         )}
 
-        {showGuide && (
-          <GuidedExperience
-            guides={guides}
-            onLoadQuery={(queryText) => {
-              setQuery(queryText);
-              setActiveTab('query');
-              setShowGuide(false);
-            }}
-            onClose={() => setShowGuide(false)}
-          />
-        )}
 
-        {showHistory && (
+        {showHistory && !compact && (
           <QueryHistory
             history={queryHistory}
             onSelectQuery={handleSelectQuery}
@@ -384,7 +335,7 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
           >
             <CodeMirror
               value={activeTab === 'query' ? query : mutation}
-              height={isFullscreen ? 'calc(100vh - 230px)' : '200px'}
+              height={compact ? '150px' : (isFullscreen ? 'calc(100vh - 230px)' : '200px')}
               onChange={handleEditorChange}
               theme="light"
               className="text-sm"
