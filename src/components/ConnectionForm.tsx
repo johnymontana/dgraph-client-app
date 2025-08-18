@@ -304,32 +304,33 @@ export default function ConnectionForm() {
                         <Field.Label textStyle="label">
                           Embedding Provider
                         </Field.Label>
-                        <Box
-                          as="select"
+                        <select
                           value={embeddingProvider}
-                          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEmbeddingProvider(e.target.value as any)}
+                          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEmbeddingProvider(e.target.value as 'openai' | 'anthropic' | 'ollama')}
                           disabled={connected}
-                          w="full"
-                          h="44px"
-                          px={3}
-                          borderRadius="lg"
-                          border="1px"
-                          borderColor="border.primary"
-                          bg="bg.primary"
-                          _focus={{ 
-                            borderColor: 'accent.primary',
-                            shadow: 'shadow.focus',
-                            ring: 'none'
+                          style={{
+                            width: '100%',
+                            height: '44px',
+                            padding: '0 12px',
+                            borderRadius: '8px',
+                            border: '1px solid var(--chakra-colors-border-primary)',
+                            backgroundColor: 'var(--chakra-colors-bg-primary)',
+                            fontSize: '16px',
+                            outline: 'none'
                           }}
-                          _disabled={{
-                            opacity: 0.6,
-                            cursor: 'not-allowed'
+                          onFocus={(e) => {
+                            e.target.style.borderColor = 'var(--chakra-colors-accent-primary)';
+                            e.target.style.boxShadow = 'var(--chakra-colors-shadow-focus)';
+                          }}
+                          onBlur={(e) => {
+                            e.target.style.borderColor = 'var(--chakra-colors-border-primary)';
+                            e.target.style.boxShadow = 'none';
                           }}
                         >
                           <option value="openai">OpenAI</option>
                           <option value="anthropic">Anthropic</option>
                           <option value="ollama">Ollama (Local)</option>
-                        </Box>
+                        </select>
                         <Field.HelperText textStyle="helper">
                           Choose your preferred embedding provider
                         </Field.HelperText>

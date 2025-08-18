@@ -200,7 +200,7 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
   };
 
   const updateEmbeddingService = () => {
-    if (embeddingProvider === 'ollama' || (embeddingProvider !== 'ollama' && embeddingApiKey)) {
+    if (embeddingProvider === 'ollama' || (embeddingProvider && embeddingApiKey)) {
       const service = new EmbeddingService({
         provider: embeddingProvider,
         apiKey: embeddingProvider !== 'ollama' ? embeddingApiKey : undefined,

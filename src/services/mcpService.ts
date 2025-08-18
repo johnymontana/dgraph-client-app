@@ -87,7 +87,7 @@ export class McpService {
         this.maintainSseConnection(reader, decoder);
       }
     } catch (error) {
-      if (error.name !== 'AbortError') {
+      if (error instanceof Error && error.name !== 'AbortError') {
         console.error('SSE connection error:', error);
         throw error;
       }
@@ -108,7 +108,7 @@ export class McpService {
           }
         }
       } catch (error) {
-        if (error.name !== 'AbortError' && this.keepAliveConnection) {
+        if (error instanceof Error && error.name !== 'AbortError' && this.keepAliveConnection) {
           console.warn('SSE connection lost:', error);
           // Could implement reconnection logic here
         }

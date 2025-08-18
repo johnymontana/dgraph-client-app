@@ -136,8 +136,11 @@ export default function TextToDqlTab() {
       throw new Error('OpenAI API key not configured. Please enter your OpenAI API key in the connection form.');
     }
 
+    // Set the API key for OpenAI
+    process.env.OPENAI_API_KEY = apiKey;
+
     // Use the OpenAI API key from the main connection form
-    const model = openai('gpt-4o-mini', { apiKey: apiKey });
+    const model = openai('gpt-4o-mini');
     
     const result = await generateText({
       model,

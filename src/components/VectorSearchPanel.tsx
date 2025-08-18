@@ -32,10 +32,7 @@ export default function VectorSearchPanel({ onQueryGenerated }: VectorSearchPane
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canGenerateEmbedding = embeddingService && (
-    embeddingProvider === 'ollama' || 
-    (embeddingProvider !== 'ollama' && embeddingService)
-  );
+  const canGenerateEmbedding = embeddingService && embeddingProvider;
 
   const handleGenerateQuery = async () => {
     if (!embeddingService || !searchText.trim()) {
@@ -243,7 +240,7 @@ export default function VectorSearchPanel({ onQueryGenerated }: VectorSearchPane
                 borderColor: 'accent.primary'
               }}
             >
-              <Icons.code size={16} />
+              <Icons.query size={16} />
               <Text>Insert Vector Search Template</Text>
             </Button>
           </VStack>

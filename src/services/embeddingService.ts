@@ -40,6 +40,7 @@ class EmbeddingService {
 
   private async createOllamaProvider() {
     const endpoint = this.config.ollamaEndpoint || 'http://localhost:11434';
+    const model = this.config.model || this.getDefaultModel();
     
     return {
       async embed(values: string[]) {
@@ -51,7 +52,7 @@ class EmbeddingService {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                model: this.config.model || this.getDefaultModel(),
+                model: model,
                 prompt: text,
               }),
             });
@@ -88,18 +89,18 @@ class EmbeddingService {
           if (!this.config.apiKey) {
             throw new Error('OpenAI API key is required');
           }
-          provider = openai({
-            apiKey: this.config.apiKey,
-          });
+          // Set the API key for OpenAI
+          process.env.OPENAI_API_KEY = this.config.apiKey;
+          provider = openai('text-embedding-ada-002');
           break;
           
         case 'anthropic':
           if (!this.config.apiKey) {
             throw new Error('Anthropic API key is required');
           }
-          provider = anthropic({
-            apiKey: this.config.apiKey,
-          });
+          // Set the API key for Anthropic
+          process.env.ANTHROPIC_API_KEY = this.config.apiKey;
+          provider = anthropic('claude-3-haiku-20240307');
           break;
           
         case 'ollama':
@@ -111,7 +112,7 @@ class EmbeddingService {
       }
 
       if (this.config.provider === 'ollama') {
-        const result = await provider.embed([text]);
+        const result = await (provider as any).embed([text]);
         return {
           embedding: result.embeddings[0],
           usage: {
@@ -121,7 +122,7 @@ class EmbeddingService {
       }
 
       const { embeddings, usage } = await embedMany({
-        model: provider(model),
+        model: (provider as any)(model),
         values: [text],
       });
 
@@ -148,18 +149,18 @@ class EmbeddingService {
           if (!this.config.apiKey) {
             throw new Error('OpenAI API key is required');
           }
-          provider = openai({
-            apiKey: this.config.apiKey,
-          });
+          // Set the API key for OpenAI
+          process.env.OPENAI_API_KEY = this.config.apiKey;
+          provider = openai('text-embedding-ada-002');
           break;
           
         case 'anthropic':
           if (!this.config.apiKey) {
             throw new Error('Anthropic API key is required');
           }
-          provider = anthropic({
-            apiKey: this.config.apiKey,
-          });
+          // Set the API key for Anthropic
+          process.env.ANTHROPIC_API_KEY = this.config.apiKey;
+          provider = anthropic('claude-3-haiku-20240307');
           break;
           
         case 'ollama':
@@ -171,7 +172,7 @@ class EmbeddingService {
       }
 
       if (this.config.provider === 'ollama') {
-        const result = await provider.embed(texts);
+        const result = await (provider as any).embed(texts);
         return result.embeddings.map((embedding: number[], index: number) => ({
           embedding,
           usage: {
@@ -181,7 +182,7 @@ class EmbeddingService {
       }
 
       const { embeddings, usage } = await embedMany({
-        model: provider(model),
+        model: (provider as any)(model),
         values: texts,
       });
 
