@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box,
-  useBreakpointValue,
 } from '@chakra-ui/react';
 import Toolbar from '@/components/Toolbar';
 import Sidebar from '@/components/Sidebar';
@@ -12,11 +11,23 @@ import { DgraphProvider } from '@/context/DgraphContext';
 
 function MainContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [activeSection, setActiveSection] = useState<'connection' | 'schema' | 'guides' | 'query'>('connection');
+  const [activeSection, setActiveSection] = useState<'connection' | 'schema' | 'guides' | 'query' | 'text-to-dql'>('connection');
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
 
-  // Responsive sidebar behavior
-  const isMobile = useBreakpointValue({ base: true, md: false });
-  const isTablet = useBreakpointValue({ base: false, md: true, lg: false });
+  // Responsive sidebar behavior - hydration-safe
+  useEffect(() => {
+    const checkBreakpoints = () => {
+      const mobile = window.innerWidth < 768;
+      const tablet = window.innerWidth >= 768 && window.innerWidth < 1024;
+      setIsMobile(mobile);
+      setIsTablet(tablet);
+    };
+
+    checkBreakpoints();
+    window.addEventListener('resize', checkBreakpoints);
+    return () => window.removeEventListener('resize', checkBreakpoints);
+  }, []);
   
   // Auto-close sidebar on mobile when section changes
   useEffect(() => {
@@ -32,7 +43,7 @@ function MainContent() {
     }
   }, [isMobile]);
 
-  const handleSectionChange = (section: 'connection' | 'schema' | 'guides' | 'query') => {
+  const handleSectionChange = (section: 'connection' | 'schema' | 'guides' | 'query' | 'text-to-dql') => {
     console.log('Section changing from', activeSection, 'to', section);
     setActiveSection(section);
   };
@@ -51,14 +62,15 @@ function MainContent() {
         handleToggleSidebar();
       }
       
-      // Cmd/Ctrl + 1-4 for quick section navigation
-      if ((event.metaKey || event.ctrlKey) && ['1', '2', '3', '4'].includes(event.key)) {
+      // Cmd/Ctrl + 1-5 for quick section navigation
+      if ((event.metaKey || event.ctrlKey) && ['1', '2', '3', '4', '5'].includes(event.key)) {
         event.preventDefault();
         const sectionMap = {
           '1': 'connection' as const,
           '2': 'schema' as const,
           '3': 'guides' as const,
           '4': 'query' as const,
+          '5': 'text-to-dql' as const,
         };
         handleSectionChange(sectionMap[event.key as keyof typeof sectionMap]);
       }

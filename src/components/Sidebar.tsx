@@ -16,8 +16,8 @@ import { Icons } from '@/components/ui/icons';
 interface SidebarProps {
   isOpen: boolean;
   onToggle: () => void;
-  activeSection: 'connection' | 'schema' | 'guides' | 'query';
-  onSectionChange: (section: 'connection' | 'schema' | 'guides' | 'query') => void;
+  activeSection: 'connection' | 'schema' | 'guides' | 'query' | 'text-to-dql';
+  onSectionChange: (section: 'connection' | 'schema' | 'guides' | 'query' | 'text-to-dql') => void;
   isMobile?: boolean;
   isTablet?: boolean;
 }
@@ -127,6 +127,7 @@ export default function Sidebar({ isOpen, activeSection, onSectionChange, isMobi
     { icon: Icons.schema, label: "Schema", key: "schema" as const },
     { icon: Icons.guides, label: "Guides", key: "guides" as const },
     { icon: Icons.query, label: "Query", key: "query" as const },
+    { icon: Icons.ai, label: "Text to DQL", key: "text-to-dql" as const },
   ];
 
   // Don't render connection status until mounted to prevent hydration mismatch

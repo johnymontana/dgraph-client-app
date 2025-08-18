@@ -16,6 +16,9 @@ interface DgraphContextType {
   embeddingApiKey: string;
   embeddingModel: string;
   ollamaEndpoint: string;
+  mcpConfig: string;
+  mcpServerUrl: string;
+  mcpBearerToken: string;
   setEndpoint: (endpoint: string) => void;
   setApiKey: (apiKey: string) => void;
   setHypermodeRouterKey: (key: string) => void;
@@ -23,6 +26,9 @@ interface DgraphContextType {
   setEmbeddingApiKey: (key: string) => void;
   setEmbeddingModel: (model: string) => void;
   setOllamaEndpoint: (endpoint: string) => void;
+  setMcpConfig: (config: string) => void;
+  setMcpServerUrl: (url: string) => void;
+  setMcpBearerToken: (token: string) => void;
   connect: () => void;
   disconnect: () => void;
   error: string | null;
@@ -42,6 +48,9 @@ const STORAGE_KEY_EMBEDDING_PROVIDER = 'embedding_provider';
 const STORAGE_KEY_EMBEDDING_API_KEY = 'embedding_api_key';
 const STORAGE_KEY_EMBEDDING_MODEL = 'embedding_model';
 const STORAGE_KEY_OLLAMA_ENDPOINT = 'ollama_endpoint';
+const STORAGE_KEY_MCP_CONFIG = 'mcp_config';
+const STORAGE_KEY_MCP_SERVER_URL = 'mcp_server_url';
+const STORAGE_KEY_MCP_BEARER_TOKEN = 'mcp_bearer_token';
 
 // Function to safely load from localStorage (handles SSR)
 const loadFromStorage = (key: string, defaultValue: string) => {
@@ -79,6 +88,15 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
   );
   const [ollamaEndpoint, setOllamaEndpointState] = useState<string>(() =>
     loadFromStorage(STORAGE_KEY_OLLAMA_ENDPOINT, 'http://localhost:11434')
+  );
+  const [mcpConfig, setMcpConfigState] = useState<string>(() =>
+    loadFromStorage(STORAGE_KEY_MCP_CONFIG, '')
+  );
+  const [mcpServerUrl, setMcpServerUrlState] = useState<string>(() =>
+    loadFromStorage(STORAGE_KEY_MCP_SERVER_URL, '')
+  );
+  const [mcpBearerToken, setMcpBearerTokenState] = useState<string>(() =>
+    loadFromStorage(STORAGE_KEY_MCP_BEARER_TOKEN, '')
   );
   const [error, setError] = useState<string | null>(null);
   const [schemaText, setSchemaText] = useState('');
@@ -152,6 +170,33 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
       console.warn('Error saving to localStorage', e);
     }
     updateEmbeddingService();
+  };
+
+  const setMcpConfig = (value: string) => {
+    setMcpConfigState(value);
+    try {
+      localStorage.setItem(STORAGE_KEY_MCP_CONFIG, value);
+    } catch (e) {
+      console.warn('Error saving to localStorage', e);
+    }
+  };
+
+  const setMcpServerUrl = (value: string) => {
+    setMcpServerUrlState(value);
+    try {
+      localStorage.setItem(STORAGE_KEY_MCP_SERVER_URL, value);
+    } catch (e) {
+      console.warn('Error saving to localStorage', e);
+    }
+  };
+
+  const setMcpBearerToken = (value: string) => {
+    setMcpBearerTokenState(value);
+    try {
+      localStorage.setItem(STORAGE_KEY_MCP_BEARER_TOKEN, value);
+    } catch (e) {
+      console.warn('Error saving to localStorage', e);
+    }
   };
 
   const updateEmbeddingService = () => {
@@ -258,6 +303,9 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
       // Remove all credentials from localStorage
       localStorage.removeItem(STORAGE_KEY_API_KEY);
       localStorage.removeItem(STORAGE_KEY_HYPERMODE_KEY);
+      localStorage.removeItem(STORAGE_KEY_MCP_CONFIG);
+      localStorage.removeItem(STORAGE_KEY_MCP_SERVER_URL);
+      localStorage.removeItem(STORAGE_KEY_MCP_BEARER_TOKEN);
       localStorage.removeItem(STORAGE_KEY_AUTOCONNECT); // Clear auto-connect flag
 
       // Optionally clear endpoint too for complete reset
@@ -275,6 +323,9 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
     setParsedSchema({ types: [] });
     setApiKeyState('');
     setHypermodeRouterKeyState('');
+    setMcpConfigState('');
+    setMcpServerUrlState('');
+    setMcpBearerTokenState('');
     setError(null); // Also clear any previous errors
 
     // Force triggering any effects that depend on these values
@@ -311,6 +362,9 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
         embeddingApiKey,
         embeddingModel,
         ollamaEndpoint,
+        mcpConfig,
+        mcpServerUrl,
+        mcpBearerToken,
         setEndpoint,
         setApiKey,
         setHypermodeRouterKey,
@@ -318,6 +372,9 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
         setEmbeddingApiKey,
         setEmbeddingModel,
         setOllamaEndpoint,
+        setMcpConfig,
+        setMcpServerUrl,
+        setMcpBearerToken,
         connect,
         disconnect,
         error,

@@ -60,6 +60,13 @@ A modern, responsive web-based client for interacting with Dgraph databases usin
   - **Auto-Query Generation**: Automatically generates DQL vector search queries
   - **Variable Integration**: Embeddings passed as query variables to Dgraph
 
+- **🤖 Text to DQL (AI-Powered Query Generation)**
+  - **Natural Language Interface**: Convert plain English to DQL queries
+  - **MCP Integration**: Uses Model Context Protocol for enhanced query generation
+  - **Schema-Aware**: Leverages your database schema for accurate queries
+  - **Dual Mode**: MCP server support with AI fallback
+  - **One-Click Execution**: Generated queries can be run immediately
+
 ## 🏗️ Project Architecture
 
 The application follows a modern, scalable React architecture using Next.js 15 with the App Router, built with TypeScript and Chakra UI v3. The architecture emphasizes:
@@ -192,6 +199,7 @@ The application supports comprehensive keyboard navigation for power users:
 - **Cmd/Ctrl + 2**: Navigate to Schema section  
 - **Cmd/Ctrl + 3**: Navigate to Guides section
 - **Cmd/Ctrl + 4**: Navigate to Query section
+- **Cmd/Ctrl + 5**: Navigate to Text to DQL section
 - **Tab Navigation**: Logical tab order through all interactive elements
 - **Focus Trapping**: Proper focus management in modals and panels
 
@@ -505,6 +513,178 @@ description_embedding: [float] @index(hnsw(metric: "cosine", exponent: 4, m: 16,
   description_embedding 
 } }
 ```
+
+## 🤖 Text to DQL: AI-Powered Query Generation
+
+The Text to DQL feature allows you to generate DQL queries from natural language descriptions using AI. This powerful capability makes it easier for developers to interact with Dgraph databases without needing to memorize complex DQL syntax.
+
+### 🎯 How It Works
+
+The Text to DQL system operates in two modes:
+
+1. **MCP Mode** (Enhanced): Uses a Model Context Protocol (MCP) server specifically designed for Dgraph
+2. **Direct AI Mode** (Fallback): Uses the Vercel AI SDK to generate queries directly
+
+The system automatically leverages your database schema to generate more accurate and relevant queries.
+
+### 🔧 Setup and Configuration
+
+#### Method 1: MCP Server Setup (Recommended)
+
+1. **Install the Dgraph MCP Server**:
+   ```bash
+   npm install -g @modelcontextprotocol/server-dgraph
+   ```
+
+2. **Configure MCP in the Connection Tab**:
+   - Navigate to the Connection section
+   - Expand "MCP Configuration"
+   - Enter your MCP config JSON:
+   ```json
+   {
+     "endpoint": "localhost:9080",
+     "apiKey": "your-dgraph-api-key",
+     "serverUrl": "http://localhost:3001/mcp"
+   }
+   ```
+
+3. **Start your MCP server** (typically runs alongside your application)
+
+#### Method 2: Direct AI Mode (Always Available)
+
+The system automatically falls back to direct AI generation using the Vercel AI SDK if MCP is not configured or unavailable. This uses Anthropic's Claude model to generate queries.
+
+### 🚀 Using Text to DQL
+
+1. **Navigate to Text to DQL tab** in the left sidebar
+2. **Ensure database connection** - you must be connected to a Dgraph instance
+3. **Enter your description** in plain English:
+   ```
+   Find all patients with diabetes who visited in the last month
+   ```
+4. **Generate query** - click "Generate DQL Query"
+5. **Review the generated DQL**:
+   ```dql
+   {
+     patients(func: eq(diagnosis, "diabetes")) @filter(ge(last_visit, "2024-07-01")) {
+       uid
+       dgraph.type
+       name
+       diagnosis
+       last_visit
+     }
+   }
+   ```
+6. **Execute immediately** - click "Execute Query" to run the generated query
+
+### 📋 Example Use Cases
+
+#### Simple Data Retrieval
+**Input**: "Show me all movies from 2023"
+**Generated DQL**:
+```dql
+{
+  movies(func: eq(release_year, "2023")) {
+    uid
+    dgraph.type
+    title
+    release_year
+    genre
+  }
+}
+```
+
+#### Complex Relationships
+**Input**: "Find directors who have made more than 3 action movies"
+**Generated DQL**:
+```dql
+{
+  directors(func: type(Director)) @filter(gt(count(directed), 3)) {
+    uid
+    dgraph.type
+    name
+    directed @filter(eq(genre, "Action")) {
+      uid
+      title
+      genre
+    }
+  }
+}
+```
+
+#### Aggregations and Filtering
+**Input**: "What's the average rating of sci-fi movies released after 2020?"
+**Generated DQL**:
+```dql
+{
+  query(func: allofterms(genre, "sci-fi")) @filter(ge(release_year, "2020")) {
+    avg_rating: avg(rating)
+    count: count(uid)
+  }
+}
+```
+
+### 🎛️ Advanced Configuration
+
+#### MCP Server Configuration Options
+```json
+{
+  "endpoint": "your-dgraph-host:9080",
+  "apiKey": "your-api-key",
+  "serverUrl": "http://localhost:3001/mcp",
+  "timeout": 30000,
+  "maxRetries": 3
+}
+```
+
+#### AI Model Configuration
+The system uses Anthropic's Claude Haiku model by default for fast, cost-effective query generation. The model selection is optimized for:
+- **Speed**: Quick response times for interactive use
+- **Accuracy**: Schema-aware generation using your database structure
+- **Cost-Effectiveness**: Efficient token usage for query generation
+
+### 🛡️ Security Considerations
+
+- **API Keys**: MCP configuration is stored locally in browser localStorage
+- **Validation**: Generated queries are validated before execution
+- **Sandboxing**: MCP server runs in isolated environment
+- **Error Handling**: Safe fallback to direct AI mode if MCP fails
+
+### 🔍 Troubleshooting Text to DQL
+
+#### Common Issues
+
+1. **"MCP Server not configured"**
+   - Configure MCP in the Connection tab
+   - Ensure your MCP server is running
+   - Check the JSON configuration format
+
+2. **"Failed to generate query"**
+   - Check your database connection
+   - Verify AI provider credentials (Anthropic API key)
+   - Try simpler language in your description
+
+3. **Generated query syntax errors**
+   - The AI generates queries based on your schema
+   - Ensure your schema is properly loaded
+   - Try more specific descriptions with field names
+
+#### Debug Tips
+
+- **Check MCP Status**: The Text to DQL tab shows MCP connection status
+- **Review Schema**: Ensure your database schema is loaded and visible
+- **Start Simple**: Begin with basic queries and gradually increase complexity
+- **Use Field Names**: Include specific predicate names in your descriptions for better results
+
+### 🎯 Best Practices
+
+1. **Be Specific**: Include field names and relationships in your descriptions
+2. **Use Schema Terms**: Reference types and predicates from your actual schema
+3. **Start Simple**: Begin with basic queries before moving to complex aggregations
+4. **Review Generated Queries**: Always review AI-generated queries before execution
+5. **Iterate**: Refine your natural language descriptions based on results
+
+The Text to DQL feature represents a significant step toward making graph databases more accessible to developers of all skill levels, while maintaining the power and flexibility of DQL.
 
 ## 🚀 Getting Started
 

@@ -27,6 +27,9 @@ export default function ConnectionForm() {
     embeddingApiKey,
     embeddingModel,
     ollamaEndpoint,
+    mcpConfig,
+    mcpServerUrl,
+    mcpBearerToken,
     setEndpoint,
     setApiKey,
     setHypermodeRouterKey,
@@ -34,6 +37,9 @@ export default function ConnectionForm() {
     setEmbeddingApiKey,
     setEmbeddingModel,
     setOllamaEndpoint,
+    setMcpConfig,
+    setMcpServerUrl,
+    setMcpBearerToken,
     connect,
     disconnect,
     connected,
@@ -42,6 +48,7 @@ export default function ConnectionForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [isHypermodeExpanded, setIsHypermodeExpanded] = useState(false);
   const [isEmbeddingExpanded, setIsEmbeddingExpanded] = useState(false);
+  const [isMcpExpanded, setIsMcpExpanded] = useState(false);
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -414,6 +421,129 @@ export default function ConnectionForm() {
                         />
                         <Field.HelperText textStyle="helper">
                           Leave empty to use default model for the selected provider
+                        </Field.HelperText>
+                      </Field.Root>
+                    </VStack>
+                  </Box>
+                </Collapsible.Content>
+              </Collapsible.Root>
+            </Box>
+
+            {/* MCP Configuration Section */}
+            <Box border="1px" borderColor="border.primary" borderRadius="lg" overflow="hidden">
+              <Button
+                type="button"
+                onClick={() => setIsMcpExpanded(!isMcpExpanded)}
+                w="full"
+                variant="ghost"
+                justifyContent="space-between"
+                px={4}
+                py={3}
+                bg="bg.muted"
+                borderRadius="0"
+                _hover={{ bg: 'bg.hover' }}
+                _focus={{ 
+                  outline: '2px solid',
+                  outlineColor: 'accent.primary',
+                  outlineOffset: '-2px'
+                }}
+              >
+                <HStack gap={3}>
+                  <Icons.ai size={16} />
+                  <Text textStyle="label">
+                    MCP Configuration
+                  </Text>
+                </HStack>
+                <Box
+                  transform={isMcpExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}
+                  transition="transform 0.2s ease-in-out"
+                >
+                  <Icons.chevronDown size={16} />
+                </Box>
+              </Button>
+
+              <Collapsible.Root open={isMcpExpanded}>
+                <Collapsible.Content>
+                  <Box p={4} borderTop="1px" borderColor="border.primary" bg="bg.secondary">
+                    <VStack gap={4} align="stretch">
+                      <Field.Root>
+                        <Field.Label textStyle="label">
+                          MCP Server URL
+                        </Field.Label>
+                        <Input
+                          type="text"
+                          value={mcpServerUrl}
+                          onChange={(e) => setMcpServerUrl(e.target.value)}
+                          disabled={connected}
+                          placeholder="https://your-mcp-server.com/api"
+                          size="lg"
+                          borderRadius="lg"
+                          _focus={{ 
+                            borderColor: 'accent.primary',
+                            shadow: 'shadow.focus',
+                            ring: 'none'
+                          }}
+                          _disabled={{
+                            opacity: 0.6,
+                            cursor: 'not-allowed'
+                          }}
+                        />
+                        <Field.HelperText textStyle="helper">
+                          The remote URL endpoint for your MCP server
+                        </Field.HelperText>
+                      </Field.Root>
+
+                      <Field.Root>
+                        <Field.Label textStyle="label">
+                          Bearer Token
+                        </Field.Label>
+                        <Input
+                          type="password"
+                          value={mcpBearerToken}
+                          onChange={(e) => setMcpBearerToken(e.target.value)}
+                          disabled={connected}
+                          placeholder="Enter your MCP server bearer token"
+                          size="lg"
+                          borderRadius="lg"
+                          _focus={{ 
+                            borderColor: 'accent.primary',
+                            shadow: 'shadow.focus',
+                            ring: 'none'
+                          }}
+                          _disabled={{
+                            opacity: 0.6,
+                            cursor: 'not-allowed'
+                          }}
+                        />
+                        <Field.HelperText textStyle="helper">
+                          Authentication token for accessing the MCP server
+                        </Field.HelperText>
+                      </Field.Root>
+
+                      <Field.Root>
+                        <Field.Label textStyle="label">
+                          Legacy JSON Config (optional)
+                        </Field.Label>
+                        <Input
+                          type="text"
+                          value={mcpConfig}
+                          onChange={(e) => setMcpConfig(e.target.value)}
+                          disabled={connected}
+                          placeholder='{"endpoint": "localhost:9080", "apiKey": "your-key"}'
+                          size="lg"
+                          borderRadius="lg"
+                          _focus={{ 
+                            borderColor: 'accent.primary',
+                            shadow: 'shadow.focus',
+                            ring: 'none'
+                          }}
+                          _disabled={{
+                            opacity: 0.6,
+                            cursor: 'not-allowed'
+                          }}
+                        />
+                        <Field.HelperText textStyle="helper">
+                          Legacy JSON configuration (will be overridden by fields above)
                         </Field.HelperText>
                       </Field.Root>
                     </VStack>

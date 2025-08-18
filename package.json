@@ -72,7 +72,8 @@
     "react-sigma": "^1.2.35",
     "react-slick": "^0.30.3",
     "sigma": "^3.0.1",
-    "slick-carousel": "^1.8.1"
+    "slick-carousel": "^1.8.1",
+    "zod": "^4.0.17"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

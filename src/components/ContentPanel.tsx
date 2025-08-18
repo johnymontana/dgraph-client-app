@@ -14,6 +14,7 @@ import ConnectionForm from './ConnectionForm';
 import SchemaEditor from './SchemaEditor';
 import GuidesTab from './GuidesTab';
 import QueryEditor from './QueryEditor';
+import TextToDqlTab from './TextToDqlTab';
 import VectorSearchPanel from './VectorSearchPanel';
 import ResizableContainer from './ResizableContainer';
 import GraphVisualization from './GraphVisualization';
@@ -23,7 +24,7 @@ import { useDgraph } from '@/context/DgraphContext';
 import { Icons } from '@/components/ui/icons';
 
 interface ContentPanelProps {
-  activeSection: 'connection' | 'schema' | 'guides' | 'query';
+  activeSection: 'connection' | 'schema' | 'guides' | 'query' | 'text-to-dql';
   isSidebarOpen: boolean;
   isMobile?: boolean;
   isTablet?: boolean;
@@ -116,6 +117,10 @@ export default function ContentPanel({
 
   const renderGuidesSection = () => (
     <GuidesTab />
+  );
+
+  const renderTextToDqlSection = () => (
+    <TextToDqlTab />
   );
 
   const queryEditorRef = React.useRef<any>(null);
@@ -268,6 +273,8 @@ export default function ContentPanel({
         return renderGuidesSection();
       case 'query':
         return renderQuerySection();
+      case 'text-to-dql':
+        return renderTextToDqlSection();
       default:
         return renderConnectionSection();
     }
