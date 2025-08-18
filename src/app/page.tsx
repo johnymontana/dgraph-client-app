@@ -1,80 +1,141 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+} from '@chakra-ui/react';
+import Toolbar from '@/components/Toolbar';
+import Sidebar from '@/components/Sidebar';
+import ContentPanel from '@/components/ContentPanel';
 import { DgraphProvider } from '@/context/DgraphContext';
-import ConnectionForm from '@/components/ConnectionForm';
-import QueryEditor from '@/components/QueryEditor';
-import SchemaEditor from '@/components/SchemaEditor';
-import GraphVisualization from '@/components/GraphVisualization';
-import GeoVisualization from '@/components/GeoVisualization';
-import Drawer from '@/components/Drawer';
-import ResizableContainer from '@/components/ResizableContainer';
-import { hasGeoData } from '@/utils/geoUtils';
 
-export default function Home() {
-  const [queryResult, setQueryResult] = useState<any>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+function MainContent() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [activeSection, setActiveSection] = useState<'connection' | 'schema' | 'guides' | 'query' | 'text-to-dql'>('connection');
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+
+  // Responsive sidebar behavior - hydration-safe
+  useEffect(() => {
+    const checkBreakpoints = () => {
+      const mobile = window.innerWidth < 768;
+      const tablet = window.innerWidth >= 768 && window.innerWidth < 1024;
+      setIsMobile(mobile);
+      setIsTablet(tablet);
+    };
+
+    checkBreakpoints();
+    window.addEventListener('resize', checkBreakpoints);
+    return () => window.removeEventListener('resize', checkBreakpoints);
+  }, []);
+  
+  // Auto-close sidebar on mobile when section changes
+  useEffect(() => {
+    if (isMobile && isSidebarOpen) {
+      setIsSidebarOpen(false);
+    }
+  }, [activeSection, isMobile, isSidebarOpen]);
+
+  // Auto-close sidebar on mobile by default
+  useEffect(() => {
+    if (isMobile) {
+      setIsSidebarOpen(false);
+    }
+  }, [isMobile]);
+
+  const handleSectionChange = (section: 'connection' | 'schema' | 'guides' | 'query' | 'text-to-dql') => {
+    console.log('Section changing from', activeSection, 'to', section);
+    setActiveSection(section);
+  };
+
+  const handleToggleSidebar = () => {
+    console.log('Sidebar toggle clicked. Current state:', isSidebarOpen, 'New state:', !isSidebarOpen);
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
+  // Keyboard navigation support
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Cmd/Ctrl + B to toggle sidebar
+      if ((event.metaKey || event.ctrlKey) && event.key === 'b') {
+        event.preventDefault();
+        handleToggleSidebar();
+      }
+      
+      // Cmd/Ctrl + 1-5 for quick section navigation
+      if ((event.metaKey || event.ctrlKey) && ['1', '2', '3', '4', '5'].includes(event.key)) {
+        event.preventDefault();
+        const sectionMap = {
+          '1': 'connection' as const,
+          '2': 'schema' as const,
+          '3': 'guides' as const,
+          '4': 'query' as const,
+          '5': 'text-to-dql' as const,
+        };
+        handleSectionChange(sectionMap[event.key as keyof typeof sectionMap]);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSidebarOpen]);
 
   return (
+    <>
+      {/* Top Toolbar */}
+      <Toolbar
+        isSidebarOpen={isSidebarOpen}
+        onToggleSidebar={handleToggleSidebar}
+        isMobile={isMobile}
+      />
+
+      {/* Mobile Overlay Backdrop */}
+      {isMobile && isSidebarOpen && (
+        <Box
+          position="fixed"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
+          bg="blackAlpha.600"
+          zIndex={35}
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onToggle={handleToggleSidebar}
+        activeSection={activeSection}
+        onSectionChange={handleSectionChange}
+        isMobile={isMobile}
+        isTablet={isTablet}
+      />
+
+      {/* Main Content Area */}
+      <Box
+        pt="60px" // Fixed header height
+        minH="100vh"
+      >
+        {/* Content Panel */}
+        <ContentPanel
+          activeSection={activeSection}
+          isSidebarOpen={isSidebarOpen}
+          isMobile={isMobile}
+          isTablet={isTablet}
+        />
+      </Box>
+    </>
+  );
+}
+
+export default function Home() {
+  return (
     <DgraphProvider>
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white shadow-sm">
-          <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-            <div className="flex items-center">
-              {/* Drawer toggle button */}
-              <button
-                onClick={() => setIsDrawerOpen(true)}
-                className="mr-4 p-2 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                aria-label="Open settings"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-              <h1 className="text-2xl font-bold text-gray-900">Dgraph Client</h1>
-            </div>
-            <div className="text-sm text-gray-500">DQL Explorer</div>
-          </div>
-        </header>
-
-        {/* Drawer for Connection and Schema */}
-        <Drawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)}>
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Dgraph Settings</h2>
-          <ConnectionForm />
-          <SchemaEditor />
-        </Drawer>
-
-        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <div className="px-4 sm:px-0">
-            {/* Query and Visualization with resizable container */}
-            <div className="h-[calc(100vh-200px)]">
-              <ResizableContainer
-                direction="vertical"
-                initialSplit={40}
-                minFirstSize={20}
-                minSecondSize={20}
-                firstComponent={
-                  <QueryEditor onQueryResult={setQueryResult} />
-                }
-                secondComponent={
-                  <>
-                    {queryResult && <GraphVisualization data={queryResult} />}
-                    {queryResult && hasGeoData(queryResult) && <GeoVisualization data={queryResult} />}
-                  </>
-                }
-              />
-            </div>
-          </div>
-        </main>
-
-        <footer className="bg-white border-t border-gray-200 mt-12">
-          <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
-            <p className="text-center text-sm text-gray-500">
-              Dgraph Client - DQL Explorer
-            </p>
-          </div>
-        </footer>
-      </div>
+      <Box minH="100vh" bg="bg.primary">
+        <MainContent />
+      </Box>
     </DgraphProvider>
   );
 }

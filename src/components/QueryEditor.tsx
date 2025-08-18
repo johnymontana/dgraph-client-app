@@ -6,13 +6,24 @@ import { useDgraph } from '@/context/DgraphContext';
 import DQLAutocomplete from './DQLAutocomplete';
 import QueryHistory, { QueryHistoryItem } from './QueryHistory';
 import FullscreenToggle from './FullscreenToggle';
-import GuidedExperience from './GuidedExperience';
 import DQLVariableInputs from './DQLVariableInputs';
-import { GuideMetadata } from '@/utils/mdxLoader';
-import axios from 'axios';
+import {
+  Box,
+  Card,
+  Heading,
+  Button,
+  HStack,
+  VStack,
+  Text,
+  Alert,
+  Flex,
+} from '@chakra-ui/react';
+import { Icons } from '@/components/ui/icons';
 
 interface QueryEditorProps {
   onQueryResult: (data: any) => void;
+  initialQuery?: string;
+  compact?: boolean;
 }
 
 type TabType = 'query' | 'mutation';
@@ -40,8 +51,8 @@ const DEFAULT_MUTATION = `{
   # }
 }`;
 
-export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
-  // Ref for DQLAutocomplete's handleInpu
+const QueryEditor = React.forwardRef<any, QueryEditorProps>(function QueryEditor({ onQueryResult, initialQuery, compact = false }, ref) {
+  // Ref for DQLAutocomplete's handleInput
   const autocompleteInputRef = useRef<(() => void) | null>(null);
   const { dgraphService, connected, parsedSchema } = useDgraph();
   const [activeTab, setActiveTab] = useState<TabType>('query');
@@ -53,9 +64,6 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
   const [queryHistory, setQueryHistory] = useState<QueryHistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showGuide, setShowGuide] = useState(false);
-  const [guides, setGuides] = useState<{ content: string; metadata: GuideMetadata }[]>([]);
-  const [guidesLoading, setGuidesLoading] = useState(false);
   const [queryVariables, setQueryVariables] = useState<Record<string, any>>({});
   const editorRef = useRef<HTMLDivElement>(null);
 
@@ -78,37 +86,12 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
     loadQueryHistory();
   }, []);
   
-  // Load guides when guided experience is toggled on
+  // Set initial query if provided
   useEffect(() => {
-    if (showGuide && guides.length === 0 && !guidesLoading) {
-      setGuidesLoading(true);
-
-      const fetchGuides = async () => {
-        try {
-          // First get all guide metadata
-          const metadataResponse = await axios.get('/api/guides');
-          const guidesMetadata = metadataResponse.data as GuideMetadata[];
-
-          // Then fetch content for each guide
-          const guidesWithContent = await Promise.all(
-            guidesMetadata.map(async (metadata) => {
-              const guideResponse = await axios.get(`/api/guides?slug=${metadata.slug}`);
-              return guideResponse.data;
-            })
-          );
-
-          setGuides(guidesWithContent);
-        } catch (error) {
-          console.error('Error loading guides:', error);
-          setError('Failed to load tutorial guides');
-        } finally {
-          setGuidesLoading(false);
-        }
-      };
-
-      fetchGuides();
+    if (initialQuery && initialQuery !== query) {
+      setQuery(initialQuery);
     }
-  }, [showGuide, guides.length, guidesLoading]);
+  }, [initialQuery, query]);
 
   // Handle cursor position changes
   const handleEditorChange = (value: string, viewUpdate: any) => {
@@ -204,6 +187,18 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
     setQueryVariables(variables);
   };
 
+  // Handle vector search query generation
+  const handleVectorQueryGenerated = (generatedQuery: string, variables: Record<string, any>) => {
+    setQuery(generatedQuery);
+    setQueryVariables(variables);
+    setActiveTab('query');
+  };
+
+  // Expose methods through ref
+  React.useImperativeHandle(ref, () => ({
+    handleVectorQueryGenerated
+  }));
+
   const handleRunOperation = async () => {
     if (!dgraphService || !connected) {
       setError('Not connected to Dgraph. Please connect first.');
@@ -239,112 +234,145 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
   };
 
   return (
-    <div className={`bg-white shadow-md rounded-lg p-6 ${!isFullscreen ? 'mb-6' : 'absolute inset-0 z-50'}`}>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold">Dgraph Operations</h2>
-        <div className="flex space-x-2 items-center">
-          <FullscreenToggle
-            isFullscreen={isFullscreen}
-            onToggle={() => setIsFullscreen(!isFullscreen)}
-          />
-          <button
-            onClick={() => {
-              setShowGuide(!showGuide);
-              if (showHistory) setShowHistory(false);
-            }}
-            className={`${showGuide ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-200 text-gray-800'} py-2 px-4 rounded-md hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-2`}
-            title="Learn DQL with guided tutorials"
-          >
-            <span className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-              Guide
-            </span>
-          </button>
-          <button
-            onClick={() => {
-              setShowHistory(!showHistory);
-              if (showGuide) setShowGuide(false);
-            }}
-            className={`${showHistory ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-200 text-gray-800'} py-2 px-4 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500`}
-            title="View operation history"
-          >
-            <span className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              History
-            </span>
-          </button>
-          <button
-            onClick={handleRunOperation}
-            disabled={isLoading || !connected}
-            className="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-          >
-            {isLoading ? 'Running...' : `Run ${activeTab === 'query' ? 'Query' : 'Mutation'}`}
-          </button>
-        </div>
-      </div>
+    <Card.Root variant="elevated" h="full">
+      {/* Header */}
+      <Box p={4} borderBottom="1px" borderColor="border.primary">
+        <Flex justify="space-between" align="center" gap={4}>
+          <VStack align="start" gap={1} flex={1} minW={0}>
+            <Heading textStyle="heading.card">
+              DQL Editor
+            </Heading>
+            <Text textStyle="body.small">
+              Write and execute DQL queries and mutations
+            </Text>
+          </VStack>
+          
+          <HStack gap={2} flexShrink={0}>
+            {!compact && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowHistory(!showHistory)}
+                gap={2}
+              >
+                <Icons.history size={16} />
+                <Text>History</Text>
+              </Button>
+            )}
+            
+            <Button
+              onClick={handleRunOperation}
+              loading={isLoading}
+              loadingText="Running..."
+              disabled={!connected}
+              colorPalette="blue"
+              size="sm"
+              gap={2}
+              borderRadius="lg"
+            >
+              <Icons.play size={16} />
+              <Text>{`Run ${activeTab === 'query' ? 'Query' : 'Mutation'}`}</Text>
+            </Button>
+            
+            {!compact && (
+              <FullscreenToggle
+                isFullscreen={isFullscreen}
+                onToggle={() => setIsFullscreen(!isFullscreen)}
+              />
+            )}
+          </HStack>
+        </Flex>
+      </Box>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 mb-4">
-        <button
+      <HStack borderBottom="1px" borderColor="border.primary" gap={0} px={4}>
+        <Button
           onClick={() => setActiveTab('query')}
-          className={`py-2 px-4 font-medium text-sm focus:outline-none ${activeTab === 'query' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+          variant="ghost"
+          size="sm"
+          color={activeTab === 'query' ? 'accent.primary' : 'fg.secondary'}
+          borderBottom="2px"
+          borderColor={activeTab === 'query' ? 'accent.primary' : 'transparent'}
+          borderRadius="0"
+          _hover={{ 
+            bg: 'transparent',
+            color: activeTab === 'query' ? 'accent.primary' : 'fg.primary'
+          }}
+          px={4}
+          py={3}
+          fontWeight="semibold"
+          gap={2}
         >
-          Query
-        </button>
-        <button
+          <Icons.database size={14} />
+          <Text>Query</Text>
+        </Button>
+        <Button
           onClick={() => setActiveTab('mutation')}
-          className={`py-2 px-4 font-medium text-sm focus:outline-none ${activeTab === 'mutation' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+          variant="ghost"
+          size="sm"
+          color={activeTab === 'mutation' ? 'accent.primary' : 'fg.secondary'}
+          borderBottom="2px"
+          borderColor={activeTab === 'mutation' ? 'accent.primary' : 'transparent'}
+          borderRadius="0"
+          _hover={{ 
+            bg: 'transparent',
+            color: activeTab === 'mutation' ? 'accent.primary' : 'fg.primary'
+          }}
+          px={4}
+          py={3}
+          fontWeight="semibold"
+          gap={2}
         >
-          Mutation
-        </button>
-      </div>
+          <Icons.settings size={14} />
+          <Text>Mutation</Text>
+        </Button>
+      </HStack>
 
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
+        <Box p={4}>
+          <Alert.Root status="error" variant="subtle" borderRadius="lg">
+            <Alert.Indicator />
+            <Alert.Content>
+              <Text textStyle="body.medium">{error}</Text>
+            </Alert.Content>
+          </Alert.Root>
+        </Box>
       )}
 
-      {showGuide && (
-        <GuidedExperience
-          guides={guides}
-          onLoadQuery={(queryText) => {
-            setQuery(queryText);
-            setActiveTab('query');
-            setShowGuide(false);
-          }}
-          onClose={() => setShowGuide(false)}
-        />
+
+      {showHistory && !compact && (
+        <Box p={4} borderBottom="1px" borderColor="border.secondary">
+          <QueryHistory
+            history={queryHistory}
+            onSelectQuery={handleSelectQuery}
+            onClearHistory={handleClearHistory}
+            onDeleteQuery={handleDeleteQuery}
+          />
+        </Box>
       )}
 
-      {showHistory && (
-        <QueryHistory
-          history={queryHistory}
-          onSelectQuery={handleSelectQuery}
-          onClearHistory={handleClearHistory}
-          onDeleteQuery={handleDeleteQuery}
-        />
-      )}
+      <Box position="relative" flex={1} p={4}>
+        <Box
+          layerStyle="code-editor"
+          overflow="hidden"
+          h={compact ? '150px' : (isFullscreen ? 'calc(100vh - 280px)' : 'calc(100% - 80px)')}
+        >
+          <CodeMirror
+            value={activeTab === 'query' ? query : mutation}
+            height="100%"
+            onChange={handleEditorChange}
+            theme="light"
+            className="text-sm"
+          />
+        </Box>
 
-      <div className="relative">
-        <CodeMirror
-          value={activeTab === 'query' ? query : mutation}
-          height={isFullscreen ? 'calc(100vh - 230px)' : '200px'}
-          onChange={handleEditorChange}
-          theme="light"
-          className="text-sm"
-        />
-        
         {/* Variable inputs */}
         <DQLVariableInputs
           query={activeTab === 'query' ? query : mutation}
           onChange={handleVariablesChange}
         />
-        <div
+        
+        <Box
           ref={editorRef}
           tabIndex={0}
           onKeyDown={() => {
@@ -364,13 +392,22 @@ export default function QueryEditor({ onQueryResult }: QueryEditorProps) {
               autocompleteInputRef.current = handle;
             }}
           />
-        </div>
-      </div>
+        </Box>
+      </Box>
 
-      <div className="text-sm text-gray-500">
-        <p>Enter a DQL query to execute against your Dgraph database.</p>
-        <p className="mt-1">Example: <code>{`{ q(func: has(name)) { uid name } }`}</code></p>
-      </div>
-    </div>
+      {/* Footer with help text */}
+      <Box p={4} borderTop="1px" borderColor="border.secondary" bg="bg.muted">
+        <VStack gap={2} align="start">
+          <Text textStyle="body.small">
+            Enter a DQL query to execute against your Dgraph database.
+          </Text>
+          <Text textStyle="helper">
+            Example: <Box as="code" textStyle="code.inline">{`{ q(func: has(name)) { uid name } }`}</Box>
+          </Text>
+        </VStack>
+      </Box>
+    </Card.Root>
   );
-}
+});
+
+export default QueryEditor;

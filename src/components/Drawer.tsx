@@ -1,6 +1,13 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import {
+  Box,
+  IconButton,
+  Icon,
+  VStack,
+} from '@chakra-ui/react';
+import { useColorModeValue } from '@/components/ui/color-mode';
 
 interface DrawerProps {
   isOpen: boolean;
@@ -15,13 +22,18 @@ export default function Drawer({
   isOpen,
   onClose,
   children,
-  initialWidth = 320, // Default width (80 in tailwind is 20rem = 320px)
-  minWidth = 280,
-  maxWidth = 800
+  initialWidth = 400,
+  minWidth = 320,
+  maxWidth = 600
 }: DrawerProps) {
   const drawerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(initialWidth);
   const [isResizing, setIsResizing] = useState(false);
+
+  const bgColor = useColorModeValue('white', 'gray.800');
+  const borderColor = useColorModeValue('gray.200', 'gray.700');
+  const resizeHandleColor = useColorModeValue('gray.300', 'gray.600');
+  const resizeHandleHoverColor = useColorModeValue('blue.200', 'blue.600');
 
   // Close drawer when clicking outside of it (only if not resizing)
   useEffect(() => {
@@ -65,8 +77,8 @@ export default function Drawer({
     if (isResizing) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = 'ew-resize'; // Set cursor to resize horizontally
-      document.body.style.userSelect = 'none'; // Prevent text selection during resize
+      document.body.style.cursor = 'ew-resize';
+      document.body.style.userSelect = 'none';
     }
 
     return () => {
@@ -96,43 +108,98 @@ export default function Drawer({
   return (
     <>
       {/* Backdrop */}
-      <div
-        className={`fixed inset-0 bg-black transition-opacity z-30 ${
-          isOpen ? 'opacity-30' : 'opacity-0 pointer-events-none'
-        }`}
+      <Box
+        position="fixed"
+        top={0}
+        left={0}
+        right={0}
+        bottom={0}
+        bg="blackAlpha.600"
+        zIndex={30}
+        opacity={isOpen ? 1 : 0}
+        pointerEvents={isOpen ? 'auto' : 'none'}
+        transition="opacity 0.3s ease-in-out"
         onClick={isResizing ? undefined : onClose}
       />
 
       {/* Drawer */}
-      <div
+      <Box
         ref={drawerRef}
-        style={{ width: `${width}px` }}
-        className={`fixed top-0 left-0 h-full bg-white shadow-lg transform transition-transform duration-300 ease-in-out z-40 overflow-y-auto ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        position="fixed"
+        top={0}
+        left={0}
+        height="100vh"
+        width={`${width}px`}
+        bg={bgColor}
+        shadow="2xl"
+        borderRight="1px"
+        borderColor={borderColor}
+        transform={isOpen ? 'translateX(0)' : 'translateX(-100%)'}
+        transition="transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+        zIndex={40}
+        overflowY="auto"
+        overflowX="hidden"
       >
-        <div className="p-4 relative">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-            aria-label="Close drawer"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          <div className="mt-8">
+        {/* Header */}
+        <Box
+          position="sticky"
+          top={0}
+          bg={bgColor}
+          borderBottom="1px"
+          borderColor={borderColor}
+          px={6}
+          py={4}
+          zIndex={10}
+        >
+          <Box position="relative">
+            <IconButton
+              aria-label="Close drawer"
+              variant="ghost"
+              size="sm"
+              position="absolute"
+              top={-2}
+              right={-2}
+              onClick={onClose}
+              _hover={{ bg: useColorModeValue('gray.100', 'gray.700') }}
+              _focus={{ ring: 2, ringColor: 'blue.500' }}
+            >
+              <Icon viewBox="0 0 24 24">
+                <path
+                  fill="currentColor"
+                  d="M6 18L18 6M6 6l12 12"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Icon>
+            </IconButton>
+          </Box>
+        </Box>
+
+        {/* Content */}
+        <Box px={6} py={4}>
+          <VStack gap={6} align="stretch">
             {children}
-          </div>
-        </div>
+          </VStack>
+        </Box>
 
         {/* Resize handle */}
-        <div
-          className="absolute top-0 right-0 w-2 h-full cursor-ew-resize bg-transparent hover:bg-indigo-200 transition-colors"
+        <Box
+          position="absolute"
+          top={0}
+          right={0}
+          width="4px"
+          height="100%"
+          cursor="ew-resize"
+          bg={resizeHandleColor}
+          _hover={{ bg: resizeHandleHoverColor }}
+          transition="background-color 0.2s"
           onMouseDown={handleResizeStart}
           title="Drag to resize"
+          zIndex={20}
         />
-      </div>
+      </Box>
     </>
   );
 }

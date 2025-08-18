@@ -1,0 +1,216 @@
+---
+title: "Advanced Analytics and Aggregations"
+description: "Learn complex queries, aggregations, and analytics patterns in DQL"
+order: 8
+---
+
+# Advanced Analytics and Aggregations
+
+DQL provides powerful aggregation functions and advanced query patterns for complex analytics scenarios.
+
+## Analytics Schema
+
+Let's work with a comprehensive analytics dataset:
+
+```dql-schema
+type User {
+  username: string @index(exact) .
+  name: string @index(term) .
+  email: string @index(exact) .
+  age: int @index(int) .
+  department: string @index(exact) .
+  salary: float @index(float) .
+  hire_date: datetime @index(day) .
+  manager: uid @reverse .
+  projects: [uid] @reverse .
+}
+
+type Project {
+  name: string @index(term) .
+  budget: float @index(float) .
+  start_date: datetime @index(day) .
+  end_date: datetime @index(day) .
+  status: string @index(exact) .
+  team_members: [uid] @reverse .
+  department: string @index(exact) .
+}
+```
+
+## Sample Analytics Data
+
+```dql-mutation
+{
+  set {
+    # Department managers
+    _:john <name> "John Smith" .
+    _:john <username> "jsmith" .
+    _:john <email> "john@company.com" .
+    _:john <age> "45" .
+    _:john <department> "Engineering" .
+    _:john <salary> "150000" .
+    _:john <hire_date> "2018-01-15T09:00:00Z" .
+    _:john <dgraph.type> "User" .
+    
+    # Team members
+    _:sarah <name> "Sarah Johnson" .
+    _:sarah <username> "sjohnson" .
+    _:sarah <email> "sarah@company.com" .
+    _:sarah <age> "28" .
+    _:sarah <department> "Engineering" .
+    _:sarah <salary> "120000" .
+    _:sarah <hire_date> "2021-03-10T09:00:00Z" .
+    _:sarah <manager> _:john .
+    _:sarah <dgraph.type> "User" .
+    
+    _:mike <name> "Mike Wilson" .
+    _:mike <username> "mwilson" .
+    _:mike <email> "mike@company.com" .
+    _:mike <age> "32" .
+    _:mike <department> "Engineering" .
+    _:mike <salary> "115000" .
+    _:mike <hire_date> "2020-07-20T09:00:00Z" .
+    _:mike <manager> _:john .
+    _:mike <dgraph.type> "User" .
+    
+    # Projects
+    _:proj1 <name> "Graph Database Migration" .
+    _:proj1 <budget> "500000" .
+    _:proj1 <start_date> "2024-01-01T08:00:00Z" .
+    _:proj1 <end_date> "2024-06-30T17:00:00Z" .
+    _:proj1 <status> "active" .
+    _:proj1 <department> "Engineering" .
+    _:proj1 <team_members> _:sarah .
+    _:proj1 <team_members> _:mike .
+    _:proj1 <dgraph.type> "Project" .
+  }
+}
+```
+
+## Department Analytics
+
+Analyze department statistics with aggregations:
+
+```dql-query
+{
+  department_stats(func: has(department)) @groupby(department) {
+    department
+    employee_count: count(uid)
+    avg_salary: avg(val(salary))
+    total_budget: sum(val(project_budget))
+  }
+  
+  # Get project budgets per department
+  var(func: has(department)) {
+    department
+    salary
+    projects {
+      project_budget as budget
+    }
+  }
+}
+```
+
+## Salary Analysis by Experience
+
+Analyze salary distribution based on years of experience:
+
+```dql-query
+{
+  salary_analysis(func: has(hire_date)) {
+    name
+    department
+    salary
+    hire_date
+    years_experience: math(since(hire_date))
+    projects_count: count(projects)
+    team_size: count(~manager)
+  }
+}
+```
+
+## Project Performance Metrics
+
+Analyze project performance and team dynamics:
+
+```dql-query
+{
+  project_analytics(func: has(name)) @filter(type(Project)) {
+    name
+    status
+    budget
+    team_size: count(team_members)
+    duration_days: math(end_date - start_date)
+    budget_per_person: math(budget / count(team_members))
+    
+    team_members {
+      name
+      department
+      experience_years: math(since(hire_date))
+      current_projects: count(~team_members)
+    }
+    
+    department_summary: team_members @groupby(department) {
+      department
+      member_count: count(uid)
+      avg_salary: avg(val(salary))
+    }
+  }
+}
+```
+
+## Advanced Filtering and Sorting
+
+Complex multi-criteria filtering:
+
+```dql-query
+{
+  # High-performing senior engineers
+  senior_engineers(func: eq(department, "Engineering")) 
+    @filter(ge(salary, 100000) AND ge(math(since(hire_date)), 31536000)) {
+    name
+    salary
+    hire_date
+    years_experience: math(since(hire_date))
+    
+    # Their current projects
+    projects @filter(eq(status, "active")) {
+      name
+      budget
+      team_size: count(team_members)
+    }
+    
+    # Team leadership (people they manage)
+    team: ~manager {
+      name
+      department
+      projects_count: count(projects)
+    }
+  }
+}
+```
+
+## Time-Based Analytics
+
+Analyze trends over time periods:
+
+```dql-query
+{
+  # Hiring trends by quarter
+  quarterly_hires(func: has(hire_date)) @filter(ge(hire_date, "2020-01-01")) 
+    @groupby(math(hire_date)) {
+    quarter: math(hire_date)
+    new_hires: count(uid)
+    departments: department
+  }
+  
+  # Active projects by month
+  monthly_projects(func: type(Project)) @filter(eq(status, "active"))
+    @groupby(math(start_date)) {
+    month: math(start_date)
+    projects_started: count(uid)
+    total_budget: sum(val(budget))
+  }
+}
+```
+
+These advanced analytics patterns demonstrate how DQL can handle complex business intelligence queries with aggregations, mathematical functions, and time-based analysis!

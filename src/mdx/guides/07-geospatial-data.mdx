@@ -1,0 +1,188 @@
+---
+title: "Geospatial Data and Location Queries"
+description: "Work with geographic data, coordinates, and location-based queries"
+order: 7
+---
+
+# Geospatial Data and Location Queries
+
+Dgraph has excellent support for geospatial data, allowing you to store coordinates and perform location-based queries.
+
+## Geospatial Schema
+
+```dql-schema
+type Location {
+  name: string @index(term) .
+  coordinates: geo @index(geo) .
+  address: string .
+  type: string @index(exact) .
+  description: string .
+}
+
+type Business {
+  name: string @index(term) .
+  location: uid @reverse .
+  category: string @index(exact) .
+  rating: float @index(float) .
+  phone: string .
+  website: string .
+}
+
+type Event {
+  title: string @index(term) .
+  location: uid @reverse .
+  start_time: datetime @index(hour) .
+  end_time: datetime .
+  capacity: int .
+  attendees: [uid] @reverse .
+}
+```
+
+## Adding Geographic Data
+
+Let's add some locations in San Francisco:
+
+```dql-mutation
+{
+  set {
+    # San Francisco landmarks
+    _:golden_gate <name> "Golden Gate Bridge" .
+    _:golden_gate <coordinates> "POINT(-122.4783 37.8199)"^^<geo> .
+    _:golden_gate <address> "Golden Gate Bridge, San Francisco, CA" .
+    _:golden_gate <type> "landmark" .
+    _:golden_gate <description> "Iconic suspension bridge" .
+    _:golden_gate <dgraph.type> "Location" .
+    
+    _:union_square <name> "Union Square" .
+    _:union_square <coordinates> "POINT(-122.4075 37.7880)"^^<geo> .
+    _:union_square <address> "Union Square, San Francisco, CA" .
+    _:union_square <type> "shopping" .
+    _:union_square <description> "Central shopping and hotel district" .
+    _:union_square <dgraph.type> "Location" .
+    
+    _:pier39 <name> "Pier 39" .
+    _:pier39 <coordinates> "POINT(-122.4097 37.8085)"^^<geo> .
+    _:pier39 <address> "Pier 39, San Francisco, CA" .
+    _:pier39 <type> "attraction" .
+    _:pier39 <description> "Tourist attraction with shops and restaurants" .
+    _:pier39 <dgraph.type> "Location" .
+  }
+}
+```
+
+## Businesses at Locations
+
+Add some businesses:
+
+```dql-mutation
+{
+  set {
+    _:cafe1 <name> "Blue Bottle Coffee" .
+    _:cafe1 <location> uid(union_sq) .
+    _:cafe1 <category> "coffee" .
+    _:cafe1 <rating> "4.5" .
+    _:cafe1 <phone> "(415) 555-0123" .
+    _:cafe1 <website> "https://bluebottlecoffee.com" .
+    _:cafe1 <dgraph.type> "Business" .
+    
+    _:restaurant1 <name> "Sea Lion Cafe" .
+    _:restaurant1 <location> uid(pier) .
+    _:restaurant1 <category> "restaurant" .
+    _:restaurant1 <rating> "4.2" .
+    _:restaurant1 <phone> "(415) 555-0124" .
+    _:restaurant1 <dgraph.type> "Business" .
+  }
+}
+
+query {
+  union_sq as var(func: eq(name, "Union Square"))
+  pier as var(func: eq(name, "Pier 39"))
+}
+```
+
+## Location-Based Queries
+
+Find all locations near a specific point (within 5km):
+
+```dql-query
+{
+  nearby_locations(func: near(coordinates, POINT(-122.4194 37.7749), 5000)) {
+    name
+    coordinates
+    address
+    type
+    description
+    businesses: ~location {
+      name
+      category
+      rating
+    }
+  }
+}
+```
+
+## Geographic Aggregation
+
+Find locations by type and their businesses:
+
+```dql-query
+{
+  locations_by_type(func: has(coordinates)) @groupby(type) {
+    count(uid)
+  }
+  
+  attractions(func: eq(type, "attraction")) {
+    name
+    coordinates
+    description
+    nearby: near(coordinates, coordinates, 2000) @filter(not eq(uid, uid(var))) {
+      name
+      type
+      distance: math(coordinates)
+    }
+  }
+  
+  var as var(func: eq(type, "attraction"))
+}
+```
+
+## Event Planning
+
+Create location-based events:
+
+```dql-mutation
+{
+  set {
+    _:event1 <title> "Tech Meetup: Graph Databases" .
+    _:event1 <location> uid(union_sq) .
+    _:event1 <start_time> "2024-02-15T18:00:00Z" .
+    _:event1 <end_time> "2024-02-15T20:00:00Z" .
+    _:event1 <capacity> "50" .
+    _:event1 <dgraph.type> "Event" .
+  }
+}
+
+query {
+  union_sq as var(func: eq(name, "Union Square"))
+}
+```
+
+## Advanced Geospatial Analysis
+
+Find the optimal location for a new business (central to existing attractions):
+
+```dql-query
+{
+  central_analysis(func: eq(type, "attraction")) {
+    name
+    coordinates
+    nearby_businesses: near(coordinates, coordinates, 1000) @filter(has(category)) {
+      name
+      category
+      rating
+    }
+  }
+}
+```
+
+Geographic queries showcase how graph databases can handle spatial relationships alongside traditional data relationships!

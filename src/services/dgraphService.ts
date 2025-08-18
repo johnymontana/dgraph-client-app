@@ -1,8 +1,17 @@
 import axios from 'axios';
+import { Agent } from 'https';
 
 interface DgraphConfig {
   endpoint: string;
   apiKey?: string;
+  sslMode?: string;
+  bearerToken?: string;
+}
+
+interface ParsedConnectionString {
+  endpoint: string;
+  sslMode?: string;
+  bearerToken?: string;
 }
 
 class DgraphService {
@@ -12,16 +21,97 @@ class DgraphService {
     this.config = config;
   }
 
+  /**
+   * Parse a Dgraph connection string
+   * Supports formats like:
+   * - dgraph://host:port?sslmode=verify-ca&bearertoken=xxx
+   * - http://host:port
+   * - https://host:port
+   */
+  static parseConnectionString(connectionString: string): ParsedConnectionString {
+    try {
+      console.log('Parsing connection string:', connectionString);
+
+      // Handle dgraph:// protocol
+      if (connectionString.startsWith('dgraph://')) {
+        // Remove dgraph:// prefix and parse as URL
+        const urlString = connectionString.replace('dgraph://', 'https://');
+        console.log('Converted to URL string:', urlString);
+
+        const url = new URL(urlString);
+        console.log('Parsed URL:', {
+          protocol: url.protocol,
+          host: url.host,
+          hostname: url.hostname,
+          port: url.port,
+          pathname: url.pathname,
+          searchParams: Object.fromEntries(url.searchParams.entries())
+        });
+
+        // For port 443, don't include it in the endpoint as it's the default HTTPS port
+        const host = url.port === '443' ? url.hostname : url.host;
+        // Ensure we don't have double slashes by handling pathname properly
+        const pathname = url.pathname === '/' ? '' : url.pathname;
+        const endpoint = `${url.protocol}//${host}${pathname}`;
+
+        console.log('Final endpoint:', endpoint);
+
+        return {
+          endpoint,
+          sslMode: url.searchParams.get('sslmode') || undefined,
+          bearerToken: url.searchParams.get('bearertoken') || undefined,
+        };
+      }
+
+      // Handle standard HTTP/HTTPS URLs
+      const url = new URL(connectionString);
+      return {
+        endpoint: `${url.protocol}//${url.host}${url.pathname}`,
+        sslMode: url.searchParams.get('sslmode') || undefined,
+        bearerToken: url.searchParams.get('bearertoken') || undefined,
+      };
+    } catch (error) {
+      console.error('Error parsing connection string:', error);
+      // Fallback: treat as plain endpoint
+      return {
+        endpoint: connectionString,
+      };
+    }
+  }
+
   private getHeaders() {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
 
+    // Add bearer token if available
+    if (this.config.bearerToken) {
+      headers['Authorization'] = `Bearer ${this.config.bearerToken}`;
+    }
+
+    // Add API key if available
     if (this.config.apiKey) {
       headers['X-Dgraph-ApiKey'] = this.config.apiKey;
     }
 
     return headers;
+  }
+
+  private getEndpoint(path: string): string {
+    // For development, optionally use a CORS proxy
+    if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_USE_CORS_PROXY === 'true') {
+      const corsProxy = process.env.NEXT_PUBLIC_CORS_PROXY || 'https://cors-anywhere.herokuapp.com/';
+      const fullEndpoint = `${corsProxy}${this.config.endpoint}${path}`;
+      console.log('Using CORS proxy. Full endpoint:', fullEndpoint);
+      return fullEndpoint;
+    }
+    console.log('Not using CORS proxy. Direct endpoint:', `${this.config.endpoint}${path}`);
+    return `${this.config.endpoint}${path}`;
+  }
+
+  private getDgraphPath(path: string): string {
+    // Dgraph endpoints should use /dgraph prefix
+    return `/dgraph${path}`;
   }
 
   private ensureUidAndType(query: string): string {
@@ -134,16 +224,81 @@ class DgraphService {
     return processBlocksRecursively(query);
   }
 
+  async vectorQuery(query: string, embedding: number[], variables?: Record<string, any>) {
+    const vectorVariables = {
+      ...variables,
+      queryVector: embedding
+    };
+    return this.query(query, vectorVariables);
+  }
+
   async query(query: string, variables?: Record<string, any>) {
     try {
+      const endpoint = this.getEndpoint(this.getDgraphPath('/query'));
+      console.log('Making query request to:', endpoint);
+      console.log('Headers:', this.getHeaders());
+      console.log('Query:', query);
+      console.log('Variables:', variables);
+
       // Special handling for schema queries
       if (query.trim() === 'schema {}' || query.trim().startsWith('schema(')) {
-        const response = await axios.post(
-          `${this.config.endpoint}/query`,
-          { query, variables },
-          { headers: this.getHeaders() }
-        );
-        return response.data;
+                try {
+          // First try direct request
+          const response = await axios.post(
+            this.getEndpoint(this.getDgraphPath('/query')),
+            { query, variables },
+            {
+              headers: this.getHeaders(),
+              // Add SSL configuration for verify-ca mode
+              httpsAgent: this.config.sslMode === 'verify-ca' ?
+                new Agent({
+                  rejectUnauthorized: true,
+                  ca: undefined // Will use system CA certificates
+                }) : undefined,
+              // Add timeout and retry options
+              timeout: 30000,
+              // Handle CORS preflight
+              withCredentials: false
+            }
+          );
+          return response.data;
+        } catch (directError) {
+          console.log('Direct request failed, trying with CORS proxy...');
+
+          // Try multiple CORS proxy services
+          const corsProxies = [
+            'https://api.allorigins.win/raw?url=',
+            'https://corsproxy.io/?',
+            'https://thingproxy.freeboard.io/fetch/'
+          ];
+
+          for (const proxy of corsProxies) {
+            try {
+              console.log(`Trying CORS proxy: ${proxy}`);
+              const proxyEndpoint = `${proxy}${this.config.endpoint}${this.getDgraphPath('/query')}`;
+              console.log('Proxy endpoint:', proxyEndpoint);
+
+               const proxyResponse = await axios.post(
+                 proxyEndpoint,
+                 { query, variables },
+                 {
+                   headers: this.getHeaders(),
+                   timeout: 30000,
+                   withCredentials: false
+                 }
+               );
+               console.log('CORS proxy request successful!');
+               return proxyResponse.data;
+                            } catch (proxyError) {
+                 const errorMessage = proxyError instanceof Error ? proxyError.message : 'Unknown error';
+                 console.log(`CORS proxy ${proxy} failed:`, errorMessage);
+                 continue;
+               }
+           }
+
+           // If all proxies fail, throw the original error
+           throw directError;
+         }
       }
 
       // Modify the query to ensure uid and dgraph.type are included
@@ -156,17 +311,61 @@ class DgraphService {
         console.log('Enhanced query:', enhancedQuery);
       }
 
-      const response = await axios.post(
-        `${this.config.endpoint}/query`,
-        {
-          query: enhancedQuery,
-          variables,
-        },
-        {
-          headers: this.getHeaders(),
-        }
-      );
-      return response.data;
+             try {
+         // First try direct request
+         const response = await axios.post(
+           this.getEndpoint(this.getDgraphPath('/query')),
+           {
+             query: enhancedQuery,
+             variables,
+           },
+           {
+             headers: this.getHeaders(),
+             timeout: 30000,
+             withCredentials: false
+           }
+         );
+         return response.data;
+       } catch (directError) {
+         console.log('Direct request failed, trying with CORS proxy...');
+
+         // Try multiple CORS proxy services
+         const corsProxies = [
+           'https://api.allorigins.win/raw?url=',
+           'https://corsproxy.io/?',
+           'https://thingproxy.freeboard.io/fetch/'
+         ];
+
+         for (const proxy of corsProxies) {
+           try {
+             console.log(`Trying CORS proxy: ${proxy}`);
+             const proxyEndpoint = `${proxy}${this.config.endpoint}${this.getDgraphPath('/query')}`;
+             console.log('Proxy endpoint:', proxyEndpoint);
+
+             const proxyResponse = await axios.post(
+               proxyEndpoint,
+               {
+                 query: enhancedQuery,
+                 variables,
+               },
+               {
+                 headers: this.getHeaders(),
+                 timeout: 30000,
+                 withCredentials: false
+               }
+             );
+             console.log('CORS proxy request successful!');
+             return proxyResponse.data;
+           } catch (proxyError) {
+             const errorMessage = proxyError instanceof Error ? proxyError.message : 'Unknown error';
+             console.log(`CORS proxy ${proxy} failed:`, errorMessage);
+             continue;
+           }
+         }
+
+         // If all proxies fail, throw the original error
+         throw directError;
+       }
     } catch (error) {
       console.error('Error executing query:', error);
       throw error;
@@ -176,10 +375,12 @@ class DgraphService {
   async alter(schema: string) {
     try {
       const response = await axios.post(
-        `${this.config.endpoint}/alter`,
+        this.getEndpoint(this.getDgraphPath('/alter')),
         { schema },
         {
           headers: this.getHeaders(),
+          timeout: 30000,
+          withCredentials: false
         }
       );
       return response.data;
@@ -202,14 +403,16 @@ class DgraphService {
   async mutate(mutation: string, variables?: Record<string, any>) {
     try {
       const response = await axios.post(
-        `${this.config.endpoint}/mutate`,
+        this.getEndpoint(this.getDgraphPath('/mutate')),
         {
           mutation,
           variables,
-          commitNow: true // Automatically commit the transaction
+          commitNow: false
         },
         {
           headers: this.getHeaders(),
+          timeout: 30000,
+          withCredentials: false
         }
       );
       return response.data;

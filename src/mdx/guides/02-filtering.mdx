@@ -10,14 +10,19 @@ DQL provides powerful filtering capabilities using the `func` parameter in your 
 
 ## Filter by Predicate Value
 
-This query finds all people who are older than 30:
+This query finds all movies from the 1990s:
 
 ```dql-query
 {
-  older_people(func: gt(age, 30)) {
+  nineties_movies(func: between(year, 1990, 1999)) {
     uid
-    name
-    age
+    title
+    year
+    genre
+    starring {
+      name
+      age
+    }
   }
 }
 ```
@@ -28,11 +33,34 @@ You can use regular expressions to find patterns in string values:
 
 ```dql-query
 {
-  people_with_j(func: regexp(name, /^J.*$/)) {
+  tom_movies(func: regexp(name, /^Tom.*$/)) {
     uid
     name
+    age
+    movies: ~starring {
+      title
+      year
+      genre
+    }
   }
 }
 ```
 
-This will find all people whose names start with the letter 'J'.
+## Genre-Based Filtering
+
+Filter movies by specific genres:
+
+```dql-query
+{
+  romance_movies(func: eq(genre, "Romance")) {
+    uid
+    title
+    year
+    starring {
+      name
+    }
+  }
+}
+```
+
+This will find all romance movies and their starring actors.
