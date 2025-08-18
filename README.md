@@ -53,6 +53,13 @@ A modern, responsive web-based client for interacting with Dgraph databases usin
   - **Real-Time Updates**: Suggestions update as you modify schemas
   - **Function & Directive Support**: Complete DQL language coverage
 
+- **🔍 Vector Search & AI Integration**
+  - **Multi-Provider Support**: OpenAI, Anthropic, and Ollama embeddings
+  - **Semantic Search**: Natural language queries converted to vector embeddings
+  - **Local AI Support**: Run embeddings locally with Ollama integration
+  - **Auto-Query Generation**: Automatically generates DQL vector search queries
+  - **Variable Integration**: Embeddings passed as query variables to Dgraph
+
 ## 🏗️ Project Architecture
 
 The application follows a modern, scalable React architecture using Next.js 15 with the App Router, built with TypeScript and Chakra UI v3. The architecture emphasizes:
@@ -111,9 +118,12 @@ dgraph-client-app/
 │   ├── context/               # React Context providers
 │   │   └── DgraphContext.tsx  # Global Dgraph state management
 │   ├── services/              # Business logic and API services
-│   │   └── dgraphService.ts   # Dgraph API communication
+│   │   ├── dgraphService.ts   # Dgraph API communication
+│   │   └── embeddingService.ts # AI embedding generation service
 │   ├── types/                 # TypeScript type definitions
 │   ├── utils/                 # Utility functions and helpers
+│   │   ├── vectorSearchBuilder.ts # Vector search query generation
+│   │   └── *.ts              # Other utility functions
 │   └── styles/                # Component-specific styles
 ├── public/                    # Static assets and images
 ├── jest.config.js            # Jest testing configuration
@@ -218,6 +228,12 @@ The application supports comprehensive keyboard navigation for power users:
 - **Leaflet.js** - Interactive maps for geographic data
 - **react-leaflet** - React wrapper for Leaflet.js
 
+### AI & Vector Search
+- **Vercel AI SDK** - Unified interface for multiple AI providers
+- **@ai-sdk/openai** - OpenAI integration for embeddings
+- **@ai-sdk/anthropic** - Anthropic integration for embeddings
+- **Ollama Support** - Local AI model inference for privacy-first deployments
+
 ### Testing and Quality
 - **Jest** - Test runner with React Testing Library
 - **ESLint** - Code quality and consistency
@@ -277,6 +293,219 @@ The application features a comprehensive design system inspired by modern develo
 - **Persistent**: Theme choice is saved across sessions
 - **Smooth Transitions**: Animated theme switching with CSS transitions
 
+## 🔍 Vector Search & AI Integration
+
+The application includes powerful vector search capabilities that enable semantic search using AI embeddings. This feature allows you to search your Dgraph data using natural language queries instead of exact matches.
+
+### 🎯 How Vector Search Works
+
+Vector search converts text into numerical representations (embeddings) that capture semantic meaning. Similar concepts have similar embeddings, enabling "fuzzy" or semantic matching beyond exact text matches.
+
+**Traditional Search vs Vector Search:**
+```dql
+# Traditional exact match
+{ q(func: regexp(description, /database/i)) { uid name description } }
+
+# Vector search for similar meaning
+{ vectorSearch(by: description_embedding, vector: $queryVector, topk: 10) { uid name description } }
+```
+
+### 🔧 Provider Configuration
+
+Configure your preferred embedding provider in the **Connection Settings** under "Vector Search Configuration":
+
+#### OpenAI Setup
+1. Select "OpenAI" as provider
+2. Enter your OpenAI API key
+3. Optionally specify model (defaults to `text-embedding-ada-002`)
+
+#### Anthropic Setup  
+1. Select "Anthropic" as provider
+2. Enter your Anthropic API key
+3. Optionally specify model (defaults to `claude-3-haiku-20240307`)
+
+#### Ollama Setup (Local)
+1. Install and run Ollama locally: `ollama serve`
+2. Pull an embedding model: `ollama pull nomic-embed-text`
+3. Select "Ollama (Local)" as provider
+4. Configure endpoint (defaults to `http://localhost:11434`)
+5. Optionally specify model (defaults to `nomic-embed-text`)
+
+### 🚀 Using Vector Search
+
+#### Method 1: Vector Search Panel
+1. **Open Vector Search**: Click "Vector Search" button in Query Editor
+2. **Enter Search Text**: Type natural language description of what you're looking for
+3. **Configure Field**: Specify which field contains your vector embeddings
+4. **Generate Query**: Click "Generate Vector Search Query" to create DQL with embeddings
+5. **Execute**: Run the generated query to get semantic search results
+
+#### Method 2: Manual DQL with Variables
+Write DQL queries using the `$queryVector` variable:
+```dql
+query vectorSearch($queryVector: [float], $topK: int, $alpha: float) {
+  vectorSearch(by: description_embedding, vector: $queryVector, topk: $topK, alpha: $alpha) {
+    uid
+    dgraph.type
+    name
+    description
+    description_embedding
+  }
+}
+```
+
+### 📋 Vector Search Examples
+
+#### Example 1: Product Search
+```typescript
+// Search text: "comfortable running shoes"
+// Generated query:
+query vectorSearch($queryVector: [float], $topK: int, $alpha: float) {
+  vectorSearch(by: product_description_embedding, vector: $queryVector, topk: 10, alpha: 1.0) {
+    uid
+    dgraph.type
+    product_name
+    product_description
+    price
+    category
+  }
+}
+```
+
+#### Example 2: Content Recommendation
+```typescript
+// Search text: "machine learning tutorials for beginners"
+// Generated query:
+query vectorSearch($queryVector: [float], $topK: int, $alpha: float) {
+  vectorSearch(by: content_embedding, vector: $queryVector, topk: 5, alpha: 1.0) {
+    uid
+    dgraph.type
+    title
+    content
+    author {
+      name
+    }
+    tags {
+      name
+    }
+  }
+}
+```
+
+#### Example 3: Customer Support
+```typescript
+// Search text: "order cancellation refund policy"
+// Generated query:
+query vectorSearch($queryVector: [float], $topK: int, $alpha: float) {
+  vectorSearch(by: faq_embedding, vector: $queryVector, topk: 3, alpha: 1.0) {
+    uid
+    dgraph.type
+    question
+    answer
+    category
+    helpful_count
+  }
+}
+```
+
+### 🗄️ Preparing Your Data for Vector Search
+
+#### Step 1: Schema Design
+Define predicates to store vector embeddings:
+```dql
+type Product {
+  name: string @index(term) .
+  description: string .
+  description_embedding: [float] @index(hnsw(metric: "cosine", exponent: 4, m: 16, efConstruction: 100)) .
+}
+```
+
+#### Step 2: Generate Embeddings
+Create embeddings for your existing data (external script):
+```typescript
+import { openai } from '@ai-sdk/openai';
+import { embedMany } from 'ai';
+
+const products = [/* your product data */];
+const embeddings = await embedMany({
+  model: openai.embedding('text-embedding-ada-002'),
+  values: products.map(p => p.description)
+});
+
+// Store embeddings in Dgraph
+```
+
+#### Step 3: Mutation with Embeddings
+```dql
+{
+  set {
+    _:product1 <name> "Running Shoes" .
+    _:product1 <description> "Lightweight, comfortable running shoes perfect for daily training" .
+    _:product1 <description_embedding> "[0.1, -0.2, 0.3, ...]"^^<[float]> .
+    _:product1 <dgraph.type> "Product" .
+  }
+}
+```
+
+### 🔧 Advanced Vector Search Configuration
+
+#### Vector Index Configuration
+Dgraph supports HNSW (Hierarchical Navigable Small World) indexing for efficient vector search:
+
+```dql
+# Optimal index configuration for different use cases
+description_embedding: [float] @index(hnsw(metric: "cosine", exponent: 4, m: 16, efConstruction: 100)) .
+
+# Parameters:
+# - metric: "cosine", "euclidean", or "dotproduct"
+# - exponent: Controls precision (2-6, higher = more precise)
+# - m: Max bidirectional links (8-48, higher = better recall)
+# - efConstruction: Build-time search width (100-800, higher = better quality)
+```
+
+#### Query Optimization
+- **topK**: Limit results (1-100, typically 5-20 for good performance)
+- **alpha**: Similarity threshold (0.0-1.0, higher = more similar)
+- **Field Selection**: Only query fields you need for better performance
+
+### 🚨 Best Practices
+
+#### Security
+- **API Keys**: Store securely, never commit to version control
+- **Environment Variables**: Use `.env.local` for sensitive data
+- **Rate Limiting**: Be aware of provider API limits
+
+#### Performance
+- **Batch Operations**: Generate multiple embeddings together when possible
+- **Caching**: Consider caching embeddings for frequently searched content
+- **Index Tuning**: Adjust HNSW parameters based on your data size and accuracy needs
+
+#### Data Quality
+- **Consistent Text**: Normalize text before generating embeddings
+- **Meaningful Content**: Ensure embedded text is descriptive and relevant
+- **Regular Updates**: Regenerate embeddings when content changes significantly
+
+### 🔍 Troubleshooting Vector Search
+
+#### Common Issues
+1. **No Results**: Check if your data has embeddings in the specified field
+2. **API Errors**: Verify API keys and provider configuration
+3. **Ollama Connection**: Ensure Ollama server is running and model is pulled
+4. **Schema Issues**: Verify vector fields have proper HNSW indexing
+
+#### Debug Queries
+```dql
+# Check if embeddings exist
+{ q(func: has(description_embedding)) { uid count(description_embedding) } }
+
+# Verify embedding format
+{ q(func: has(description_embedding), first: 1) { 
+  uid 
+  description 
+  description_embedding 
+} }
+```
+
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -304,6 +533,25 @@ The application features a comprehensive design system inspired by modern develo
 
 4. **Open your browser**
    Navigate to `http://localhost:3000` to see the application
+
+### Environment Variables (Optional)
+
+For default vector search configuration, create a `.env.local` file:
+
+```bash
+# OpenAI Configuration (optional - can also be set in UI)
+NEXT_PUBLIC_DEFAULT_EMBEDDING_PROVIDER=openai
+NEXT_PUBLIC_OPENAI_API_KEY=your_openai_api_key
+
+# Anthropic Configuration (optional - can also be set in UI)
+NEXT_PUBLIC_ANTHROPIC_API_KEY=your_anthropic_api_key
+
+# Ollama Configuration (optional - can also be set in UI)
+NEXT_PUBLIC_OLLAMA_ENDPOINT=http://localhost:11434
+NEXT_PUBLIC_DEFAULT_EMBEDDING_MODEL=nomic-embed-text
+```
+
+**Note**: API keys can be configured either through environment variables or the connection settings UI. The UI settings take precedence and are stored securely in browser localStorage.
 
 ### Available Scripts
 

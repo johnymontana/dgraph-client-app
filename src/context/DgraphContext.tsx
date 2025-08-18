@@ -2,17 +2,27 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import DgraphService from '@/services/dgraphService';
+import EmbeddingService, { EmbeddingProvider } from '@/services/embeddingService';
 import { ParsedSchema, parseSchema } from '@/utils/schemaParser';
 
 interface DgraphContextType {
   dgraphService: DgraphService | null;
+  embeddingService: EmbeddingService | null;
   connected: boolean;
   endpoint: string;
   apiKey: string;
   hypermodeRouterKey: string;
+  embeddingProvider: EmbeddingProvider;
+  embeddingApiKey: string;
+  embeddingModel: string;
+  ollamaEndpoint: string;
   setEndpoint: (endpoint: string) => void;
   setApiKey: (apiKey: string) => void;
   setHypermodeRouterKey: (key: string) => void;
+  setEmbeddingProvider: (provider: EmbeddingProvider) => void;
+  setEmbeddingApiKey: (key: string) => void;
+  setEmbeddingModel: (model: string) => void;
+  setOllamaEndpoint: (endpoint: string) => void;
   connect: () => void;
   disconnect: () => void;
   error: string | null;
@@ -27,7 +37,11 @@ const DgraphContext = createContext<DgraphContextType | undefined>(undefined);
 const STORAGE_KEY_ENDPOINT = 'dgraph_endpoint';
 const STORAGE_KEY_API_KEY = 'dgraph_api_key';
 const STORAGE_KEY_HYPERMODE_KEY = 'dgraph_hypermode_key';
-const STORAGE_KEY_AUTOCONNECT = 'dgraph_autoconnect'; // New key to track if user explicitly connected
+const STORAGE_KEY_AUTOCONNECT = 'dgraph_autoconnect';
+const STORAGE_KEY_EMBEDDING_PROVIDER = 'embedding_provider';
+const STORAGE_KEY_EMBEDDING_API_KEY = 'embedding_api_key';
+const STORAGE_KEY_EMBEDDING_MODEL = 'embedding_model';
+const STORAGE_KEY_OLLAMA_ENDPOINT = 'ollama_endpoint';
 
 // Function to safely load from localStorage (handles SSR)
 const loadFromStorage = (key: string, defaultValue: string) => {
@@ -43,6 +57,7 @@ const loadFromStorage = (key: string, defaultValue: string) => {
 
 export function DgraphProvider({ children }: { children: ReactNode }) {
   const [dgraphService, setDgraphService] = useState<DgraphService | null>(null);
+  const [embeddingService, setEmbeddingService] = useState<EmbeddingService | null>(null);
   const [connected, setConnected] = useState(false);
   const [endpoint, setEndpointState] = useState<string>(() =>
     loadFromStorage(STORAGE_KEY_ENDPOINT, 'http://localhost:8080')
@@ -52,6 +67,18 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
   );
   const [hypermodeRouterKey, setHypermodeRouterKeyState] = useState<string>(() =>
     loadFromStorage(STORAGE_KEY_HYPERMODE_KEY, '')
+  );
+  const [embeddingProvider, setEmbeddingProviderState] = useState<EmbeddingProvider>(() =>
+    loadFromStorage(STORAGE_KEY_EMBEDDING_PROVIDER, 'openai') as EmbeddingProvider
+  );
+  const [embeddingApiKey, setEmbeddingApiKeyState] = useState<string>(() =>
+    loadFromStorage(STORAGE_KEY_EMBEDDING_API_KEY, '')
+  );
+  const [embeddingModel, setEmbeddingModelState] = useState<string>(() =>
+    loadFromStorage(STORAGE_KEY_EMBEDDING_MODEL, '')
+  );
+  const [ollamaEndpoint, setOllamaEndpointState] = useState<string>(() =>
+    loadFromStorage(STORAGE_KEY_OLLAMA_ENDPOINT, 'http://localhost:11434')
   );
   const [error, setError] = useState<string | null>(null);
   const [schemaText, setSchemaText] = useState('');
@@ -86,6 +113,65 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
       console.warn('Error saving to localStorage', e);
     }
   };
+
+  const setEmbeddingProvider = (value: EmbeddingProvider) => {
+    setEmbeddingProviderState(value);
+    try {
+      localStorage.setItem(STORAGE_KEY_EMBEDDING_PROVIDER, value);
+    } catch (e) {
+      console.warn('Error saving to localStorage', e);
+    }
+    updateEmbeddingService();
+  };
+
+  const setEmbeddingApiKey = (value: string) => {
+    setEmbeddingApiKeyState(value);
+    try {
+      localStorage.setItem(STORAGE_KEY_EMBEDDING_API_KEY, value);
+    } catch (e) {
+      console.warn('Error saving to localStorage', e);
+    }
+    updateEmbeddingService();
+  };
+
+  const setEmbeddingModel = (value: string) => {
+    setEmbeddingModelState(value);
+    try {
+      localStorage.setItem(STORAGE_KEY_EMBEDDING_MODEL, value);
+    } catch (e) {
+      console.warn('Error saving to localStorage', e);
+    }
+    updateEmbeddingService();
+  };
+
+  const setOllamaEndpoint = (value: string) => {
+    setOllamaEndpointState(value);
+    try {
+      localStorage.setItem(STORAGE_KEY_OLLAMA_ENDPOINT, value);
+    } catch (e) {
+      console.warn('Error saving to localStorage', e);
+    }
+    updateEmbeddingService();
+  };
+
+  const updateEmbeddingService = () => {
+    if (embeddingProvider === 'ollama' || (embeddingProvider !== 'ollama' && embeddingApiKey)) {
+      const service = new EmbeddingService({
+        provider: embeddingProvider,
+        apiKey: embeddingProvider !== 'ollama' ? embeddingApiKey : undefined,
+        model: embeddingModel || undefined,
+        ollamaEndpoint: embeddingProvider === 'ollama' ? ollamaEndpoint : undefined,
+      });
+      setEmbeddingService(service);
+    } else {
+      setEmbeddingService(null);
+    }
+  };
+
+  // Initialize embedding service on mount and when settings change
+  React.useEffect(() => {
+    updateEmbeddingService();
+  }, [embeddingProvider, embeddingApiKey, embeddingModel, ollamaEndpoint]);
 
   // Auto-connect on start only if user has explicitly connected before
   React.useEffect(() => {
@@ -216,13 +302,22 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
     <DgraphContext.Provider
       value={{
         dgraphService,
+        embeddingService,
         connected,
         endpoint,
         apiKey,
         hypermodeRouterKey,
+        embeddingProvider,
+        embeddingApiKey,
+        embeddingModel,
+        ollamaEndpoint,
         setEndpoint,
         setApiKey,
         setHypermodeRouterKey,
+        setEmbeddingProvider,
+        setEmbeddingApiKey,
+        setEmbeddingModel,
+        setOllamaEndpoint,
         connect,
         disconnect,
         error,

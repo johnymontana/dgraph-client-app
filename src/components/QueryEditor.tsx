@@ -51,7 +51,7 @@ const DEFAULT_MUTATION = `{
   # }
 }`;
 
-export default function QueryEditor({ onQueryResult, initialQuery, compact = false }: QueryEditorProps) {
+const QueryEditor = React.forwardRef<any, QueryEditorProps>(function QueryEditor({ onQueryResult, initialQuery, compact = false }, ref) {
   // Ref for DQLAutocomplete's handleInput
   const autocompleteInputRef = useRef<(() => void) | null>(null);
   const { dgraphService, connected, parsedSchema } = useDgraph();
@@ -186,6 +186,18 @@ export default function QueryEditor({ onQueryResult, initialQuery, compact = fal
   const handleVariablesChange = (variables: Record<string, any>) => {
     setQueryVariables(variables);
   };
+
+  // Handle vector search query generation
+  const handleVectorQueryGenerated = (generatedQuery: string, variables: Record<string, any>) => {
+    setQuery(generatedQuery);
+    setQueryVariables(variables);
+    setActiveTab('query');
+  };
+
+  // Expose methods through ref
+  React.useImperativeHandle(ref, () => ({
+    handleVectorQueryGenerated
+  }));
 
   const handleRunOperation = async () => {
     if (!dgraphService || !connected) {
@@ -396,4 +408,6 @@ export default function QueryEditor({ onQueryResult, initialQuery, compact = fal
       </Box>
     </Card.Root>
   );
-}
+});
+
+export default QueryEditor;

@@ -224,6 +224,14 @@ class DgraphService {
     return processBlocksRecursively(query);
   }
 
+  async vectorQuery(query: string, embedding: number[], variables?: Record<string, any>) {
+    const vectorVariables = {
+      ...variables,
+      queryVector: embedding
+    };
+    return this.query(query, vectorVariables);
+  }
+
   async query(query: string, variables?: Record<string, any>) {
     try {
       const endpoint = this.getEndpoint(this.getDgraphPath('/query'));
