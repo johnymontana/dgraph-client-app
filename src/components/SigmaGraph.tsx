@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from "react";
-import { SigmaContainer, useLoadGraph } from "@react-sigma/core";
+import { SigmaContainer, useLoadGraph, useSigma } from "@react-sigma/core";
 import { useWorkerLayoutForceAtlas2 } from "@react-sigma/layout-forceatlas2";
 import { ZoomControl, FullScreenControl } from "@react-sigma/core";
 import Graphology from "graphology";
@@ -32,41 +32,114 @@ const LoadGraph: React.FC<{ graph: Graphology }> = ({ graph }) => {
   return null;
 };
 
-// Component for static force-directed layout
+// Component for ForceAtlas2 layout with view controls
 const ForceAtlas2Layout: React.FC = () => {
-  const { start, stop, kill, isRunning } = useWorkerLayoutForceAtlas2({
+  const sigma = useSigma();
+  const [isRunning, setIsRunning] = useState(false);
+  const [isViewFitted, setIsViewFitted] = useState(false);
+  
+  // Use the ForceAtlas2 layout hook with optimized settings
+  const { start, stop, kill, isRunning: layoutRunning } = useWorkerLayoutForceAtlas2({
     settings: {
-      // Static layout settings - very gentle forces
-      gravity: 0.0001,          // Very low gravity to keep nodes in place
-      scalingRatio: 0.1,        // Minimal scaling to prevent movement
-      slowDown: 3.0,            // Slower movement for stability
-      strongGravityMode: true,  // Strong gravity to center the graph
-      linLogMode: false,        // Linear mode for predictable behavior
+      // Balanced settings for stable but dynamic layout
+      gravity: 0.1,              // Moderate gravity to keep nodes centered
+      scalingRatio: 0.5,         // Balanced scaling for good node distribution
+      slowDown: 1.5,             // Moderate slowdown for stability
+      strongGravityMode: true,   // Strong gravity mode for better centering
+      linLogMode: false,         // Linear mode for predictable behavior
       outboundAttractionDistribution: false,
-      adjustSizes: false,       // Don't adjust node sizes
-      edgeWeightInfluence: 0.1, // Minimal edge influence
-      barnesHutOptimize: true,  // Enable optimization
-      barnesHutTheta: 0.9,      // Higher theta for better performance
+      adjustSizes: false,        // Don't adjust node sizes
+      edgeWeightInfluence: 0.2,  // Moderate edge influence
+      barnesHutOptimize: true,   // Enable optimization
+      barnesHutTheta: 0.8,      // Balanced theta for performance
     },
   });
 
-  useEffect(() => {
-    // Start the layout briefly to position nodes, then stop to keep them static
-    const startTimer = setTimeout(() => {
-      start();
-    }, 500);
+  // Function to fit all nodes to view
+  const fitNodesToView = () => {
+    console.log("Fitting nodes to view");
+    try {
+      const graph = sigma.getGraph();
+      if (graph.order > 0) {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        graph.forEachNode((node) => {
+          const attrs = graph.getNodeAttributes(node);
+          if (attrs.x !== undefined && attrs.y !== undefined) {
+            minX = Math.min(minX, attrs.x);
+            minY = Math.min(minY, attrs.y);
+            maxX = Math.max(maxX, attrs.x);
+            maxY = Math.max(maxY, attrs.y);
+          }
+        });
+        
+        if (minX !== Infinity && maxX !== -Infinity) {
+          const centerX = (minX + maxX) / 2;
+          const centerY = (minY + maxY) / 2;
+          const range = Math.max(maxX - minX, maxY - minY);
+          const ratio = Math.min(1, 600 / (range + 200)); // Fit with padding
+          
+          sigma.getCamera().animate({ ratio, x: centerX, y: centerY }, { duration: 1000 });
+          setIsViewFitted(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error fitting nodes to view:', error);
+    }
+  };
 
-    // Stop the layout after a short time to keep nodes in place
-    const stopTimer = setTimeout(() => {
+  // Function to reset camera to center
+  const resetCamera = () => {
+    console.log("Resetting camera");
+    try {
+      sigma.getCamera().animate({ ratio: 1, x: 0, y: 0 }, { duration: 500 });
+      setIsViewFitted(false);
+    } catch (error) {
+      console.error('Error resetting camera:', error);
+    }
+  };
+
+  // Function to start/stop layout
+  const toggleLayout = () => {
+    if (layoutRunning) {
       stop();
-    }, 2000); // Run for 2 seconds then stop
+      setIsRunning(false);
+    } else {
+      start();
+      setIsRunning(true);
+    }
+  };
 
+  // Function to reset layout and fit view
+  const resetAndFit = () => {
+    kill(); // Stop current layout
+    setIsRunning(false);
+    
+    // Reset camera to center
+    sigma.getCamera().animate({ ratio: 1, x: 0, y: 0 }, { duration: 500 });
+    
+    // Fit view after camera reset
+    setTimeout(() => {
+      fitNodesToView();
+    }, 600);
+  };
+
+  // Auto-start layout and fit view on mount
+  useEffect(() => {
+    const startTimer = setTimeout(() => {
+      //start();
+      //setIsRunning(true);
+    }, 50);
+
+    const fitTimer = setTimeout(() => {
+     // fitNodesToView();
+    }, 20); // Wait for layout to settle
+    
     return () => {
-      clearTimeout(startTimer);
-      clearTimeout(stopTimer);
-      kill();
+    //  clearTimeout(startTimer);
+    //  clearTimeout(fitTimer);
+     // kill();
     };
-  }, [start, stop, kill]);
+  }, [start, kill]);
 
   return (
     <div
@@ -85,28 +158,46 @@ const ForceAtlas2Layout: React.FC = () => {
       }}
     >
       <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14 }}>
-        Static Layout
+        ForceAtlas2 Layout
       </div>
 
-      <div style={{ display: "flex", gap: "8px", marginBottom: 8 }}>
+      <div style={{ display: "flex", gap: "8px", marginBottom: 8, flexDirection: "column" }}>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button
+            onClick={toggleLayout}
+            style={{
+              background: layoutRunning ? "#f44336" : "#4caf50",
+              color: "white",
+              border: "none",
+              borderRadius: 4,
+              padding: "6px 12px",
+              cursor: "pointer",
+              fontSize: 11,
+              fontWeight: 600,
+              flex: 1,
+            }}
+          >
+            {layoutRunning ? "Stop" : "Start"}
+          </button>
+          <button
+            onClick={fitNodesToView}
+            style={{
+              background: "#2196F3",
+              color: "white",
+              border: "none",
+              borderRadius: 4,
+              padding: "6px 12px",
+              cursor: "pointer",
+              fontSize: 11,
+              fontWeight: 600,
+              flex: 1,
+            }}
+          >
+            Fit View
+          </button>
+        </div>
         <button
-          onClick={isRunning ? stop : start}
-          style={{
-            background: isRunning ? "#f44336" : "#4caf50",
-            color: "white",
-            border: "none",
-            borderRadius: 4,
-            padding: "6px 12px",
-            cursor: "pointer",
-            fontSize: 11,
-            fontWeight: 600,
-            flex: 1,
-          }}
-        >
-          {isRunning ? "Stop" : "Reposition"}
-        </button>
-        <button
-          onClick={kill}
+          onClick={resetAndFit}
           style={{
             background: "#ff9800",
             color: "white",
@@ -116,15 +207,15 @@ const ForceAtlas2Layout: React.FC = () => {
             cursor: "pointer",
             fontSize: 11,
             fontWeight: 600,
-            flex: 1,
+            width: "100%",
           }}
         >
-          Reset
+          Reset & Fit
         </button>
       </div>
 
       <div style={{ fontSize: 11, color: "#666" }}>
-        Status: {isRunning ? "Positioning" : "Static"}
+        Status: {layoutRunning ? "Running" : "Stopped"} | {isViewFitted ? "View Fitted" : "Fitting View"}
       </div>
     </div>
   );
@@ -236,6 +327,7 @@ const ClientOnlySigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) =>
   const memoizedGraph = useMemo(() => {
     // Only process graph on client side to avoid hydration issues
     if (!isClient || typeof window === 'undefined') {
+      console.log("I'm not in the client graph")
       return null;
     }
 
@@ -246,67 +338,53 @@ const ClientOnlySigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) =>
       }
 
       // Create a copy of the graph to avoid modifying the original
-      const graphCopy = graph.copy();
+      //const graphCopy = graph.copy();
+      const graphCopy = graph;
       
-      // Pre-process the graph to ensure all nodes have valid coordinates
-      let hasInvalidCoordinates = false;
-      graphCopy.forEachNode((node) => {
-        const attrs = graphCopy.getNodeAttributes(node);
-        let x = attrs.x;
-        let y = attrs.y;
-        
-        // Check and fix x coordinate
-        if (typeof x !== 'number' || isNaN(x) || !isFinite(x)) {
-          // Use hash-based deterministic positioning with better bounds
-          const hash = node.split('').reduce((a, b) => {
-            a = ((a << 5) - a + b.charCodeAt(0)) & 0xffffffff;
-            return a;
-          }, 0);
-          // Keep nodes within a reasonable viewport (-200 to 200)
-          x = (hash % 400) - 200;
+      // Prepare graph for ForceAtlas2 layout - only set basic attributes
+      const nodes = graphCopy.nodes();
+      if (nodes.length > 0) {
+        nodes.forEach((node, index) => {
+          // Set initial coordinates for Sigma.js compatibility
+          // ForceAtlas2 will refine these positions
+          const angle = (index * 2 * Math.PI) / nodes.length;
+          const radius = 100;
+          const x = Math.cos(angle) * radius;
+          const y = Math.sin(angle) * radius;
+          
           graphCopy.setNodeAttribute(node, "x", x);
-          hasInvalidCoordinates = true;
-        }
-        
-        // Check and fix y coordinate
-        if (typeof y !== 'number' || isNaN(y) || !isFinite(y)) {
-          // Use hash-based deterministic positioning with better bounds
-          const hash = node.split('').reduce((a, b) => {
-            a = ((a << 5) - a + b.charCodeAt(0)) & 0xffffffff;
-            return a;
-          }, 0);
-          // Keep nodes within a reasonable viewport (-200 to 200)
-          y = ((hash >> 16) % 400) - 200;
           graphCopy.setNodeAttribute(node, "y", y);
-          hasInvalidCoordinates = true;
-        }
-        
-        // Ensure other required attributes
-        if (!graphCopy.hasNodeAttribute(node, "size")) {
-          graphCopy.setNodeAttribute(node, "size", 8);
-        }
-        
-        if (!graphCopy.hasNodeAttribute(node, "label")) {
-          graphCopy.setNodeAttribute(node, "label", node);
-        }
-        
-        if (!graphCopy.hasNodeAttribute(node, "color")) {
-          graphCopy.setNodeAttribute(node, "color", "#4285F4");
-        }
-        
-        // Ensure all nodes have a valid Sigma-compatible type
-        if (!graphCopy.hasNodeAttribute(node, "type")) {
-          graphCopy.setNodeAttribute(node, "type", "circle");
-        } else {
-          // Map all custom types to Sigma-compatible types
-          const nodeType = graphCopy.getNodeAttribute(node, "type");
-          // Map any non-Sigma-compatible types to "circle"
-          if (nodeType !== "circle" && nodeType !== "square" && nodeType !== "diamond" && nodeType !== "cross" && nodeType !== "star") {
-            graphCopy.setNodeAttribute(node, "type", "circle");
+          
+          // Ensure other required attributes
+          if (!graphCopy.hasNodeAttribute(node, "size")) {
+            graphCopy.setNodeAttribute(node, "size", 8);
           }
-        }
-      });
+          
+          if (!graphCopy.hasNodeAttribute(node, "label")) {
+            graphCopy.setNodeAttribute(node, "label", node);
+          }
+          
+          if (!graphCopy.hasNodeAttribute(node, "color")) {
+            graphCopy.setNodeAttribute(node, "color", "#4285F4");
+          }
+          
+          // Ensure all nodes have a valid Sigma-compatible type
+          if (!graphCopy.hasNodeAttribute(node, "type")) {
+            graphCopy.setNodeAttribute(node, "type", "circle");
+          } else {
+            // Map all custom types to Sigma-compatible types
+            const nodeType = graphCopy.getNodeAttribute(node, "type");
+            // Map any non-Sigma-compatible types to "circle"
+            if (nodeType !== "circle" && nodeType !== "square" && nodeType !== "diamond" && nodeType !== "cross" && nodeType !== "star") {
+              graphCopy.setNodeAttribute(node, "type", "circle");
+            }
+          }
+        });
+        console.log("I'm in the client graph")
+        console.log("Prepared graph with", nodes.length, "nodes for ForceAtlas2 layout - initial circle positions set");
+      }
       
+      console.log("Processing edges")
       // Process edges
       graphCopy.forEachEdge((edge) => {
         if (!graphCopy.hasEdgeAttribute(edge, "color")) {
@@ -316,10 +394,9 @@ const ClientOnlySigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) =>
           graphCopy.setEdgeAttribute(edge, "size", 1);
         }
       });
+      console.log("Edges processed")
 
-      if (hasInvalidCoordinates) {
-        console.log("Fixed invalid coordinates in graph, proceeding with visualization");
-      }
+      // Graph prepared for ForceAtlas2 layout
       
       // Log node types for debugging
       const nodeTypes = new Set();
@@ -358,6 +435,8 @@ const ClientOnlySigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) =>
     // Better zoom and pan settings
     enableEdgeHovering: true,
     enableNodeHovering: true,
+    // Container settings to prevent dimension errors
+    allowInvalidContainer: true,
     // Prevent nodes from going too far
     nodeReducer: (node: string, data: any) => ({
       ...data,
@@ -427,9 +506,22 @@ const ClientOnlySigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) =>
   }
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "600px" }}>
+    <div 
+      style={{ 
+        position: "relative", 
+        width: "100%", 
+        height: "600px",
+        minWidth: "400px",
+        minHeight: "400px"
+      }}
+    >
       <SigmaContainer 
-        style={{ width: "100%", height: "100%" }}
+        style={{ 
+          width: "100%", 
+          height: "100%",
+          minWidth: "400px",
+          minHeight: "400px"
+        }}
         settings={sigmaSettings}
         graph={memoizedGraph}
       >

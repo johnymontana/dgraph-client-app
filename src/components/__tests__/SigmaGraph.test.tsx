@@ -11,6 +11,15 @@ jest.mock('@react-sigma/core', () => ({
     </div>
   ),
   useLoadGraph: () => jest.fn(),
+  useSigma: () => ({
+    getCamera: () => ({
+      animate: jest.fn(),
+    }),
+    getGraph: () => ({
+      order: 0,
+      forEachNode: jest.fn(),
+    }),
+  }),
   ZoomControl: () => <div data-testid="zoom-control">Zoom Control</div>,
   FullScreenControl: () => <div data-testid="fullscreen-control">Fullscreen Control</div>,
 }));
@@ -59,9 +68,9 @@ describe('SigmaGraph', () => {
     expect(screen.getByTestId('fullscreen-control')).toBeInTheDocument();
   });
 
-  it('renders static layout controls', () => {
+  it('renders ForceAtlas2 layout controls', () => {
     render(<SigmaGraph graph={mockGraph} typeInfo={mockTypeInfo} />);
-    expect(screen.getByText('Static Layout')).toBeInTheDocument();
+    expect(screen.getByText('ForceAtlas2 Layout')).toBeInTheDocument();
   });
 
   it('renders node type legend', () => {

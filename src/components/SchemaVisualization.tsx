@@ -7,16 +7,17 @@ import { JsonView } from 'react-json-view-lite';
 import 'react-json-view-lite/dist/index.css';
 import FullscreenToggle from './FullscreenToggle';
 import dynamic from 'next/dynamic';
+import SigmaGraph from './SigmaGraph';
 
 // Dynamically import SigmaGraph to avoid SSR issues with WebGL
-const SigmaGraph = dynamic(() => import('./SigmaGraph'), {
-  ssr: false,
-  loading: () => (
-    <div className="flex justify-center items-center h-full bg-gray-100">
-      <p className="text-gray-500">Loading graph visualization...</p>
-    </div>
-  )
-});
+// const SigmaGraph = dynamic(() => import('./SigmaGraph'), {
+//   ssr: false,
+//   loading: () => (
+//     <div className="flex justify-center items-center h-full bg-gray-100">
+//       <p className="text-gray-500">Loading graph visualization...</p>
+//     </div>
+//   )
+// });
 
 interface SchemaVisualizationProps {
   schemaText: string;
