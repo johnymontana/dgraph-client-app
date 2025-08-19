@@ -382,7 +382,7 @@ export default function SchemaVisualization({ schemaText }: SchemaVisualizationP
   };
 
   return (
-    <div className="h-full flex flex-col" style={{ height: "600px" }}>
+    <div className="h-full flex flex-col" style={{ minHeight: "600px" }}>
       <div className="flex justify-between items-start mb-3 flex-shrink-0">
         <div className="flex-1">
           <div className="flex items-center justify-between mb-1">
@@ -462,7 +462,7 @@ export default function SchemaVisualization({ schemaText }: SchemaVisualizationP
       )}
 
       {viewMode === 'graph' ? (
-        <div className="border border-gray-300 rounded-md flex-1 overflow-hidden" style={{ height: "450px" }}>
+        <div className="border border-gray-300 rounded-md flex-1 overflow-hidden" style={{ minHeight: "450px" }}>
           {isLoading ? (
             <div className="flex justify-center items-center h-full bg-gray-100">
               <div className="text-center">
@@ -515,7 +515,7 @@ export default function SchemaVisualization({ schemaText }: SchemaVisualizationP
           )}
         </div>
       ) : (
-        <div className="border border-gray-300 rounded-md overflow-auto p-4 flex-1" style={{ height: "450px" }}>
+        <div className="border border-gray-300 rounded-md overflow-auto p-4 flex-1" style={{ minHeight: "450px" }}>
           {jsonData ? (
             <JsonView data={jsonData} />
           ) : (

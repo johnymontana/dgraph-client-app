@@ -85,6 +85,7 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, onNodeClick, onEdgeClick
       <div style={{ 
         width: "100%", 
         height: "100%",
+        minHeight: "400px",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -139,9 +140,9 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, onNodeClick, onEdgeClick
   // };
 
   return (
-    <div style={{ width: "100%", height: "500px", border: "2px solid red" }}>
+    <div style={{ width: "100%", height: "100%", minHeight: "400px", border: "2px solid red" }}>
       <SigmaContainer 
-        style={{ width: "100%", height: "500px", border: "2px solid blue" }}
+        style={{ width: "100%", height: "100%", minHeight: "400px", border: "2px solid blue" }}
         settings={settings}
       >
         <LoadGraph graph={graph} onNodeClick={onNodeClick} onEdgeClick={onEdgeClick} />
