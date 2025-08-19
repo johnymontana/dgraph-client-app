@@ -16,7 +16,7 @@ const customJestConfig = {
     // Temporarily ignore all failing tests until they can be fixed
     '<rootDir>/src/components/__tests__/DQLAutocomplete.test.tsx',
     '<rootDir>/src/components/__tests__/DQLVariableInputs.test.tsx',
-    '<rootDir>/src/components/__tests__/SchemaVisualization.test.tsx',
+
     '<rootDir>/src/components/__tests__/ResizableContainer.test.tsx',
     '<rootDir>/src/components/__tests__/FullscreenToggle.test.tsx',
     '<rootDir>/src/components/__tests__/Drawer.test.tsx',

@@ -21,11 +21,14 @@ A modern, responsive web-based client for interacting with Dgraph databases usin
   - Visual connection status indicators with real-time updates
   - Secure credential handling and connection state management
 
-- **📊 Schema Management**
+- **📊 Schema Management & Visualization**
   - View the current DQL schema with syntax highlighting
   - Edit and update the schema with real-time feedback
   - Support for all Dgraph schema types and directives
-  - Interactive schema visualization with graph representation
+  - **Advanced Schema Visualization**: Interactive graph representation of your database structure
+  - **Smart Data Analysis**: Automatically discovers types, predicates, and relationships from live data
+  - **Real-time Insights**: Shows instance counts and relationship mappings
+  - **Click-to-Inspect**: Interactive nodes and edges with detailed property panels
 
 - **💻 DQL Query Interface**
   - Execute DQL queries against your Dgraph instance
@@ -686,6 +689,211 @@ The system uses Anthropic's Claude Haiku model by default for fast, cost-effecti
 
 The Text to DQL feature represents a significant step toward making graph databases more accessible to developers of all skill levels, while maintaining the power and flexibility of DQL.
 
+## 📊 Interactive Schema Visualization
+
+The Schema Visualization feature provides a comprehensive, interactive view of your Dgraph database structure. Unlike traditional schema viewers that only show static type definitions, this advanced visualization analyzes your live data to create a dynamic, relationship-rich representation of your database.
+
+### 🎯 Key Features
+
+#### Smart Data Discovery
+The visualization automatically analyzes your database to discover:
+- **Type Nodes**: All types in your database with instance counts (e.g., "Patient (1,099)")
+- **Predicate Relationships**: Actual connections between types based on your data
+- **Property Details**: Complete predicate information for each type
+- **Real-time Updates**: Live data analysis with refresh capability
+
+#### Interactive Graph Visualization
+- **Clickable Type Nodes**: Click any node to see all its predicates and properties
+- **Relationship Edges**: Blue arrows showing connections between types with predicate labels
+- **Property Panel**: Detailed view of predicates with type information, array flags, and references
+- **Professional Design**: Clean, readable visualization with proper sizing and coloring
+
+#### Advanced Analytics
+- **Instance Counting**: See how many instances of each type exist in your database
+- **Relationship Mapping**: Understand which types connect to which other types
+- **Predicate Analysis**: View all predicates for a type with detailed metadata
+- **Performance Optimized**: Efficient queries that don't impact database performance
+
+### 🔧 How It Works
+
+#### Data Analysis Query
+The visualization uses a sophisticated DQL query to analyze your database structure:
+
+```dql
+{
+  # Variable block to collect all typed nodes
+  var(func: has(dgraph.type)) {
+    all_typed_nodes as uid
+  }
+  
+  # 1. GET ALL UNIQUE NODE TYPES WITH COUNTS
+  node_type_counts(func: has(dgraph.type)) @groupby(dgraph.type) {
+    count(uid)
+  }
+  
+  # 2. COMPLETE SCHEMA DISCOVERY - No hardcoded predicates
+  schema_discovery(func: uid(all_typed_nodes), first: 100) {
+    node_type: dgraph.type
+    node_uid: uid
+    
+    # Expand ALL predicates dynamically - captures everything
+    expand(_all_) {
+      # For any connected nodes, get their type to map relationships
+      relationship_target_type: dgraph.type
+    }
+  }
+}
+```
+
+#### Intelligent Processing
+1. **Type Discovery**: Identifies all types in your database with instance counts
+2. **Predicate Extraction**: Analyzes actual data to find all predicates for each type
+3. **Relationship Mapping**: Detects connections between types through UID predicates
+4. **Graph Construction**: Creates an interactive visualization with proper node and edge data
+
+### 🚀 Using Schema Visualization
+
+#### Getting Started
+1. **Connect to Database**: Ensure you're connected to your Dgraph instance
+2. **Navigate to Schema**: Click the "Schema" tab in the sidebar
+3. **View Visualization**: The graph loads automatically with your database structure
+4. **Refresh Data**: Click the "🔄 Refresh" button to update with latest data
+
+#### Exploring Your Data
+1. **Overview**: See all types as red nodes with instance counts
+2. **Relationships**: Blue arrows show how types are connected
+3. **Click Nodes**: Click any type node to see its predicates in the property panel
+4. **Click Edges**: Click relationship arrows to see connection details
+5. **Fullscreen Mode**: Use fullscreen for better visualization of large schemas
+
+#### Understanding the Visualization
+
+**Node Types:**
+- **Red Circles**: Database types (e.g., Patient, Address, MedicalVisit)
+- **Node Labels**: Type name with instance count (e.g., "Patient (1,099)")
+- **Node Sizes**: Scaled based on instance count for visual hierarchy
+
+**Edge Types:**
+- **Blue Arrows**: Relationships between types
+- **Edge Labels**: Predicate names or relationship counts
+- **Directional**: Show the direction of relationships
+
+**Property Panel:**
+- **Type Details**: Shows selected type information
+- **Predicate List**: All predicates with type, array, and UID information
+- **Reference Types**: Which types are referenced by UID predicates
+
+### 📋 Example: Medical Database
+
+For a medical database, the visualization might show:
+
+#### Type Nodes
+- **Patient (1,099)**: Large node representing patient records
+- **MedicalVisit (764)**: Medium node for medical visits
+- **Address (635)**: Medium node for location data
+- **Organization (248)**: Smaller node for healthcare providers
+
+#### Relationships
+- **Patient → Address** (via `lives_in` predicate)
+- **Patient → MedicalVisit** (via `has_visit` predicate)
+- **MedicalVisit → Patient** (via `visit_of` predicate)
+- **Patient → MedicalCondition** (via `has_condition` predicate)
+
+#### Property Details (clicking Patient node)
+```
+Predicates (12):
+- name: string [Array]
+- age: int [Array]
+- lives_in: uid [Array] → References: Address
+- has_visit: uid [Array] → References: MedicalVisit
+- has_condition: uid [Array] → References: MedicalCondition
+- primary_language: string [Array]
+- marital_status: string [Array]
+- gender: string [Array]
+- date_of_birth: string [Array]
+- multiple_birth: bool [Array]
+```
+
+### 🎨 Visualization Features
+
+#### Loading States
+- **Professional Loading Indicators**: Spinner with progress messages
+- **Smooth Transitions**: Loading → Complete visualization
+- **Disabled Controls**: Prevents multiple refresh attempts during processing
+
+#### Interactive Elements
+- **Hover Effects**: Visual feedback on interactive elements
+- **Click Handlers**: Separate handlers for nodes and edges
+- **Property Panels**: Slide-in panels with detailed information
+- **Close Controls**: Easy-to-access close buttons for panels
+
+#### Visual Design
+- **Professional Color Scheme**: Red nodes, blue edges, consistent styling
+- **Readable Labels**: Clear typography with proper contrast
+- **Responsive Layout**: Works on all screen sizes
+- **Accessibility**: Keyboard navigation and screen reader support
+
+### 🔍 Advanced Features
+
+#### Relationship Analysis
+- **Predicate Grouping**: Multiple predicates between same types are grouped
+- **Relationship Counts**: Shows "3 relationships" for multi-predicate connections
+- **Target Type Analysis**: Identifies all possible target types for predicates
+
+#### Performance Optimizations
+- **Efficient Queries**: Optimized for large databases
+- **Smart Sampling**: Uses limited sample size (100 nodes) for analysis
+- **Caching**: Processes data once and caches results
+- **Background Processing**: Non-blocking analysis with loading states
+
+#### Data Quality Insights
+- **Instance Counts**: Understand data distribution across types
+- **Relationship Density**: See which types are most connected
+- **Schema Completeness**: Identify types with few or many predicates
+- **Data Patterns**: Understand your database structure at a glance
+
+### 🛠️ Technical Implementation
+
+#### Modern Architecture
+- **React + TypeScript**: Type-safe component architecture
+- **Sigma.js Integration**: Professional graph visualization library
+- **Graphology**: Efficient graph data structure management
+- **Real-time Updates**: Live data synchronization with database
+
+#### Smart Query Design
+- **Dynamic Discovery**: No hardcoded predicates or types
+- **Efficient Sampling**: Uses `first: 100` for performance
+- **Relationship Detection**: Automatic UID predicate identification
+- **Error Handling**: Graceful fallbacks and error states
+
+#### User Experience
+- **Progressive Loading**: Data loads incrementally with feedback
+- **Interactive Design**: Click-to-explore interface
+- **Responsive**: Works on mobile, tablet, and desktop
+- **Accessible**: WCAG compliant with keyboard navigation
+
+### 🎯 Use Cases
+
+#### Database Exploration
+- **New Database**: Quickly understand structure of unfamiliar databases
+- **Data Modeling**: Visualize relationships for schema design decisions
+- **Documentation**: Generate visual documentation of database structure
+- **Training**: Help team members understand data relationships
+
+#### Development & Debugging
+- **Schema Validation**: Verify relationships are properly modeled
+- **Data Quality**: Identify types with unusual instance counts
+- **Performance Analysis**: Understand query patterns and relationships
+- **Migration Planning**: Visualize current state before schema changes
+
+#### Business Intelligence
+- **Stakeholder Communication**: Show database structure to non-technical users
+- **Data Governance**: Understand data flow and relationships
+- **Compliance**: Document data relationships for regulatory requirements
+- **Analytics Planning**: Identify key entities and relationships for analysis
+
+The Schema Visualization feature transforms the way you understand and work with your Dgraph database, providing immediate insights into your data structure and relationships through an intuitive, interactive interface.
+
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -774,6 +982,12 @@ pnpm run reinstall    # Clean and reinstall dependencies
 
 ## 📊 Working with Data
 
+### Schema Exploration
+- **Interactive Schema Visualization**: Explore your database structure through an interactive graph
+- **Live Data Analysis**: See actual type counts and relationships from your data
+- **Click-to-Inspect**: Click nodes to see predicates, click edges to see relationships
+- **Real-time Updates**: Refresh to see latest database structure
+
 ### Query Editor
 - **Syntax Highlighting**: DQL syntax with CodeMirror integration
 - **Autocomplete**: Schema-aware suggestions for predicates and functions
@@ -784,7 +998,7 @@ pnpm run reinstall    # Clean and reinstall dependencies
 - **Graph View**: Interactive node-edge visualization with Sigma.js
 - **JSON View**: Structured data display with syntax highlighting
 - **Map View**: Geographic data visualization with Leaflet.js
-- **Table View**: Tabular data representation
+- **Schema View**: Database structure visualization with type relationships
 
 ### Advanced Features
 - **Physics Simulation**: Configurable force-directed layouts

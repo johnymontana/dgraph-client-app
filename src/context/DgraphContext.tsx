@@ -35,6 +35,8 @@ interface DgraphContextType {
   schemaText: string;
   parsedSchema: ParsedSchema;
   updateSchemaText: (text: string) => void;
+  schemaData: any;
+  refreshSchemaData: () => Promise<void>;
 }
 
 const DgraphContext = createContext<DgraphContextType | undefined>(undefined);
@@ -101,6 +103,7 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [schemaText, setSchemaText] = useState('');
   const [parsedSchema, setParsedSchema] = useState<ParsedSchema>({ types: [] });
+  const [schemaData, setSchemaData] = useState<any>(null);
 
   console.log('DgraphProvider state:', { connected, endpoint, apiKey, error });
 
@@ -284,6 +287,17 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
         setParsedSchema(parseSchema(newSchemaText));
       }
 
+      // Fetch schema data for visualization
+      console.log('Fetching schema data for visualization...');
+      try {
+        const schemaDataResult = await service.getSchemaData();
+        console.log('Schema data result:', schemaDataResult);
+        setSchemaData(schemaDataResult);
+      } catch (schemaDataError) {
+        console.warn('Failed to fetch schema data for visualization:', schemaDataError);
+        setSchemaData(null);
+      }
+
       setDgraphService(service);
       setConnected(true);
     } catch (err) {
@@ -321,6 +335,7 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
     setDgraphService(null);
     setSchemaText('');
     setParsedSchema({ types: [] });
+    setSchemaData(null);
     setApiKeyState('');
     setHypermodeRouterKeyState('');
     setMcpConfigState('');
@@ -347,6 +362,20 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
   const updateSchemaText = (text: string) => {
     setSchemaText(text);
     setParsedSchema(parseSchema(text));
+  };
+
+  const refreshSchemaData = async () => {
+    if (dgraphService && connected) {
+      try {
+        console.log('Refreshing schema data...');
+        const schemaDataResult = await dgraphService.getSchemaData();
+        console.log('Refreshed schema data result:', schemaDataResult);
+        setSchemaData(schemaDataResult);
+      } catch (error) {
+        console.error('Error refreshing schema data:', error);
+        setSchemaData(null);
+      }
+    }
   };
 
   return (
@@ -381,6 +410,8 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
         schemaText,
         parsedSchema,
         updateSchemaText,
+        schemaData,
+        refreshSchemaData,
       }}
     >
       {children}
