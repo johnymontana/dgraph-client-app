@@ -23,12 +23,12 @@ This document outlines the comprehensive test suite for the Dgraph Client Applic
 #### 🔄 In Progress
 - **SchemaAutocomplete.test.tsx** - Schema-based autocomplete testing
 - **SchemaEditor.test.tsx** - Schema editing functionality testing
-- **SigmaGraph.test.tsx** - Graph visualization testing
+- **SigmaGraph.test.tsx** - Graph visualization testing (includes height management testing)
 - **GraphVisualizer.test.tsx** - Graph visualization wrapper testing
 - **GuidedExperience.test.tsx** - Guided experience flow testing
 - **MapView.test.tsx** - Geographic visualization testing
 - **GeoVisualization.test.tsx** - Geographic data handling testing
-- **GraphVisualization.test.tsx** - Graph visualization testing
+- **GraphVisualization.test.tsx** - Graph visualization testing (includes height container testing)
 
 ### Utilities
 
@@ -75,6 +75,12 @@ This document outlines the comprehensive test suite for the Dgraph Client Applic
 - **Context Integration**: Test components with context providers
 - **Service Integration**: Test service layer interactions
 - **API Mocking**: Mock external API calls for testing
+
+### Height Management Testing
+- **Container Heights**: Verify fixed height containers render correctly
+- **Sigma.js Integration**: Test that Sigma containers have proper dimensions
+- **Height Inheritance**: Ensure height flows correctly through component hierarchy
+- **Responsive Behavior**: Test height management across different viewport sizes
 
 ## Running Tests
 

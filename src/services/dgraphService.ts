@@ -232,6 +232,115 @@ class DgraphService {
     return this.query(query, vectorVariables);
   }
 
+  async getSchemaData() {
+    const schemaQuery = `{
+      # Variable block to collect all typed nodes
+      var(func: has(dgraph.type)) {
+        all_typed_nodes as uid
+      }
+      
+      # 1. GET ALL UNIQUE NODE TYPES WITH COUNTS
+      node_type_counts(func: has(dgraph.type)) @groupby(dgraph.type) {
+        count(uid)
+      }
+      
+      # 2. COMPLETE SCHEMA DISCOVERY - No hardcoded predicates
+      schema_discovery(func: uid(all_typed_nodes), first: 100) {
+        node_type: dgraph.type
+        node_uid: uid
+        
+        # Expand ALL predicates dynamically - captures everything
+        expand(_all_) {
+          # For any connected nodes, get their type to map relationships
+          relationship_target_type: dgraph.type
+        }
+      }
+    }`;
+
+    try {
+      console.log('Fetching schema data with query:', schemaQuery);
+      
+      // Execute the query directly without going through the query() method
+      // to avoid query modification by ensureUidAndType
+      const endpoint = this.getEndpoint(this.getDgraphPath('/query'));
+      console.log('Making schema data request to:', endpoint);
+      console.log('Headers:', this.getHeaders());
+      
+      const response = await axios.post(
+        endpoint,
+        { query: schemaQuery },
+        {
+          headers: this.getHeaders(),
+          // Add SSL configuration for verify-ca mode
+          httpsAgent: this.config.sslMode === 'verify-ca' ?
+            new Agent({
+              rejectUnauthorized: true,
+              ca: undefined // Will use system CA certificates
+            }) : undefined,
+          // Add timeout and retry options
+          timeout: 30000,
+          // Handle CORS preflight
+          withCredentials: false
+        }
+      );
+
+      const result = response.data;
+      console.log('Schema data result:', result);
+      
+      // Validate the response structure
+      if (result && result.data && result.data.unique_types) {
+        console.log('Schema data validation successful');
+        return result;
+      } else {
+        console.warn('Unexpected response structure:', result);
+        // Still return the result as it might be valid but different
+        return result;
+      }
+      
+    } catch (error) {
+      console.error('Error fetching schema data:', error);
+      
+      // Try CORS proxy if direct request fails
+      try {
+        console.log('Direct request failed, trying with CORS proxy...');
+        
+        const corsProxies = [
+          'https://api.allorigins.win/raw?url=',
+          'https://corsproxy.io/?',
+          'https://thingproxy.freeboard.io/fetch/'
+        ];
+
+        for (const proxy of corsProxies) {
+          try {
+            console.log(`Trying CORS proxy: ${proxy}`);
+            const proxyEndpoint = `${proxy}${this.config.endpoint}${this.getDgraphPath('/query')}`;
+            console.log('Proxy endpoint:', proxyEndpoint);
+
+            const proxyResponse = await axios.post(
+              proxyEndpoint,
+              { query: schemaQuery },
+              {
+                headers: this.getHeaders(),
+                timeout: 30000,
+                withCredentials: false
+              }
+            );
+            console.log('CORS proxy request successful!');
+            return proxyResponse.data;
+          } catch (proxyError) {
+            const errorMessage = proxyError instanceof Error ? proxyError.message : 'Unknown error';
+            console.log(`CORS proxy ${proxy} failed:`, errorMessage);
+            continue;
+          }
+        }
+      } catch (proxyError) {
+        console.error('All CORS proxies failed:', proxyError);
+      }
+      
+      throw error;
+    }
+  }
+
   async query(query: string, variables?: Record<string, any>) {
     try {
       const endpoint = this.getEndpoint(this.getDgraphPath('/query'));

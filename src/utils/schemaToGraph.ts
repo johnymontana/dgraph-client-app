@@ -55,7 +55,11 @@ export function schemaToGraph(schemaText: string): Graphology {
           type: 'predicate',
           color: '#4285F4', // Blue for predicates
           size: 10,
-          raw: { predicate: predicateName, type: cleanType }
+          raw: {
+            predicate: predicateName,
+            type: cleanType,
+            isPredicate: true
+          }
         });
         nodes.add(predicateName);
       }
@@ -71,7 +75,11 @@ export function schemaToGraph(schemaText: string): Graphology {
           type: isScalar ? 'scalar' : isUid ? 'uid' : 'type',
           color: isScalar ? '#34A853' : isUid ? '#FBBC05' : '#EA4335', // Green, Yellow, Red
           size: 8,
-          raw: { type: cleanType }
+          raw: {
+            type: cleanType,
+            isScalar,
+            isUid
+          }
         });
         nodes.add(cleanType);
       }
@@ -88,6 +96,7 @@ export function schemaToGraph(schemaText: string): Graphology {
       }
     }
   }
+  
   // Process type definitions (type Person { ... })
   const typeDefRegex = /type\s+([a-zA-Z0-9_]+)\s*\{([^}]*)\}/g;
   let typeDefMatch;
@@ -105,7 +114,11 @@ export function schemaToGraph(schemaText: string): Graphology {
         type: 'type',
         color: '#EA4335', // Red for types
         size: 12,
-        raw: { type: typeName }
+        raw: { 
+          type: typeName,
+          isType: true,
+          predicates: [] // Will be populated below
+        }
       });
       nodes.add(typeName);
     }
@@ -133,7 +146,13 @@ export function schemaToGraph(schemaText: string): Graphology {
           type: 'field',
           color: '#4285F4', // Blue for fields
           size: 8,
-          raw: { field: fieldName, type: fieldType, isArray }
+          raw: { 
+            field: fieldName, 
+            type: fieldType, 
+            isArray,
+            parentType: typeName,
+            isField: true
+          }
         });
         nodes.add(fieldNodeId);
       }
@@ -165,7 +184,10 @@ export function schemaToGraph(schemaText: string): Graphology {
               type: 'type',
               color: '#EA4335', // Red for types
               size: 12,
-              raw: { type: referencedType }
+              raw: { 
+                type: referencedType,
+                isType: true
+              }
             });
             nodes.add(referencedType);
           }
@@ -198,7 +220,11 @@ export function schemaToGraph(schemaText: string): Graphology {
           type: isScalar ? 'scalar' : isUid ? 'uid' : 'type',
           color: isScalar ? '#34A853' : isUid ? '#FBBC05' : '#EA4335',
           size: 8,
-          raw: { type: coreType }
+          raw: { 
+            type: coreType,
+            isScalar,
+            isUid
+          }
         });
         nodes.add(coreType);
       }
@@ -231,21 +257,63 @@ export function ensureNonEmptyGraph(graph: Graphology): Graphology {
   if (graph.order === 0) {
     console.log('Adding default nodes to empty graph for demonstration');
     // Add example schema nodes for demonstration
-    graph.addNode('Person', { label: 'Person', type: 'type', color: '#EA4335', size: 12 });
-    graph.addNode('name', { label: 'name', type: 'predicate', color: '#4285F4', size: 10 });
-    graph.addNode('string', { label: 'string', type: 'scalar', color: '#34A853', size: 8 });
-    graph.addNode('age', { label: 'age', type: 'predicate', color: '#4285F4', size: 10 });
-    graph.addNode('int', { label: 'int', type: 'scalar', color: '#34A853', size: 8 });
-    graph.addNode('friend', { label: 'friend', type: 'predicate', color: '#4285F4', size: 10 });
-    graph.addNode('uid', { label: 'uid', type: 'uid', color: '#FBBC05', size: 8 });
+    graph.addNode('Person', { 
+      label: 'Person', 
+      type: 'type', 
+      color: '#EA4335', 
+      size: 12,
+      raw: { type: 'Person', isType: true, predicates: [] }
+    });
+    graph.addNode('name', { 
+      label: 'name', 
+      type: 'predicate', 
+      color: '#4285F4', 
+      size: 10,
+      raw: { predicate: 'name', type: 'string', isPredicate: true }
+    });
+    graph.addNode('string', { 
+      label: 'string', 
+      type: 'scalar', 
+      color: '#34A853', 
+      size: 8,
+      raw: { type: 'string', isScalar: true }
+    });
+    graph.addNode('age', { 
+      label: 'age', 
+      type: 'predicate', 
+      color: '#4285F4', 
+      size: 10,
+      raw: { predicate: 'age', type: 'int', isPredicate: true }
+    });
+    graph.addNode('int', { 
+      label: 'int', 
+      type: 'scalar', 
+      color: '#34A853', 
+      size: 8,
+      raw: { type: 'int', isScalar: true }
+    });
+    graph.addNode('friend', { 
+      label: 'friend', 
+      type: 'predicate', 
+      color: '#4285F4', 
+      size: 10,
+      raw: { predicate: 'friend', type: 'uid', isPredicate: true }
+    });
+    graph.addNode('uid', { 
+      label: 'uid', 
+      type: 'uid', 
+      color: '#FBBC05', 
+      size: 8,
+      raw: { type: 'uid', isUid: true }
+    });
     
     // Add edges
-    graph.addEdge('name', 'string', { label: 'has type', size: 1 });
-    graph.addEdge('age', 'int', { label: 'has type', size: 1 });
-    graph.addEdge('friend', 'uid', { label: 'has type', size: 1 });
-    graph.addEdge('Person', 'name', { label: 'has field', size: 1 });
-    graph.addEdge('Person', 'age', { label: 'has field', size: 1 });
-    graph.addEdge('Person', 'friend', { label: 'has field', size: 1 });
+    graph.addEdge('name', 'string', { label: 'has type', size: 1, raw: { relationship: 'has type' } });
+    graph.addEdge('age', 'int', { label: 'has type', size: 1, raw: { relationship: 'has type' } });
+    graph.addEdge('friend', 'uid', { label: 'has type', size: 1, raw: { relationship: 'has type' } });
+    graph.addEdge('Person', 'name', { label: 'has field', size: 1, raw: { relationship: 'has field' } });
+    graph.addEdge('Person', 'age', { label: 'has field', size: 1, raw: { relationship: 'has field' } });
+    graph.addEdge('Person', 'friend', { label: 'has field', size: 1, raw: { relationship: 'has field' } });
   }
   
   console.log(`Final graph has ${graph.order} nodes and ${graph.size} edges`);

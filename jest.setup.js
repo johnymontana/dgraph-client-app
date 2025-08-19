@@ -65,3 +65,8 @@ global.console = {
   // warn: jest.fn(),
   // error: jest.fn(),
 }
+
+// Polyfill for structuredClone (needed for Chakra UI v3)
+if (typeof global.structuredClone === 'undefined') {
+  global.structuredClone = (obj) => JSON.parse(JSON.stringify(obj))
+}

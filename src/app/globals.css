@@ -149,3 +149,31 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* CodeMirror editor height and styling
+.cm-editor {
+  height: 100% !important;
+  min-height: 100% !important;
+} */
+
+/* .cm-editor .cm-scroller {
+  height: 100% !important;
+  min-height: 100% !important;
+} */
+
+/* .cm-editor .cm-content {
+  height: 100% !important;
+  min-height: 100% !important;
+} */
+
+/* Ensure CodeMirror container takes full height */
+.cm-editor-container {
+  height: 100% !important;
+  min-height: 100% !important;
+}
+
+/* Override any conflicting height styles */
+.cm-editor,
+.cm-editor * {
+  box-sizing: border-box;
+}

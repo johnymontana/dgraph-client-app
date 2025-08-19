@@ -356,13 +356,15 @@ const QueryEditor = React.forwardRef<any, QueryEditorProps>(function QueryEditor
           layerStyle="code-editor"
           overflow="hidden"
           h={compact ? '150px' : (isFullscreen ? 'calc(100vh - 280px)' : 'calc(100% - 80px)')}
+          className="cm-editor-container"
         >
           <CodeMirror
             value={activeTab === 'query' ? query : mutation}
             height="100%"
             onChange={handleEditorChange}
             theme="light"
-            className="text-sm"
+            className="text-sm cm-editor"
+            style={{ height: '100%' }}
           />
         </Box>
 
