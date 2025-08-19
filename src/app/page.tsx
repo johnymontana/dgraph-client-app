@@ -14,9 +14,20 @@ function MainContent() {
   const [activeSection, setActiveSection] = useState<'connection' | 'schema' | 'guides' | 'query' | 'text-to-dql'>('connection');
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  // Set client flag to avoid hydration issues
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Responsive sidebar behavior - hydration-safe
   useEffect(() => {
+    // Only run on client side to avoid hydration issues
+    if (!isClient || typeof window === 'undefined') {
+      return;
+    }
+
     const checkBreakpoints = () => {
       const mobile = window.innerWidth < 768;
       const tablet = window.innerWidth >= 768 && window.innerWidth < 1024;
@@ -27,21 +38,21 @@ function MainContent() {
     checkBreakpoints();
     window.addEventListener('resize', checkBreakpoints);
     return () => window.removeEventListener('resize', checkBreakpoints);
-  }, []);
+  }, [isClient]);
   
   // Auto-close sidebar on mobile when section changes
   useEffect(() => {
-    if (isMobile && isSidebarOpen) {
+    if (isClient && isMobile && isSidebarOpen) {
       setIsSidebarOpen(false);
     }
-  }, [activeSection, isMobile, isSidebarOpen]);
+  }, [activeSection, isMobile, isSidebarOpen, isClient]);
 
   // Auto-close sidebar on mobile by default
   useEffect(() => {
-    if (isMobile) {
+    if (isClient && isMobile) {
       setIsSidebarOpen(false);
     }
-  }, [isMobile]);
+  }, [isMobile, isClient]);
 
   const handleSectionChange = (section: 'connection' | 'schema' | 'guides' | 'query' | 'text-to-dql') => {
     console.log('Section changing from', activeSection, 'to', section);
@@ -55,6 +66,11 @@ function MainContent() {
 
   // Keyboard navigation support
   useEffect(() => {
+    // Only add event listeners on the client side
+    if (!isClient || typeof window === 'undefined') {
+      return;
+    }
+
     const handleKeyDown = (event: KeyboardEvent) => {
       // Cmd/Ctrl + B to toggle sidebar
       if ((event.metaKey || event.ctrlKey) && event.key === 'b') {
@@ -78,7 +94,7 @@ function MainContent() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isSidebarOpen]);
+  }, [isSidebarOpen, isClient]);
 
   return (
     <>

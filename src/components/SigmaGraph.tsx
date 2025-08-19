@@ -1,11 +1,12 @@
+
 'use client';
 
-import React, { useRef, useEffect, useState, useCallback } from "react";
-import Sigma from "sigma";
+import React, { useEffect, useState, useMemo } from "react";
+import { SigmaContainer, useLoadGraph } from "@react-sigma/core";
+import { useWorkerLayoutForceAtlas2 } from "@react-sigma/layout-forceatlas2";
+import { ZoomControl, FullScreenControl } from "@react-sigma/core";
 import Graphology from "graphology";
-import forceAtlas2, { inferSettings } from "graphology-layout-forceatlas2";
-import noverlap from 'graphology-layout-noverlap';
-import { debounce } from "lodash";
+import "@react-sigma/core/lib/style.css";
 
 interface TypeInfo {
   type: string;
@@ -18,640 +19,467 @@ interface SigmaGraphProps {
   typeInfo: TypeInfo[];
 }
 
-const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const sigmaInstanceRef = useRef<Sigma | null>(null);
-  const [hoveredNode, setHoveredNode] = useState<any | null>(null);
-  const [selectedNode, setSelectedNode] = useState<string | null>(null);
-  const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
-  const [isSimulationRunning, setIsSimulationRunning] = useState(true);
-  const [showSimulationControls, setShowSimulationControls] = useState(true);
-  const [simulationSettings, setSimulationSettings] = useState({
-    gravity: 0.05,
-    scalingRatio: 2,
-    slowDown: 2.5,
-    strongGravityMode: false,
-    linLogMode: false,
-    outboundAttractionDistribution: false,
-    adjustSizes: true,
-    edgeWeightInfluence: 1,
-    barnesHutOptimize: false,
-    barnesHutTheta: 0.5,
+// Component that loads the graph into Sigma
+const LoadGraph: React.FC<{ graph: Graphology }> = ({ graph }) => {
+  const loadGraph = useLoadGraph();
+
+  useEffect(() => {
+    // The graph is already processed and validated in the main component
+    // Just load it into Sigma
+    loadGraph(graph);
+  }, [loadGraph, graph]);
+
+  return null;
+};
+
+// Component for static force-directed layout
+const ForceAtlas2Layout: React.FC = () => {
+  const { start, stop, kill, isRunning } = useWorkerLayoutForceAtlas2({
+    settings: {
+      // Static layout settings - very gentle forces
+      gravity: 0.0001,          // Very low gravity to keep nodes in place
+      scalingRatio: 0.1,        // Minimal scaling to prevent movement
+      slowDown: 3.0,            // Slower movement for stability
+      strongGravityMode: true,  // Strong gravity to center the graph
+      linLogMode: false,        // Linear mode for predictable behavior
+      outboundAttractionDistribution: false,
+      adjustSizes: false,       // Don't adjust node sizes
+      edgeWeightInfluence: 0.1, // Minimal edge influence
+      barnesHutOptimize: true,  // Enable optimization
+      barnesHutTheta: 0.9,      // Higher theta for better performance
+    },
   });
 
-  const animationFrameRef = useRef<number | null>(null);
-  const settingsRef = useRef(simulationSettings);
-  const resizeObserverRef = useRef<ResizeObserver | null>(null);
-
-  // Update the ref whenever simulationSettings changes
   useEffect(() => {
-    settingsRef.current = simulationSettings;
-  }, [simulationSettings]);
+    // Start the layout briefly to position nodes, then stop to keep them static
+    const startTimer = setTimeout(() => {
+      start();
+    }, 500);
 
-  // Function to run Noverlap layout
-  const runNoverlapLayout = useCallback(() => {
-    if (!graph || !sigmaInstanceRef.current) return;
-
-    // Optionally, pause ForceAtlas2 simulation
-    // const currentRunningState = isSimulationRunning;
-    // if (currentRunningState) setIsSimulationRunning(false);
-
-    console.log("Running Noverlap layout...");
-    noverlap.assign(graph, {
-      maxIterations: 50,
-      settings: {
-        margin: 5, // Margin between nodes, ensure this is compatible with node sizes
-        ratio: 1.2,
-        speed: 0.1,
-        gridSize: 20, // gridSize can impact performance and quality
-      }
-    });
-
-    sigmaInstanceRef.current.refresh();
-    console.log("Noverlap layout applied and graph refreshed.");
-
-    // Optionally, resume ForceAtlas2 simulation
-    // if (currentRunningState) setIsSimulationRunning(true);
-  }, [graph, sigmaInstanceRef]);
-
-  // Update simulation settings
-  const updateSimulationSettings = useCallback((settings: Partial<typeof simulationSettings>) => {
-    setSimulationSettings(prev => ({ ...prev, ...settings }));
-  }, []);
-
-  // Function to apply inferred settings
-  const applyInferredSettings = useCallback(() => {
-    if (!graph) return;
-    const inferred = inferSettings(graph);
-    console.log("Inferred ForceAtlas2 Settings:", inferred);
-    // Merge inferred settings with current settings, giving preference to inferred ones
-    // Exclude barnesHut related properties if they are not part of what inferSettings provides
-    // to avoid them being overridden to undefined if not present in `inferred`.
-    const { barnesHutOptimize, barnesHutTheta, ...relevantInferred } = inferred as any;
-
-    const newSettings = {
-      ...settingsRef.current,
-      ...relevantInferred, 
-      // Explicitly keep UI-controlled barnesHut settings unless inferSettings starts providing them
-      barnesHutOptimize: simulationSettings.barnesHutOptimize, 
-      barnesHutTheta: simulationSettings.barnesHutTheta,
-    };
-    updateSimulationSettings(newSettings);
-  }, [graph, updateSimulationSettings, simulationSettings.barnesHutOptimize, simulationSettings.barnesHutTheta]);
-
-  // Toggle simulation on/off
-  const toggleSimulation = useCallback(() => {
-    setIsSimulationRunning(prev => !prev);
-  }, []);
-
-  // Toggle visibility of simulation controls
-  const toggleSimulationControls = useCallback(() => {
-    setShowSimulationControls(prev => !prev);
-  }, []);
-
-  // Debounced version of the update function
-  const debouncedUpdateSettings = useCallback(
-    debounce((settings: Partial<typeof simulationSettings>) => {
-      updateSimulationSettings(settings);
-    }, 200),
-    [updateSimulationSettings]
-  );
-
-  useEffect(() => {
-    if (!containerRef.current || !graph) return;
-
-    // Ensure container has proper dimensions
-    const container = containerRef.current;
-    const rect = container.getBoundingClientRect();
-
-    if (rect.height === 0 || rect.width === 0) {
-      console.warn('Container has no dimensions, waiting for next frame...');
-      // Wait for next frame to ensure container is properly sized
-      requestAnimationFrame(() => {
-        if (containerRef.current) {
-          const newRect = containerRef.current.getBoundingClientRect();
-          if (newRect.height > 0 && newRect.width > 0) {
-            // Re-run the effect with proper dimensions
-            return;
-          }
-        }
-      });
-      return;
-    }
-
-    // Clean up previous instances
-    if (sigmaInstanceRef.current) {
-      sigmaInstanceRef.current.kill();
-      sigmaInstanceRef.current = null;
-    }
-
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-
-    // Clean up resize observer
-    if (resizeObserverRef.current) {
-      resizeObserverRef.current.disconnect();
-      resizeObserverRef.current = null;
-    }
-
-    // Process the graph to ensure all nodes have the required attributes
-    graph.forEachNode((node) => {
-      // Make sure all nodes have a common type that Sigma can render
-      graph.setNodeAttribute(node, "type", "circle");
-      // Ensure all nodes have numeric x and y coordinates
-      const attrs = graph.getNodeAttributes(node);
-      if (typeof attrs.x !== 'number' || isNaN(attrs.x) || typeof attrs.y !== 'number' || isNaN(attrs.y)) {
-        graph.setNodeAttribute(node, "x", Math.random() * 10 - 5);
-        graph.setNodeAttribute(node, "y", Math.random() * 10 - 5);
-      }
-
-      // Add mass attribute based on node connections for more realistic physics
-      const nodeConnections = graph.degree(node);
-      const mass = Math.max(1, Math.sqrt(nodeConnections + 1));
-      graph.setNodeAttribute(node, "mass", mass);
-
-      // Ensure 'size' attribute is set for noverlap and other layouts
-      if (!graph.hasNodeAttribute(node, "size")) {
-        graph.setNodeAttribute(node, "size", 16); // Default size
-      }
-    });
-
-    try {
-      // Create sigma instance with default renderer
-      sigmaInstanceRef.current = new Sigma(graph, containerRef.current, {
-        renderLabels: true,
-        labelRenderedSizeThreshold: 6,
-        defaultNodeColor: "#4285F4",
-        defaultEdgeColor: "#999",
-        nodeReducer: (node, data) => ({
-          ...data,
-          size: 16,
-          color: node === selectedNode ? "#FFD700" : data.color // Highlight selected node
-        })
-      });
-    } catch (error) {
-      console.error('Error creating Sigma instance:', error);
-               // If Sigma creation fails, try to set a minimum height and retry
-         if (containerRef.current) {
-           containerRef.current.style.minHeight = '400px';
-           containerRef.current.style.height = '400px';
-
-           // Wait a bit and try again
-        setTimeout(() => {
-          if (containerRef.current && graph) {
-            try {
-              sigmaInstanceRef.current = new Sigma(graph, containerRef.current, {
-                renderLabels: true,
-                labelRenderedSizeThreshold: 6,
-                defaultNodeColor: "#4285F4",
-                defaultEdgeColor: "#999",
-                nodeReducer: (node, data) => ({
-                  ...data,
-                  size: 16,
-                  color: node === selectedNode ? "#FFD700" : data.color
-                })
-              });
-            } catch (retryError) {
-              console.error('Sigma creation retry failed:', retryError);
-            }
-          }
-        }, 100);
-      }
-      return;
-    }
-
-    // Custom node dragging logic
-    let draggingNode: string | null = null;
-    let dragOffset: { x: number; y: number } | null = null;
-
-    const sigmaRenderer = sigmaInstanceRef.current;
-
-    const getMouseCoords = (event: MouseEvent) => {
-      if (!sigmaRenderer) return { x: 0, y: 0 };
-      const rect = (sigmaRenderer.getContainer() as HTMLElement).getBoundingClientRect();
-      return {
-        x: event.clientX - rect.left,
-        y: event.clientY - rect.top
-      };
-    };
-
-    const handleDownNode = (event: any) => {
-      draggingNode = event.node;
-      setSelectedNode(event.node);
-      // Calculate offset between mouse and node center
-      const nodeAttrs = graph.getNodeAttributes(event.node);
-      const coordinates = { x: nodeAttrs.x, y: nodeAttrs.y };
-      const nodeScreen = sigmaRenderer?.graphToViewport(coordinates) ?? { x: 0, y: 0 };
-      const mouse = getMouseCoords(event.event);
-      dragOffset = {
-        x: mouse.x - nodeScreen.x,
-        y: mouse.y - nodeScreen.y
-      };
-    };
-
-    const handleMouseMoveDrag = (event: MouseEvent) => {
-      if (!draggingNode) return;
-      const mouse = getMouseCoords(event);
-      // Adjust mouse position by dragOffset, then convert to graph coordinates
-      const adjusted = {
-        x: mouse.x - (dragOffset?.x ?? 0),
-        y: mouse.y - (dragOffset?.y ?? 0)
-      };
-      const graphCoords = sigmaRenderer?.viewportToGraph({ x: adjusted.x, y: adjusted.y }) ?? { x: 0, y: 0 };
-      graph.mergeNodeAttributes(draggingNode, {
-        x: graphCoords.x,
-        y: graphCoords.y
-      });
-      sigmaRenderer?.refresh();
-    };
-
-    const handleMouseUp = () => {
-      draggingNode = null;
-      dragOffset = null;
-    };
-
-    sigmaRenderer?.on("downNode", handleDownNode);
-    window.addEventListener("mousemove", handleMouseMoveDrag);
-    window.addEventListener("mouseup", handleMouseUp);
-
-    // Handlers for tooltips and selection
-    const handleEnterNode = (event: any) => {
-      const nodeKey = event.node;
-      const nodeAttrs = graph.getNodeAttributes(nodeKey);
-      setHoveredNode(nodeAttrs);
-    };
-    const handleLeaveNode = () => {
-      setHoveredNode(null);
-    };
-    const handleMouseMove = (event: MouseEvent) => {
-      setMousePosition({ x: event.clientX, y: event.clientY });
-    };
-    const handleClickNode = (event: any) => {
-      setSelectedNode(event.node);
-    };
-    sigmaRenderer.on("enterNode", handleEnterNode);
-    sigmaRenderer.on("leaveNode", handleLeaveNode);
-    sigmaRenderer.on("clickNode", handleClickNode);
-    window.addEventListener("mousemove", handleMouseMove);
-
-    // Set up resize observer to handle container size changes
-    if (containerRef.current) {
-      resizeObserverRef.current = new ResizeObserver(() => {
-        if (sigmaInstanceRef.current) {
-          sigmaInstanceRef.current.refresh();
-        }
-      });
-      resizeObserverRef.current.observe(containerRef.current);
-    }
-
-    // Animation loop for physics simulation
-    const runPhysicsStep = () => {
-      if (isSimulationRunning && sigmaRenderer) {
-        forceAtlas2.assign(graph, {
-          iterations: 1,
-          settings: {
-            ...settingsRef.current,
-            barnesHutOptimize: settingsRef.current.barnesHutOptimize,
-            barnesHutTheta: settingsRef.current.barnesHutTheta,
-          }
-        });
-        sigmaRenderer.refresh();
-      }
-      animationFrameRef.current = requestAnimationFrame(runPhysicsStep);
-    };
-
-    // Start animation
-    runPhysicsStep();
+    // Stop the layout after a short time to keep nodes in place
+    const stopTimer = setTimeout(() => {
+      stop();
+    }, 2000); // Run for 2 seconds then stop
 
     return () => {
-      // Clean up all event listeners and references
-      sigmaRenderer?.off("enterNode", handleEnterNode);
-      sigmaRenderer?.off("leaveNode", handleLeaveNode);
-      sigmaRenderer?.off("clickNode", handleClickNode);
-      sigmaRenderer?.off("downNode", handleDownNode);
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mousemove", handleMouseMoveDrag);
-      window.removeEventListener("mouseup", handleMouseUp);
-
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-
-      if (sigmaInstanceRef.current) {
-        sigmaInstanceRef.current.kill();
-        sigmaInstanceRef.current = null;
-      }
+      clearTimeout(startTimer);
+      clearTimeout(stopTimer);
+      kill();
     };
-  }, [graph, selectedNode, isSimulationRunning]);
+  }, [start, stop, kill]);
 
-  // Tooltip rendering
-  const renderTooltip = () => {
-    if (!hoveredNode || !mousePosition) return null;
-    const properties = hoveredNode.raw || hoveredNode;
-    return (
-      <div
-        style={{
-          position: "fixed",
-          top: mousePosition.y + 10,
-          left: mousePosition.x + 10,
-          background: "rgba(0,0,0,0.85)",
-          color: "#fff",
-          padding: "10px 14px",
-          borderRadius: 8,
-          pointerEvents: "none",
-          zIndex: 9999,
-          maxWidth: 320,
-          fontSize: 13,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.2)"
-        }}
-      >
-        <div style={{ fontWeight: 600, marginBottom: 6 }}>{hoveredNode.label}</div>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <tbody>
-            {Object.entries(properties).map(([key, value]) => (
-              <tr key={key}>
-                <td style={{ color: "#ccc", paddingRight: 8, verticalAlign: "top" }}>{key}</td>
-                <td style={{ color: "#fff", wordBreak: "break-all" }}>{JSON.stringify(value)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+  return (
+    <div
+      style={{
+        position: "absolute",
+        bottom: 10,
+        left: 10,
+        background: "rgba(255,255,255,0.9)",
+        border: "1px solid #e0e0e0",
+        borderRadius: 8,
+        padding: "10px",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+        fontSize: 12,
+        zIndex: 999,
+        minWidth: 200,
+      }}
+    >
+      <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14 }}>
+        Static Layout
       </div>
-    );
-  };
 
-  // Render simulation controls
-  const renderSimulationControls = () => {
-    if (!showSimulationControls) {
-      return (
-        <div
+      <div style={{ display: "flex", gap: "8px", marginBottom: 8 }}>
+        <button
+          onClick={isRunning ? stop : start}
           style={{
-            position: "absolute",
-            bottom: 10,
-            left: 10,
-            background: "rgba(255,255,255,0.85)",
-            border: "1px solid #e0e0e0",
-            borderRadius: 8,
-            padding: "5px 8px",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-            fontSize: 12,
-            zIndex: 999,
-            cursor: "pointer"
+            background: isRunning ? "#f44336" : "#4caf50",
+            color: "white",
+            border: "none",
+            borderRadius: 4,
+            padding: "6px 12px",
+            cursor: "pointer",
+            fontSize: 11,
+            fontWeight: 600,
+            flex: 1,
           }}
-          onClick={toggleSimulationControls}
         >
-          <span style={{ fontWeight: 600 }}>Show Physics Controls</span>
-        </div>
-      );
+          {isRunning ? "Stop" : "Reposition"}
+        </button>
+        <button
+          onClick={kill}
+          style={{
+            background: "#ff9800",
+            color: "white",
+            border: "none",
+            borderRadius: 4,
+            padding: "6px 12px",
+            cursor: "pointer",
+            fontSize: 11,
+            fontWeight: 600,
+            flex: 1,
+          }}
+        >
+          Reset
+        </button>
+      </div>
+
+      <div style={{ fontSize: 11, color: "#666" }}>
+        Status: {isRunning ? "Positioning" : "Static"}
+      </div>
+    </div>
+  );
+};
+
+// Component for node type legend
+const TypeLegend: React.FC<{ typeInfo: TypeInfo[] }> = ({ typeInfo }) => {
+  if (!typeInfo || typeInfo.length === 0) return null;
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 10,
+        right: 10,
+        background: "rgba(255,255,255,0.9)",
+        border: "1px solid #e0e0e0",
+        borderRadius: 8,
+        padding: "10px",
+        maxWidth: 250,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+        fontSize: 12,
+        zIndex: 999,
+      }}
+    >
+      <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14 }}>Node Types</div>
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead>
+          <tr>
+            <th style={{ textAlign: "left", paddingBottom: 6, fontSize: 11 }}>Type</th>
+            <th style={{ textAlign: "center", paddingBottom: 6, fontSize: 11 }}>Color</th>
+            <th style={{ textAlign: "right", paddingBottom: 6, fontSize: 11 }}>Count</th>
+          </tr>
+        </thead>
+        <tbody>
+          {typeInfo.map((info) => (
+            <tr key={info.type}>
+              <td style={{ fontWeight: 500, paddingRight: 5, paddingTop: 3, paddingBottom: 3, fontSize: 11 }}>
+                {info.type}
+              </td>
+              <td style={{ textAlign: "center", paddingTop: 3, paddingBottom: 3 }}>
+                <div
+                  style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: "50%",
+                    background: info.color,
+                    display: "inline-block",
+                    border: "1px solid rgba(0,0,0,0.1)",
+                  }}
+                />
+              </td>
+              <td style={{ textAlign: "right", paddingTop: 3, paddingBottom: 3, fontSize: 11 }}>
+                {info.count}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+// Component for graph statistics
+const GraphStats: React.FC<{ graph: Graphology }> = ({ graph }) => {
+  const stats = useMemo(() => {
+    const nodeCount = graph.order;
+    const edgeCount = graph.size;
+    const avgDegree = edgeCount > 0 ? (edgeCount * 2) / nodeCount : 0;
+
+    return { nodeCount, edgeCount, avgDegree: avgDegree.toFixed(2) };
+  }, [graph]);
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 10,
+        left: 10,
+        background: "rgba(255,255,255,0.9)",
+        border: "1px solid #e0e0e0",
+        borderRadius: 8,
+        padding: "10px",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+        fontSize: 12,
+        zIndex: 999,
+        minWidth: 150,
+      }}
+    >
+      <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14 }}>Graph Stats</div>
+      <div style={{ fontSize: 11, lineHeight: 1.4 }}>
+        <div>Nodes: {stats.nodeCount}</div>
+        <div>Edges: {stats.edgeCount}</div>
+        <div>Avg Degree: {stats.avgDegree}</div>
+      </div>
+    </div>
+  );
+};
+
+// Client-only wrapper component
+const ClientOnlySigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo }) => {
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [graphError, setGraphError] = useState<string | null>(null);
+
+  // State to track if we're on the client side
+  const [isClient, setIsClient] = useState(false);
+
+  // Memoize the graph to prevent unnecessary re-renders
+  const memoizedGraph = useMemo(() => {
+    // Only process graph on client side to avoid hydration issues
+    if (!isClient || typeof window === 'undefined') {
+      return null;
     }
+
+    try {
+      // Validate graph before memoizing
+      if (!graph || graph.order === 0) {
+        return graph;
+      }
+
+      // Create a copy of the graph to avoid modifying the original
+      const graphCopy = graph.copy();
+      
+      // Pre-process the graph to ensure all nodes have valid coordinates
+      let hasInvalidCoordinates = false;
+      graphCopy.forEachNode((node) => {
+        const attrs = graphCopy.getNodeAttributes(node);
+        let x = attrs.x;
+        let y = attrs.y;
+        
+        // Check and fix x coordinate
+        if (typeof x !== 'number' || isNaN(x) || !isFinite(x)) {
+          // Use hash-based deterministic positioning with better bounds
+          const hash = node.split('').reduce((a, b) => {
+            a = ((a << 5) - a + b.charCodeAt(0)) & 0xffffffff;
+            return a;
+          }, 0);
+          // Keep nodes within a reasonable viewport (-200 to 200)
+          x = (hash % 400) - 200;
+          graphCopy.setNodeAttribute(node, "x", x);
+          hasInvalidCoordinates = true;
+        }
+        
+        // Check and fix y coordinate
+        if (typeof y !== 'number' || isNaN(y) || !isFinite(y)) {
+          // Use hash-based deterministic positioning with better bounds
+          const hash = node.split('').reduce((a, b) => {
+            a = ((a << 5) - a + b.charCodeAt(0)) & 0xffffffff;
+            return a;
+          }, 0);
+          // Keep nodes within a reasonable viewport (-200 to 200)
+          y = ((hash >> 16) % 400) - 200;
+          graphCopy.setNodeAttribute(node, "y", y);
+          hasInvalidCoordinates = true;
+        }
+        
+        // Ensure other required attributes
+        if (!graphCopy.hasNodeAttribute(node, "size")) {
+          graphCopy.setNodeAttribute(node, "size", 8);
+        }
+        
+        if (!graphCopy.hasNodeAttribute(node, "label")) {
+          graphCopy.setNodeAttribute(node, "label", node);
+        }
+        
+        if (!graphCopy.hasNodeAttribute(node, "color")) {
+          graphCopy.setNodeAttribute(node, "color", "#4285F4");
+        }
+        
+        // Ensure all nodes have a valid Sigma-compatible type
+        if (!graphCopy.hasNodeAttribute(node, "type")) {
+          graphCopy.setNodeAttribute(node, "type", "circle");
+        } else {
+          // Map all custom types to Sigma-compatible types
+          const nodeType = graphCopy.getNodeAttribute(node, "type");
+          // Map any non-Sigma-compatible types to "circle"
+          if (nodeType !== "circle" && nodeType !== "square" && nodeType !== "diamond" && nodeType !== "cross" && nodeType !== "star") {
+            graphCopy.setNodeAttribute(node, "type", "circle");
+          }
+        }
+      });
+      
+      // Process edges
+      graphCopy.forEachEdge((edge) => {
+        if (!graphCopy.hasEdgeAttribute(edge, "color")) {
+          graphCopy.setEdgeAttribute(edge, "color", "#999");
+        }
+        if (!graphCopy.hasEdgeAttribute(edge, "size")) {
+          graphCopy.setEdgeAttribute(edge, "size", 1);
+        }
+      });
+
+      if (hasInvalidCoordinates) {
+        console.log("Fixed invalid coordinates in graph, proceeding with visualization");
+      }
+      
+      // Log node types for debugging
+      const nodeTypes = new Set();
+      graphCopy.forEachNode((node) => {
+        const nodeType = graphCopy.getNodeAttribute(node, "type");
+        nodeTypes.add(nodeType);
+      });
+      console.log("Node types in graph:", Array.from(nodeTypes));
+
+      setGraphError(null);
+      return graphCopy;
+    } catch (error) {
+      console.error('Error processing graph:', error);
+      setGraphError("Failed to process graph structure");
+      return null;
+    }
+  }, [graph, isClient]);
+
+  // Set client flag on mount to avoid hydration issues
+  useEffect(() => {
+    // Ensure we're on the client side
+    if (typeof window !== 'undefined') {
+      setIsClient(true);
+    }
+  }, []);
+
+  // Custom settings for Sigma
+  const sigmaSettings = useMemo(() => ({
+    renderLabels: true,
+    labelRenderedSizeThreshold: 8,
+    defaultNodeColor: "#4285F4",
+    defaultEdgeColor: "#999",
+    // Add viewport constraints to prevent nodes from going off-screen
+    maxCameraRatio: 10,
+    minCameraRatio: 0.1,
+    // Better zoom and pan settings
+    enableEdgeHovering: true,
+    enableNodeHovering: true,
+    // Prevent nodes from going too far
+    nodeReducer: (node: string, data: any) => ({
+      ...data,
+      size: data.size || 8,
+      color: node === selectedNode ? "#FFD700" : data.color,
+      // Ensure all nodes have a valid type for Sigma
+      type: (data.type && ["circle", "square", "diamond", "cross", "star"].includes(data.type)) 
+        ? data.type 
+        : "circle",
+    }),
+    edgeReducer: (edge: string, data: any) => ({
+      ...data,
+      size: data.size || 1,
+      color: data.color || "#999",
+    }),
+  }), [selectedNode]);
+
+  // Show error if graph is invalid
+  if (graphError) {
     return (
-      <div
-        style={{
-          position: "absolute",
-          bottom: 10,
-          left: 10,
-          background: "rgba(255,255,255,0.85)",
-          border: "1px solid #e0e0e0",
-          borderRadius: 8,
-          padding: "10px",
-          maxWidth: 300,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-          fontSize: 12,
-          zIndex: 999
-        }}
-      >
-        <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span>Physics Simulation</span>
-          <div style={{ display: "flex", gap: "5px" }}>
-            <button
-              onClick={toggleSimulation}
-              style={{
-                background: isSimulationRunning ? "#f44336" : "#4caf50",
-                color: "white",
-                border: "none",
-                borderRadius: 4,
-                padding: "4px 8px",
-                cursor: "pointer",
-                fontSize: 11,
-                fontWeight: 600
-              }}
-            >
-              {isSimulationRunning ? "Pause" : "Play"}
-            </button>
-            <button
-              onClick={toggleSimulationControls}
-              style={{
-                background: "#2196f3",
-                color: "white",
-                border: "none",
-                borderRadius: 4,
-                padding: "4px 8px",
-                cursor: "pointer",
-                fontSize: 11,
-                fontWeight: 600
-              }}
-            >
-              Hide
-            </button>
+      <div style={{ 
+        position: "relative", 
+        width: "100%", 
+        height: "600px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#f5f5f5",
+        border: "1px solid #e0e0e0",
+        borderRadius: "8px"
+      }}>
+        <div style={{ textAlign: "center", color: "#666" }}>
+          <div style={{ fontSize: "18px", fontWeight: "600", marginBottom: "8px" }}>
+            Graph Error
+          </div>
+          <div style={{ fontSize: "14px" }}>{graphError}</div>
+          <div style={{ fontSize: "12px", marginTop: "8px", color: "#999" }}>
+            Please check the graph data and try again.
           </div>
         </div>
-
-        <button
-          onClick={applyInferredSettings}
-          style={{
-            background: "#ff9800", // Orange color for distinction
-            color: "white",
-            border: "none",
-            borderRadius: 4,
-            padding: "4px 8px",
-            cursor: "pointer",
-            fontSize: 11,
-            fontWeight: 600,
-            marginTop: 8, // Add some space above this button
-            width: "100%", // Make button full width
-          }}
-        >
-          Auto-tune Settings
-        </button>
-
-        <button
-          onClick={runNoverlapLayout}
-          style={{
-            background: "#4CAF50", // Green color for declutter
-            color: "white",
-            border: "none",
-            borderRadius: 4,
-            padding: "4px 8px",
-            cursor: "pointer",
-            fontSize: 11,
-            fontWeight: 600,
-            marginTop: 8,
-            width: "100%",
-          }}
-        >
-          Declutter Nodes
-        </button>
-
-        <div style={{ marginTop: 12, marginBottom: 8 }}>
-          <label style={{ display: "block", marginBottom: 4 }}>Gravity: {simulationSettings.gravity.toFixed(2)}</label>
-          <input
-            type="range"
-            min="0"
-            max="0.2"
-            step="0.01"
-            value={simulationSettings.gravity}
-            onChange={(e) => debouncedUpdateSettings({ gravity: parseFloat(e.target.value) })}
-            style={{ width: "100%" }}
-          />
-        </div>
-
-        <div style={{ marginBottom: 8 }}>
-          <label style={{ display: "block", marginBottom: 4 }}>Scaling Ratio: {simulationSettings.scalingRatio.toFixed(1)}</label>
-          <input
-            type="range"
-            min="0.5"
-            max="10"
-            step="0.5"
-            value={simulationSettings.scalingRatio}
-            onChange={(e) => debouncedUpdateSettings({ scalingRatio: parseFloat(e.target.value) })}
-            style={{ width: "100%" }}
-          />
-        </div>
-
-        <div style={{ marginBottom: 8 }}>
-          <label style={{ display: "block", marginBottom: 4 }}>Slow Down: {simulationSettings.slowDown.toFixed(1)}</label>
-          <input
-            type="range"
-            min="1"
-            max="10"
-            step="0.5"
-            value={simulationSettings.slowDown}
-            onChange={(e) => debouncedUpdateSettings({ slowDown: parseFloat(e.target.value) })}
-            style={{ width: "100%" }}
-          />
-        </div>
-
-        <div style={{ marginBottom: 8 }}>
-          <label style={{ display: "flex", alignItems: "center", userSelect: "none", cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={simulationSettings.linLogMode}
-              onChange={() => debouncedUpdateSettings({ linLogMode: !simulationSettings.linLogMode })}
-              style={{ marginRight: 4 }}
-            />
-            <span>LinLog Mode</span>
-          </label>
-        </div>
-
-        <div style={{ marginBottom: 8 }}>
-          <label style={{ display: "flex", alignItems: "center", userSelect: "none", cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={simulationSettings.strongGravityMode}
-              onChange={() => debouncedUpdateSettings({ strongGravityMode: !simulationSettings.strongGravityMode })}
-              style={{ marginRight: 4 }}
-            />
-            <span>Strong Gravity</span>
-          </label>
-        </div>
-
-        <div style={{ marginBottom: 8 }}>
-          <label style={{ display: "flex", alignItems: "center", userSelect: "none", cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={simulationSettings.barnesHutOptimize}
-              onChange={() => debouncedUpdateSettings({ barnesHutOptimize: !simulationSettings.barnesHutOptimize })}
-              style={{ marginRight: 4 }}
-            />
-            <span>Barnes-Hut Optimization</span>
-          </label>
-        </div>
-
-        <div style={{ marginBottom: 8 }}>
-          <label style={{ display: "block", marginBottom: 4 }}>Barnes-Hut Theta: {simulationSettings.barnesHutTheta.toFixed(2)}</label>
-          <input
-            type="range"
-            min="0.1"
-            max="2"
-            step="0.1"
-            value={simulationSettings.barnesHutTheta}
-            onChange={(e) => debouncedUpdateSettings({ barnesHutTheta: parseFloat(e.target.value) })}
-            disabled={!simulationSettings.barnesHutOptimize}
-            style={{ width: "100%" }}
-          />
-        </div>
       </div>
     );
-  };
+  }
 
-  // Render type info legend box
-  const renderTypeInfoBox = () => {
-    if (!typeInfo || typeInfo.length === 0) return null;
+  // Don't render SigmaContainer if graph is null
+  if (!memoizedGraph) {
     return (
-      <div
-        style={{
-          position: "absolute",
-          top: 10,
-          right: 10,
-          background: "rgba(255,255,255,0.85)",
-          border: "1px solid #e0e0e0",
-          borderRadius: 8,
-          padding: "10px",
-          maxWidth: 250,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-          fontSize: 12,
-          zIndex: 999
-        }}
-      >
-        <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14 }}>Node Types</div>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th style={{ textAlign: "left", paddingBottom: 6 }}>Type</th>
-              <th style={{ textAlign: "center", paddingBottom: 6 }}>Color</th>
-              <th style={{ textAlign: "right", paddingBottom: 6 }}>Count</th>
-            </tr>
-          </thead>
-          <tbody>
-            {typeInfo.map((info) => (
-              <tr key={info.type}>
-                <td style={{ fontWeight: 500, paddingRight: 5, paddingTop: 3, paddingBottom: 3 }}>
-                  {info.type}
-                </td>
-                <td style={{ textAlign: "center", paddingTop: 3, paddingBottom: 3 }}>
-                  <div
-                    style={{
-                      width: 16,
-                      height: 16,
-                      borderRadius: "50%",
-                      background: info.color,
-                      display: "inline-block",
-                      border: "1px solid rgba(0,0,0,0.1)"
-                    }}
-                  />
-                </td>
-                <td style={{ textAlign: "right", paddingTop: 3, paddingBottom: 3 }}>
-                  {info.count}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div style={{ 
+        position: "relative", 
+        width: "100%", 
+        height: "600px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#f5f5f5",
+        border: "1px solid #e0e0e0",
+        borderRadius: "8px"
+      }}>
+        <div style={{ textAlign: "center", color: "#666" }}>
+          <div style={{ fontSize: "18px", fontWeight: "600", marginBottom: "8px" }}>
+            Loading Graph...
+          </div>
+          <div style={{ fontSize: "14px" }}>Preparing graph visualization</div>
+        </div>
       </div>
     );
-  };
+  }
 
   return (
     <div style={{ position: "relative", width: "100%", height: "600px" }}>
-      <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
-      {renderTooltip()}
-      {renderTypeInfoBox()}
-      {renderSimulationControls()}
+      <SigmaContainer 
+        style={{ width: "100%", height: "100%" }}
+        settings={sigmaSettings}
+        graph={memoizedGraph}
+      >
+        <LoadGraph graph={memoizedGraph} />
+
+        {/* Controls */}
+        <ZoomControl />
+        <FullScreenControl />
+        <ForceAtlas2Layout />
+
+        {/* Info panels */}
+        <TypeLegend typeInfo={typeInfo} />
+        <GraphStats graph={memoizedGraph} />
+      </SigmaContainer>
     </div>
   );
+};
+
+// Main SigmaGraph component with client-side check
+const SigmaGraph: React.FC<SigmaGraphProps> = (props) => {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  if (!isClient) {
+    return (
+      <div style={{ 
+        position: "relative", 
+        width: "100%", 
+        height: "600px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#f5f5f5",
+        border: "1px solid #e0e0e0",
+        borderRadius: "8px"
+      }}>
+        <div style={{ textAlign: "center", color: "#666" }}>
+          <div style={{ fontSize: "18px", fontWeight: "600", marginBottom: "8px" }}>
+            Loading Graph...
+          </div>
+          <div style={{ fontSize: "14px" }}>Preparing graph visualization</div>
+        </div>
+      </div>
+    );
+  }
+
+  return <ClientOnlySigmaGraph {...props} />;
 };
 
 export default SigmaGraph;
