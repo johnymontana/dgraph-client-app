@@ -11,7 +11,7 @@ import { DgraphProvider } from '@/context/DgraphContext';
 
 function MainContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [activeSection, setActiveSection] = useState<'connection' | 'schema' | 'guides' | 'query' | 'text-to-dql'>('connection');
+  const [activeSection, setActiveSection] = useState<'connection' | 'schema' | 'guides' | 'query' | 'text-to-dql' | 'geospatial'>('connection');
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
   const [isClient, setIsClient] = useState(false);
@@ -54,7 +54,7 @@ function MainContent() {
     }
   }, [isMobile, isClient]);
 
-  const handleSectionChange = (section: 'connection' | 'schema' | 'guides' | 'query' | 'text-to-dql') => {
+  const handleSectionChange = (section: 'connection' | 'schema' | 'guides' | 'query' | 'text-to-dql' | 'geospatial') => {
     console.log('Section changing from', activeSection, 'to', section);
     setActiveSection(section);
   };
@@ -78,8 +78,8 @@ function MainContent() {
         handleToggleSidebar();
       }
       
-      // Cmd/Ctrl + 1-5 for quick section navigation
-      if ((event.metaKey || event.ctrlKey) && ['1', '2', '3', '4', '5'].includes(event.key)) {
+      // Cmd/Ctrl + 1-6 for quick section navigation
+      if ((event.metaKey || event.ctrlKey) && ['1', '2', '3', '4', '5', '6'].includes(event.key)) {
         event.preventDefault();
         const sectionMap = {
           '1': 'connection' as const,
@@ -87,6 +87,7 @@ function MainContent() {
           '3': 'guides' as const,
           '4': 'query' as const,
           '5': 'text-to-dql' as const,
+          '6': 'geospatial' as const,
         };
         handleSectionChange(sectionMap[event.key as keyof typeof sectionMap]);
       }

@@ -926,6 +926,339 @@ Predicates (12):
 
 The Schema Visualization feature transforms the way you understand and work with your Dgraph database, providing immediate insights into your data structure and relationships through an intuitive, interactive interface.
 
+## 🗺️ Geospatial Analysis & Interactive Mapping
+
+The Geospatial Analysis feature provides an interactive, map-based interface for exploring and querying geospatial data in your Dgraph database. This powerful tool transforms location-based data into visual insights, making it perfect for applications requiring geographic analysis, location-based queries, and spatial intelligence.
+
+### 🎯 Key Features
+
+#### Interactive Map Interface
+- **MapLibre GL JS Integration**: High-performance, open-source mapping engine
+- **Professional Basemaps**: CartoDB integration for clean, professional map tiles
+- **Responsive Controls**: Navigation, zoom, and pan controls optimized for all devices
+- **Real-time Rendering**: Smooth 60fps map interactions with WebGL acceleration
+
+#### Advanced Drawing Tools
+- **Polygon Drawing**: Draw custom areas for spatial queries
+- **Point & Line Tools**: Support for different geometry types
+- **Interactive Drawing**: Click-and-drag interface with visual feedback
+- **Geometry Validation**: Automatic coordinate validation and polygon closure
+
+#### Intelligent Geospatial Discovery
+- **Automatic Predicate Detection**: Discovers geospatial predicates in your database
+- **Pattern Recognition**: Identifies common geospatial naming conventions
+- **Dynamic Query Generation**: Creates queries for any discovered predicate
+- **Fallback Strategies**: Multiple query approaches for maximum compatibility
+
+#### Comprehensive Results Dashboard
+- **Real-time Statistics**: Node counts, type distributions, and property analysis
+- **Interactive Charts**: Visual representation of query results
+- **Property Aggregations**: Statistical analysis of returned data
+- **Export Capabilities**: Save results for further analysis
+
+### 🔧 How It Works
+
+#### 1. Predicate Discovery System
+The component automatically discovers geospatial predicates using multiple strategies:
+
+```typescript
+// Common geospatial predicate names to check
+const commonGeoPredicates = [
+  'geometry', 'location', 'coordinates', 'boundary', 'area', 'shape',
+  'geo', 'spatial', 'lat', 'lng', 'lon', 'latitude', 'longitude',
+  'point', 'polygon', 'line', 'multipoint', 'multipolygon', 'multilinestring'
+];
+
+// Test each potential predicate individually
+for (const predName of commonGeoPredicates) {
+  const testQuery = `{
+    q(func: has(${predName}), first: 1) {
+      uid
+      dgraph.type
+      ${predName}
+    }
+  }`;
+  
+  const result = await dgraphService.query(testQuery);
+  if (result.data?.q?.length > 0) {
+    potentialGeoPredicates.push(predName);
+  }
+}
+```
+
+#### 2. Dynamic Query Generation
+For each discovered predicate, the system generates optimized DQL queries:
+
+```typescript
+// Generate queries for each discovered predicate
+const queries = geoPredicates.map(predicate => {
+  const safePredicate = predicate.replace(/[^a-zA-Z0-9_]/g, '_');
+  
+  return {
+    predicate,
+    safePredicate,
+    query: `{
+      q(func: has(${safePredicate})) @filter(within(${safePredicate}, "POLYGON((${polygonString}))")) {
+        uid
+        dgraph.type
+        ${safePredicate}
+        expand(_all_)
+      }
+    }`
+  };
+});
+```
+
+#### 3. Intelligent Query Execution
+The system tries each query sequentially until one succeeds:
+
+```typescript
+// Try each query until one succeeds
+for (const { predicate, safePredicate, query: queryString } of queries) {
+  try {
+    result = await dgraphService.query(queryString);
+    
+    if (result.data && result.data.q && result.data.q.length > 0) {
+      successfulPredicate = predicate;
+      setActivePredicate(predicate);
+      break;
+    }
+  } catch (queryError) {
+    console.log(`Query with predicate ${predicate} failed:`, queryError);
+    continue;
+  }
+}
+```
+
+#### 4. Map Visualization
+Query results are automatically rendered on the map with proper styling:
+
+```typescript
+// Add results to map with different geometry types
+mapRef.current.addLayer({
+  id: 'results-points',
+  type: 'circle',
+  source: 'query-results',
+  paint: {
+    'circle-radius': 8,
+    'circle-color': '#3B82F6',
+    'circle-stroke-color': '#1E40AF',
+    'circle-stroke-width': 2
+  },
+  filter: ['==', '$type', 'Point']
+});
+```
+
+### 🚀 Using Geospatial Analysis
+
+#### Getting Started
+1. **Navigate to Geospatial Tab**: Click the 6th tab (🗺️) in the sidebar
+2. **Connect to Database**: Ensure you're connected to a Dgraph instance
+3. **Wait for Discovery**: The system automatically discovers geospatial predicates
+4. **Draw Query Area**: Use the polygon tool to draw your search area
+5. **Execute Query**: Click "Execute Query" to run the spatial search
+
+#### Drawing Tools
+- **Polygon Tool**: Draw custom areas for spatial queries
+- **Point Tool**: Mark specific locations
+- **Line Tool**: Define linear features
+- **Clear Tool**: Remove all drawings and start over
+
+#### Query Execution
+1. **Automatic Discovery**: System finds all geospatial predicates
+2. **Smart Querying**: Tries each predicate until one succeeds
+3. **Result Processing**: Automatically processes and visualizes results
+4. **Dashboard Updates**: Real-time statistics and analysis
+
+#### Results Exploration
+- **Map View**: Results displayed as interactive map features
+- **Dashboard**: Statistical analysis and property aggregations
+- **Data Table**: Detailed view of all returned nodes
+- **Export Options**: Save results for further analysis
+
+### 📋 Example Use Cases
+
+#### Real Estate Analysis
+**Scenario**: Find all properties within a specific neighborhood
+1. Draw polygon around the neighborhood
+2. System discovers `location` predicate
+3. Executes spatial query for properties
+4. Shows property distribution and statistics
+
+#### Transportation Planning
+**Scenario**: Analyze public transit coverage
+1. Draw lines along major routes
+2. System discovers `coordinates` predicate
+3. Queries for nearby transit stops
+4. Visualizes coverage gaps and density
+
+#### Environmental Monitoring
+**Scenario**: Monitor pollution levels in specific areas
+1. Draw polygons around monitoring zones
+2. System discovers `boundary` predicate
+3. Queries for environmental data points
+4. Shows pollution distribution and trends
+
+#### Retail Location Analysis
+**Scenario**: Find competitors within a radius
+1. Draw circle around target location
+2. System discovers `geo` predicate
+3. Queries for nearby businesses
+4. Analyzes competitive landscape
+
+### 🎨 Technical Implementation
+
+#### Map Rendering Engine
+- **MapLibre GL JS**: High-performance WebGL-based mapping
+- **React Integration**: Seamless React component integration
+- **Custom Styling**: Professional map appearance with CartoDB tiles
+- **Performance Optimization**: Efficient rendering for large datasets
+
+#### Drawing System
+- **Mapbox GL Draw**: Professional drawing tools for map interactions
+- **Event Handling**: Proper event management for drawing operations
+- **Geometry Validation**: Automatic coordinate validation and correction
+- **Visual Feedback**: Real-time drawing preview and editing
+
+#### Query Optimization
+- **Predicate Caching**: Remembers discovered predicates for faster queries
+- **Query Batching**: Efficient execution of multiple query strategies
+- **Error Handling**: Graceful fallbacks and comprehensive error reporting
+- **Performance Monitoring**: Real-time query performance tracking
+
+#### Data Processing
+- **GeoJSON Conversion**: Automatic conversion of Dgraph results to GeoJSON
+- **Geometry Type Detection**: Supports points, lines, and polygons
+- **Property Mapping**: Preserves all node properties for analysis
+- **Spatial Indexing**: Optimized for large geospatial datasets
+
+### 🔍 Advanced Features
+
+#### Spatial Query Types
+- **Within Queries**: Find nodes inside drawn polygons
+- **Near Queries**: Find nodes within specific distances
+- **Intersection Queries**: Find nodes intersecting with drawn areas
+- **Buffer Queries**: Expand search areas with automatic buffering
+
+#### Data Analysis Tools
+- **Clustering Analysis**: Group nearby nodes for better visualization
+- **Density Mapping**: Show data concentration across areas
+- **Hotspot Detection**: Identify areas with high data density
+- **Trend Analysis**: Track changes over time in specific areas
+
+#### Export & Integration
+- **GeoJSON Export**: Save results in standard geospatial format
+- **CSV Export**: Tabular data export for analysis tools
+- **Image Export**: High-resolution map screenshots
+- **API Integration**: RESTful endpoints for external tools
+
+### 🛠️ Configuration & Customization
+
+#### Map Configuration
+```typescript
+// Customize map appearance
+const mapConfig = {
+  style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+  center: [-74.006, 40.7128], // Default center coordinates
+  zoom: 10, // Default zoom level
+  maxZoom: 18, // Maximum zoom level
+  minZoom: 3 // Minimum zoom level
+};
+```
+
+#### Drawing Tool Configuration
+```typescript
+// Customize drawing tools
+const drawConfig = {
+  displayControlsDefault: false,
+  controls: {
+    polygon: true,    // Enable polygon drawing
+    point: true,      // Enable point marking
+    line: true,       // Enable line drawing
+    trash: true       // Enable deletion tool
+  }
+};
+```
+
+#### Query Configuration
+```typescript
+// Customize query behavior
+const queryConfig = {
+  maxResults: 1000,        // Maximum results to return
+  timeout: 30000,          // Query timeout in milliseconds
+  retryAttempts: 3,        // Number of retry attempts
+  fallbackQueries: true    // Enable fallback query strategies
+};
+```
+
+### 🚨 Known Constraints & Limitations
+
+#### Technical Constraints
+- **Browser Compatibility**: Requires WebGL support (IE11+, modern browsers)
+- **Data Size**: Large datasets may impact performance (recommended: <10,000 nodes)
+- **Coordinate Systems**: Currently supports WGS84 (lat/lng) coordinates
+- **Geometry Types**: Limited to basic geometry types (Point, LineString, Polygon)
+
+#### Dgraph Constraints
+- **Spatial Indexing**: Requires proper spatial indexing for optimal performance
+- **Predicate Discovery**: Limited to common geospatial naming patterns
+- **Query Complexity**: Complex spatial queries may timeout on large datasets
+- **Schema Requirements**: Geospatial predicates must be properly typed
+
+#### Performance Considerations
+- **Map Rendering**: Large result sets may slow down map interactions
+- **Query Execution**: Complex spatial queries may take several seconds
+- **Memory Usage**: Very large datasets may impact browser memory
+- **Network Latency**: Remote Dgraph instances may have higher query times
+
+### 🔮 Future Development Features
+
+#### Enhanced Spatial Analysis
+- **3D Visualization**: Support for 3D geospatial data and terrain
+- **Time Series**: Temporal analysis of spatial data changes
+- **Spatial Statistics**: Advanced statistical analysis of spatial patterns
+- **Machine Learning**: AI-powered spatial pattern recognition
+
+#### Advanced Query Capabilities
+- **Spatial Joins**: Query relationships between different spatial datasets
+- **Buffer Analysis**: Automatic buffer generation around features
+- **Network Analysis**: Routing and network-based spatial queries
+- **Spatial Aggregation**: Group and analyze data by spatial regions
+
+#### Integration & Export
+- **External GIS Tools**: Integration with QGIS, ArcGIS, and other GIS software
+- **Real-time Data**: Live data streaming and real-time updates
+- **Mobile Support**: Native mobile applications for field work
+- **Cloud Integration**: Direct integration with cloud geospatial services
+
+#### User Experience Improvements
+- **Custom Basemaps**: Support for custom map tile servers
+- **Advanced Drawing**: More sophisticated drawing tools and templates
+- **Collaborative Features**: Multi-user editing and sharing
+- **Offline Support**: Work with cached data when offline
+
+### 🎯 Best Practices
+
+#### Database Design
+- **Consistent Naming**: Use consistent naming for geospatial predicates
+- **Proper Indexing**: Implement spatial indexes for performance
+- **Data Validation**: Ensure coordinate data is valid and consistent
+- **Schema Documentation**: Document geospatial data structure clearly
+
+#### Query Optimization
+- **Limit Results**: Use reasonable limits for large datasets
+- **Index Usage**: Ensure queries use available spatial indexes
+- **Error Handling**: Implement proper error handling for failed queries
+- **Performance Monitoring**: Track query performance and optimize as needed
+
+#### User Experience
+- **Clear Instructions**: Provide clear guidance for drawing and querying
+- **Loading States**: Show appropriate loading indicators during queries
+- **Error Messages**: Display helpful error messages for failed operations
+- **Result Feedback**: Provide clear feedback on query results
+
+The Geospatial Analysis feature transforms your Dgraph database into a powerful spatial intelligence platform, enabling location-based insights and geographic analysis through an intuitive, interactive interface.
+
 ## 🚀 Getting Started
 
 ### Prerequisites

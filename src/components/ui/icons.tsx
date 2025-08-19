@@ -32,6 +32,9 @@ import {
   EyeOff,
   Copy,
   ExternalLink,
+  Map,
+  Hexagon,
+  Circle,
 } from 'lucide-react';
 
 // Icon component with consistent sizing and styling
@@ -85,6 +88,9 @@ export const Icons = {
   hide: (props: IconProps) => <EyeOff size={props.size || 16} className={props.className} />,
   copy: (props: IconProps) => <Copy size={props.size || 16} className={props.className} />,
   external: (props: IconProps) => <ExternalLink size={props.size || 16} className={props.className} />,
+  map: (props: IconProps) => <Map size={props.size || 16} className={props.className} />,
+  polygon: (props: IconProps) => <Hexagon size={props.size || 16} className={props.className} />,
+  point: (props: IconProps) => <Circle size={props.size || 16} className={props.className} />,
 };
 
 export type IconName = keyof typeof Icons;
