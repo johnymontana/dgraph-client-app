@@ -10,16 +10,18 @@ import dynamic from 'next/dynamic';
 import FullscreenToggle from './FullscreenToggle';
 import { hasGeoData, extractGeoNodesAndEdges } from '@/utils/geoUtils';
 import '@/styles/toast.css';
+import SigmaGraph from './SigmaGraph';
 
-// Dynamically import SigmaGraph to avoid SSR issues with WebGL
-const SigmaGraph = dynamic(() => import('./SigmaGraph'), {
-  ssr: false,
-  loading: () => (
-    <div className="flex justify-center items-center h-full bg-gray-100">
-      <p className="text-gray-500">Loading graph visualization...</p>
-    </div>
-  )
-});
+
+// // Dynamically import SigmaGraph to avoid SSR issues with WebGL
+// const SigmaGraph = dynamic(() => import('./SigmaGraph'), {
+//   ssr: false,
+//   loading: () => (
+//     <div className="flex justify-center items-center h-full bg-gray-100">
+//       <p className="text-gray-500">Loading graph visualization...</p>
+//     </div>
+//   )
+// });
 
 // Dynamically import MapView to avoid SSR issues with Leaflet
 const MapView = dynamic(() => import('./MapView'), {
@@ -129,6 +131,7 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
 
   // Convert Dgraph response to graphology graph for sigma.js
   const processDataForSigmaGraph = (queryResult: any) => {
+    console.log("Processing data for SigmaGraph");
     try {
       // Extract the actual data from the Dgraph response
       const responseData = queryResult.data;
@@ -375,6 +378,8 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
         addNodes(queryData);
         addEdges(queryData);
       }
+
+      console.log("This is where I commented out initial layout to position nodes");
       // Run an initial layout to position nodes
       forceAtlas2.assign(graph, { iterations: 50, settings: {
         gravity: 0.05,
@@ -388,34 +393,34 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
 
       // We'll use continuous simulation in SigmaGraph componen
       // Ensure all nodes have numeric x and y coordinates
-      graph.forEachNode((node, attrs) => {
-        if (typeof attrs.x !== 'number' || typeof attrs.y !== 'number') {
-          graph.mergeNodeAttributes(node, {
-            x: Math.random(),
-            y: Math.random()
-          });
-        }
-      });
-    // Debug info for node types
-    console.log('Types detected:', Array.from(newTypeColorMap.keys()));
-    console.log('Type counts:', Array.from(newTypeColorMap.entries()).map(([type, info]) => `${type}: ${info.count}`));
-    console.log('Total types:', newTypeColorMap.size);
-    console.log('Total nodes:', graph.order);
-    // Check for Geo nodes specifically in the final graph
-    graph.forEachNode((node, attrs) => {
-      if (attrs.type === 'Geo') {
-        console.log('Geo node found in final graph:', node, attrs);
-      }
-    });
+    //   graph.forEachNode((node, attrs) => {
+    //     if (typeof attrs.x !== 'number' || typeof attrs.y !== 'number') {
+    //       graph.mergeNodeAttributes(node, {
+    //         x: Math.random(),
+    //         y: Math.random()
+    //       });
+    //     }
+    //   });
+    // // Debug info for node types
+    // console.log('Types detected:', Array.from(newTypeColorMap.keys()));
+    // console.log('Type counts:', Array.from(newTypeColorMap.entries()).map(([type, info]) => `${type}: ${info.count}`));
+    // console.log('Total types:', newTypeColorMap.size);
+    // console.log('Total nodes:', graph.order);
+    // // Check for Geo nodes specifically in the final graph
+    // graph.forEachNode((node, attrs) => {
+    //   if (attrs.type === 'Geo') {
+    //     console.log('Geo node found in final graph:', node, attrs);
+    //   }
+    // });
     setGraph(graph);
     setTypeColorMap(newTypeColorMap);
     } catch (error) {
-      console.error('Error processing graph data:', error);
-      setGraph(null);
-      setTypeColorMap(new Map());
-    } finally {
-      setIsProcessing(false);
-    }
+       console.error('Error processing graph data:', error);
+    //   setGraph(null);
+    //   setTypeColorMap(new Map());
+     } finally {
+       setIsProcessing(false);
+     }
   };
 
   // For backward compatibility - still used for nodes without a type
