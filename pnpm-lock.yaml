@@ -68,9 +68,15 @@ importers:
       '@react-sigma/layout-core':
         specifier: ^5.0.4
         version: 5.0.4(graphology@0.26.0(graphology-types@0.24.8))(react@19.1.1)(sigma@3.0.2(graphology-types@0.24.8))
+      '@react-sigma/layout-force':
+        specifier: ^5.0.4
+        version: 5.0.4(graphology-layout-force@0.2.4(graphology-types@0.24.8))(graphology@0.26.0(graphology-types@0.24.8))(react@19.1.1)(sigma@3.0.2(graphology-types@0.24.8))
       '@react-sigma/layout-forceatlas2':
         specifier: ^5.0.4
         version: 5.0.4(graphology-layout-forceatlas2@0.10.1(graphology-types@0.24.8))(graphology@0.26.0(graphology-types@0.24.8))(react@19.1.1)(sigma@3.0.2(graphology-types@0.24.8))
+      '@react-sigma/layout-noverlap':
+        specifier: ^5.0.4
+        version: 5.0.4(graphology-layout-noverlap@0.4.2(graphology-types@0.24.8))(graphology@0.26.0(graphology-types@0.24.8))(react@19.1.1)(sigma@3.0.2(graphology-types@0.24.8))
       '@types/leaflet':
         specifier: ^1.9.17
         version: 1.9.20
@@ -1092,10 +1098,20 @@ packages:
   '@react-sigma/layout-core@5.0.4':
     resolution: {integrity: sha512-R9Mm59CTwSla6vHXnN+m1TQlJTeyDaeD4agUqJahg/cgWD16oPvvKN5Yhv3Kn+SfZdaTiv5gcoryg0t8/zGX+A==}
 
+  '@react-sigma/layout-force@5.0.4':
+    resolution: {integrity: sha512-k6tIWvrN18OKRE/uHzArMyl+XySskuG69zRr+aS3YiVqYgGZ1ZPkFAh5hszDHqn/TF6D059uPXCmu52+fyWkAQ==}
+    peerDependencies:
+      graphology-layout-force: ^0.2.4
+
   '@react-sigma/layout-forceatlas2@5.0.4':
     resolution: {integrity: sha512-OLIvSl1lU0nNemWR6iw/56oIDZEOBTd3bJlyIA9Bh2GXA2UhDzdSaksd+GH4gFQ4jYJpuL+VgWGFND2pO6zYbg==}
     peerDependencies:
       graphology-layout-forceatlas2: ^0.10.1
+
+  '@react-sigma/layout-noverlap@5.0.4':
+    resolution: {integrity: sha512-ztUYU4er8P6iaQnWE47Y9bH8cOpWKUD45uAQ68N6/aIlwCl0vtk4dhIrlZVID8V0JLJq1cGBeZr85cIXYcOmLQ==}
+    peerDependencies:
+      graphology-layout-noverlap: ^0.4.2
 
   '@react-stately/flags@3.1.2':
     resolution: {integrity: sha512-2HjFcZx1MyQXoPqcBGALwWWmgFVUk2TuKVIQxCbRq7fPyWXIl6VHcakCLurdtYC2Iks7zizvz0Idv48MQ38DWg==}
@@ -5861,10 +5877,28 @@ snapshots:
       - react
       - sigma
 
+  '@react-sigma/layout-force@5.0.4(graphology-layout-force@0.2.4(graphology-types@0.24.8))(graphology@0.26.0(graphology-types@0.24.8))(react@19.1.1)(sigma@3.0.2(graphology-types@0.24.8))':
+    dependencies:
+      '@react-sigma/layout-core': 5.0.4(graphology@0.26.0(graphology-types@0.24.8))(react@19.1.1)(sigma@3.0.2(graphology-types@0.24.8))
+      graphology-layout-force: 0.2.4(graphology-types@0.24.8)
+    transitivePeerDependencies:
+      - graphology
+      - react
+      - sigma
+
   '@react-sigma/layout-forceatlas2@5.0.4(graphology-layout-forceatlas2@0.10.1(graphology-types@0.24.8))(graphology@0.26.0(graphology-types@0.24.8))(react@19.1.1)(sigma@3.0.2(graphology-types@0.24.8))':
     dependencies:
       '@react-sigma/layout-core': 5.0.4(graphology@0.26.0(graphology-types@0.24.8))(react@19.1.1)(sigma@3.0.2(graphology-types@0.24.8))
       graphology-layout-forceatlas2: 0.10.1(graphology-types@0.24.8)
+    transitivePeerDependencies:
+      - graphology
+      - react
+      - sigma
+
+  '@react-sigma/layout-noverlap@5.0.4(graphology-layout-noverlap@0.4.2(graphology-types@0.24.8))(graphology@0.26.0(graphology-types@0.24.8))(react@19.1.1)(sigma@3.0.2(graphology-types@0.24.8))':
+    dependencies:
+      '@react-sigma/layout-core': 5.0.4(graphology@0.26.0(graphology-types@0.24.8))(react@19.1.1)(sigma@3.0.2(graphology-types@0.24.8))
+      graphology-layout-noverlap: 0.4.2(graphology-types@0.24.8)
     transitivePeerDependencies:
       - graphology
       - react
