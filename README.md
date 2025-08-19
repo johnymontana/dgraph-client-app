@@ -787,6 +787,26 @@ The visualization uses a sophisticated DQL query to analyze your database struct
 
 For a medical database, the visualization might show:
 
+### 🎨 Visualization Features
+
+#### Professional Height Management
+- **Schema Visualization**: 600px container with 450px graph area for optimal schema exploration
+- **Query Results**: 500px graph containers for clear, usable query result visualization
+- **Guide Examples**: Consistent 500px height across all graph visualization modes
+- **Responsive Design**: Adapts to different screen sizes while maintaining usability
+
+#### Interactive Elements
+- **Click-to-Inspect**: Click nodes to see detailed predicate information
+- **Relationship Exploration**: Click edges to understand type connections
+- **Property Panels**: Dedicated panels for node and edge details
+- **Loading States**: Professional loading indicators during data processing
+
+#### Visual Design
+- **Color Coding**: Consistent color scheme across all visualizations
+- **Node Sizing**: Dynamic sizing based on data importance
+- **Edge Styling**: Clear relationship indicators with proper labeling
+- **Layout Optimization**: Force-directed layouts for optimal node placement
+
 #### Type Nodes
 - **Patient (1,099)**: Large node representing patient records
 - **MedicalVisit (764)**: Medium node for medical visits
@@ -859,6 +879,18 @@ Predicates (12):
 - **Sigma.js Integration**: Professional graph visualization library
 - **Graphology**: Efficient graph data structure management
 - **Real-time Updates**: Live data synchronization with database
+
+#### Height Management System
+- **Fixed Height Containers**: Eliminates CSS height inheritance issues
+- **Direct Height Assignment**: SigmaGraph components use explicit 500px heights
+- **Container Hierarchy**: Proper height flow from parent to child components
+- **Responsive Fallbacks**: Maintains usability across different viewport sizes
+
+#### Graph Rendering Optimization
+- **Container Validation**: Sigma.js containers have proper dimensions
+- **Height Constraints**: Prevents "Container has no height" errors
+- **Professional Sizing**: 500px height provides substantial visualization space
+- **Consistent Layout**: All graph modes maintain uniform height allocation
 
 #### Smart Query Design
 - **Dynamic Discovery**: No hardcoded predicates or types
@@ -995,16 +1027,36 @@ pnpm run reinstall    # Clean and reinstall dependencies
 - **Fullscreen Mode**: Distraction-free editing experience
 
 ### Visualization Options
-- **Graph View**: Interactive node-edge visualization with Sigma.js
+- **Graph View**: Interactive node-edge visualization with Sigma.js and optimized 500px height containers
 - **JSON View**: Structured data display with syntax highlighting
 - **Map View**: Geographic data visualization with Leaflet.js
-- **Schema View**: Database structure visualization with type relationships
+- **Schema View**: Database structure visualization with type relationships and 450px graph area
 
 ### Advanced Features
 - **Physics Simulation**: Configurable force-directed layouts
 - **Node Clustering**: Automatic grouping of similar nodes
 - **Search & Filter**: Find specific nodes or relationships
 - **Export Options**: Save visualizations as images or data
+
+### 🎯 Height Management & Graph Rendering
+
+#### Professional Visualization Heights
+- **Query Results**: 500px height containers for clear, usable graph visualization
+- **Schema Visualization**: 600px container with 450px dedicated graph area
+- **Guide Examples**: Consistent 500px height across all interactive examples
+- **Responsive Design**: Maintains usability across different screen sizes
+
+#### Technical Improvements
+- **Fixed Height Containers**: Eliminates CSS height inheritance issues
+- **Sigma.js Optimization**: Prevents "Container has no height" errors
+- **Direct Height Assignment**: Components use explicit height values
+- **Container Validation**: Ensures proper dimensions for graph rendering
+
+#### User Experience Enhancements
+- **Substantial Graph Areas**: No more "few pixels high" visualization issues
+- **Professional Layout**: Clean, balanced visualization containers
+- **Consistent Sizing**: Uniform height across all graph modes
+- **Better Interaction**: Larger graphs are easier to navigate and explore
 
 ## 🧪 Testing
 

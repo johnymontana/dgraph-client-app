@@ -1,24 +1,12 @@
 'use client';
 
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { useEffect, useState } from 'react';
 import Graphology from 'graphology';
-import { schemaToGraph, generateTypeInfo, ensureNonEmptyGraph } from '@/utils/schemaToGraph';
+import { schemaToGraph, generateTypeInfo } from '@/utils/schemaToGraph';
 import { JsonView } from 'react-json-view-lite';
 import 'react-json-view-lite/dist/index.css';
-import FullscreenToggle from './FullscreenToggle';
-import dynamic from 'next/dynamic';
 import SigmaGraph from './SigmaGraph';
 import { useDgraph } from '@/context/DgraphContext';
-
-// Dynamically import SigmaGraph to avoid SSR issues with WebGL
-// const SigmaGraph = dynamic(() => import('./SigmaGraph'), {
-//   ssr: false,
-//   loading: () => (
-//     <div className="flex justify-center items-center h-full bg-gray-100">
-//       <p className="text-gray-500">Loading graph visualization...</p>
-//     </div>
-//   )
-// });
 
 interface SchemaVisualizationProps {
   schemaText: string;
@@ -56,14 +44,13 @@ export default function SchemaVisualization({ schemaText }: SchemaVisualizationP
   const [graph, setGraph] = useState<Graphology | null>(null);
   const [typeInfo, setTypeInfo] = useState<Array<{ type: string; color: string; count: number }>>([]);
   const [viewMode, setViewMode] = useState<'graph' | 'json'>('graph');
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [jsonData, setJsonData] = useState<any>(null);
   const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-    // Handle schemaData from context
+  // Handle schemaData from context
   useEffect(() => {
     if (schemaData && schemaData.data) {
       setIsLoading(true);
@@ -101,267 +88,170 @@ export default function SchemaVisualization({ schemaText }: SchemaVisualizationP
             }
           });
         }
-        
-        // Process schema_discovery to extract predicate information and create edges
+
+        // Process schema_discovery to extract predicates and relationships
         if (schemaData.data.schema_discovery && schemaData.data.schema_discovery.length > 0) {
-          const typePredicates: Record<string, Set<string>> = {};
-          const typeRelationships: Record<string, Record<string, string[]>> = {};
-          const edgeMap: Record<string, {source: string, target: string, predicates: string[], targetTypes: string[]}> = {};
-          
+          const typePredicatesMap = new Map<string, Set<string>>();
+          const typeRelationshipsMap = new Map<string, Map<string, Set<string>>>();
+
           schemaData.data.schema_discovery.forEach((node: any) => {
             if (node.node_type && node.node_type.length > 0) {
               const nodeType = node.node_type[0];
               
-              // Initialize predicates set for this type if it doesn't exist
-              if (!typePredicates[nodeType]) {
-                typePredicates[nodeType] = new Set();
-              }
-              if (!typeRelationships[nodeType]) {
-                typeRelationships[nodeType] = {};
-              }
-              
-              // Extract all predicates from the expanded node (excluding special fields)
+              // Extract all predicates for this type
+              const predicates = new Set<string>();
               Object.keys(node).forEach(key => {
-                if (key !== 'node_type' && key !== 'node_uid' && !key.startsWith('relationship_target_type')) {
-                  typePredicates[nodeType].add(key);
-                  
-                  // Check if this predicate has relationship target types
-                  if (node[key] && Array.isArray(node[key])) {
-                    const targetTypes = node[key]
-                      .map((rel: any) => rel.relationship_target_type)
-                      .filter((types: any) => types && types.length > 0)
-                      .flat();
-                    
-                    if (targetTypes.length > 0) {
-                      typeRelationships[nodeType][key] = targetTypes;
-                      
-                      // Group edges by source-target pair
-                      targetTypes.forEach(targetType => {
-                        if (targetType !== nodeType) { // Avoid self-loops
-                          const edgeKey = `${nodeType}->${targetType}`;
-                          if (!edgeMap[edgeKey]) {
-                            edgeMap[edgeKey] = {
-                              source: nodeType,
-                              target: targetType,
-                              predicates: [],
-                              targetTypes: []
-                            };
-                          }
-                          edgeMap[edgeKey].predicates.push(key);
-                          edgeMap[edgeKey].targetTypes.push(...targetTypes);
-                        }
-                      });
+                if (key !== 'node_type' && key !== 'node_uid' && key !== 'relationship_target_type') {
+                  predicates.add(key);
+                }
+              });
+
+              // Store predicates for this type
+              if (!typePredicatesMap.has(nodeType)) {
+                typePredicatesMap.set(nodeType, new Set());
+              }
+              predicates.forEach(predicate => typePredicatesMap.get(nodeType)!.add(predicate));
+
+              // Extract relationships (UID predicates that reference other types)
+              Object.keys(node).forEach(key => {
+                if (key !== 'node_type' && key !== 'node_uid' && key !== 'relationship_target_type') {
+                  const value = node[key];
+                  if (Array.isArray(value) && value.length > 0 && value[0].relationship_target_type) {
+                    const targetType = value[0].relationship_target_type[0];
+                    if (targetType && targetType !== nodeType) {
+                      if (!typeRelationshipsMap.has(nodeType)) {
+                        typeRelationshipsMap.set(nodeType, new Map());
+                      }
+                      if (!typeRelationshipsMap.get(nodeType)!.has(targetType)) {
+                        typeRelationshipsMap.get(nodeType)!.set(targetType, new Set());
+                      }
+                      typeRelationshipsMap.get(nodeType)!.get(targetType)!.add(key);
                     }
                   }
                 }
               });
             }
           });
-          
-          // Add edges to the graph (deduplicated)
-          Object.entries(edgeMap).forEach(([edgeKey, edge], index) => {
-            const edgeId = `edge_${index}`;
-            const uniquePredicates = [...new Set(edge.predicates)];
-            const uniqueTargetTypes = [...new Set(edge.targetTypes)];
-            
-            schemaGraph.addEdgeWithKey(edgeId, edge.source, edge.target, {
-              label: uniquePredicates.length === 1 ? uniquePredicates[0] : `${uniquePredicates.length} relationships`,
-              type: 'arrow', // Use standard Sigma edge type
-              color: '#4285F4', // Blue for relationships
-              size: 2,
-              raw: {
-                predicates: uniquePredicates,
-                sourceType: edge.source,
-                targetType: edge.target,
-                targetTypes: uniqueTargetTypes
+
+          // Update node predicates in the graph
+          typePredicatesMap.forEach((predicates, typeName) => {
+            if (schemaGraph.hasNode(typeName)) {
+              const nodeData = schemaGraph.getNodeAttributes(typeName);
+              nodeData.raw.predicates = Array.from(predicates).map(predicate => ({
+                name: predicate,
+                type: 'string', // Default type, could be enhanced with actual type detection
+                isArray: true,
+                isUid: false
+              }));
+              schemaGraph.setNodeAttribute(typeName, 'raw', nodeData.raw);
+            }
+          });
+
+          // Add edges for relationships
+          const edgeMap = new Map<string, any>();
+          typeRelationshipsMap.forEach((targetTypes, sourceType) => {
+            targetTypes.forEach((predicates, targetType) => {
+              const edgeKey = `${sourceType}-${targetType}`;
+              const reverseEdgeKey = `${targetType}-${sourceType}`;
+              
+              if (!edgeMap.has(edgeKey) && !edgeMap.has(reverseEdgeKey)) {
+                const edgeData = {
+                  source: sourceType,
+                  target: targetType,
+                  predicates: Array.from(predicates),
+                  sourceType: sourceType,
+                  targetType: targetType,
+                  targetTypes: [targetType]
+                };
+                edgeMap.set(edgeKey, edgeData);
+              } else {
+                // Add predicates to existing edge
+                const existingEdgeKey = edgeMap.has(edgeKey) ? edgeKey : reverseEdgeKey;
+                const existingEdge = edgeMap.get(existingEdgeKey);
+                predicates.forEach(predicate => {
+                  if (!existingEdge.predicates.includes(predicate)) {
+                    existingEdge.predicates.push(predicate);
+                  }
+                });
               }
             });
           });
-          
-          // Update the raw.predicates for each node with the discovered predicates
-          schemaGraph.forEachNode((nodeId, attributes) => {
-            if (typePredicates[nodeId]) {
-              const predicatesArray = Array.from(typePredicates[nodeId]).map(predName => {
-                const relationships = typeRelationships[nodeId]?.[predName] || [];
-                const isUid = relationships.length > 0;
-                const isArray = true; // Most predicates in Dgraph are arrays
-                
-                return {
-                  name: predName,
-                  type: isUid ? 'uid' : 'string',
-                  isArray: isArray,
-                  isUid: isUid,
-                  referencedType: relationships.length > 0 ? relationships[0] : undefined
-                };
-              });
-              
-              // Update the node attributes
-              console.log(`Setting predicates for node ${nodeId}:`, predicatesArray);
-              schemaGraph.setNodeAttribute(nodeId, 'raw', {
-                ...attributes.raw,
-                predicates: predicatesArray
-              });
-            }
+
+          // Add edges to the graph
+          const edgesToAdd = Array.from(edgeMap.values());
+          edgesToAdd.forEach((edge, index) => {
+            const edgeId = `edge_${index}`;
+            schemaGraph.addEdgeWithKey(edgeId, edge.source, edge.target, {
+              label: edge.predicates.length === 1 ? edge.predicates[0] : `${edge.predicates.length} relationships`,
+              type: 'arrow',
+              color: '#4285F4', // Blue for relationships
+              size: 2,
+              raw: edge
+            });
           });
         }
-        
-        if (schemaGraph.order > 0) {
-          setGraph(schemaGraph);
-          const typeInfoData = generateTypeInfo(schemaGraph);
-          setTypeInfo(typeInfoData);
-          setError(null);
-          
-          // Create JSON representation
-          const nodes: any[] = [];
-          schemaGraph.forEachNode((node, attributes) => {
-            nodes.push({ id: node, ...attributes });
+
+        // Ensure the graph has at least one node
+        if (schemaGraph.order === 0) {
+          schemaGraph.addNode('default', {
+            label: 'No types found',
+            type: 'default',
+            color: '#999',
+            size: 10,
+            raw: { type: 'default', isType: false, predicates: [] }
           });
-          
-          const edges: any[] = [];
-          schemaGraph.forEachEdge((edge, attributes, source, target) => {
-            edges.push({ id: edge, source, target, ...attributes });
-          });
-          
-          setJsonData({ nodes, edges });
-        } else {
-          // Fallback to demo graph
-          const demoGraph = ensureNonEmptyGraph(schemaGraph);
-          setGraph(demoGraph);
-          setTypeInfo(generateTypeInfo(demoGraph));
-          setError('No types found in schema data - showing example visualization');
         }
-        
-        // Set loading to false after processing is complete
+
+        // Generate type info for the legend
+        const newTypeInfo = generateTypeInfo(schemaGraph);
+        setTypeInfo(newTypeInfo);
+        setGraph(schemaGraph);
+        setError(null);
         setIsLoading(false);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error processing schema data:', err);
-        setError('Failed to process schema data from DQL query');
-        
-        // Fallback to demo graph
-        const emptyGraph = new Graphology();
-        const demoGraph = ensureNonEmptyGraph(emptyGraph);
-        setGraph(demoGraph);
-        setTypeInfo(generateTypeInfo(demoGraph));
+        setError('Failed to process schema data: ' + err.message);
         setIsLoading(false);
       }
     } else {
-      // No schema data available
+                    // If no schemaData, try to process the schemaText prop
+       if (schemaText && schemaText.trim() !== '' && schemaText !== '# No schema found or empty schema') {
+         try {
+           setIsLoading(true);
+           const schemaGraph = schemaToGraph(schemaText);
+           
+           if (schemaGraph && schemaGraph.order > 0) {
+             setGraph(schemaGraph);
+             setTypeInfo(generateTypeInfo(schemaGraph));
+             setError(null);
+           } else {
+             setError('No valid schema found in the provided text.');
+           }
+         } catch (err: any) {
+           console.error('Error processing schema text:', err);
+           setError('Failed to process schema text: ' + err.message);
+         } finally {
+           setIsLoading(false);
+         }
+       } else {
+         setIsLoading(false);
+       }
+    }
+  }, [schemaData, schemaText]);
+
+  // Set initial loading state if no schemaData
+  useEffect(() => {
+    if (!schemaData && !schemaText) {
       setIsLoading(false);
     }
+  }, [schemaData, schemaText]);
+
+  // Process JSON data for JSON view
+  useEffect(() => {
+    if (schemaData && schemaData.data) {
+      setJsonData(schemaData.data);
+    }
   }, [schemaData]);
-
-  // Set initial loading state when component mounts
-  useEffect(() => {
-    if (!schemaData) {
-      setIsLoading(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!schemaText || schemaText.trim() === '' || schemaText.trim() === '# No schema found or empty schema') {
-      // Create a demo graph instead of showing nothing
-      const emptyGraph = new Graphology();
-      const demoGraph = ensureNonEmptyGraph(emptyGraph);
-      setGraph(demoGraph);
-      const demoTypeInfo = generateTypeInfo(demoGraph);
-      setTypeInfo(demoTypeInfo);
-      
-      // Create JSON for the demo graph
-      const nodes: any[] = [];
-      demoGraph.forEachNode((node, attributes) => {
-        nodes.push({ id: node, ...attributes });
-      });
-      
-      const edges: any[] = [];
-      demoGraph.forEachEdge((edge, attributes, source, target) => {
-        edges.push({ id: edge, source, target, ...attributes });
-      });
-      
-      setJsonData({ nodes, edges });
-      setError('No schema defined - showing example schema visualization');
-      return;
-    }
-
-    try {
-      console.log('Schema text to parse:', schemaText);
-
-      // Convert schema to graph
-      const schemaGraph = schemaToGraph(schemaText);
-
-      // If the graph is empty (no nodes were created), show a demo graph instead
-      if (schemaGraph.order === 0) {
-        console.log('Schema parsing produced empty graph, using demo graph');
-        const demoGraph = ensureNonEmptyGraph(schemaGraph);
-        setGraph(demoGraph);
-        const demoTypeInfo = generateTypeInfo(demoGraph);
-        setTypeInfo(demoTypeInfo);
-        setError('Could not generate schema graph - showing example visualization');
-      } else {
-        console.log('Schema graph created:', {
-          nodeCount: schemaGraph.order,
-          edgeCount: schemaGraph.size,
-          nodes: Array.from(schemaGraph.nodes()),
-          edges: Array.from(schemaGraph.edges())
-        });
-
-        setGraph(schemaGraph);
-
-        // Generate type info for the visualization legend
-        const typeInfoData = generateTypeInfo(schemaGraph);
-        console.log('Type info generated:', typeInfoData);
-        setTypeInfo(typeInfoData);
-        setError(null);
-      }
-      
-      // Create JSON representation for JSON view
-      // Convert nodeEntries and edgeEntries iterators to arrays properly
-      const nodes: any[] = [];
-      schemaGraph.forEachNode((node, attributes) => {
-        nodes.push({
-          id: node,
-          ...attributes
-        });
-      });
-
-      const edges: any[] = [];
-      schemaGraph.forEachEdge((edge, attributes, source, target) => {
-        edges.push({
-          id: edge,
-          source,
-          target,
-          ...attributes
-        });
-      });
-
-      const jsonRepresentation = {
-        nodes,
-        edges
-      };
-      setJsonData(jsonRepresentation);
-    } catch (err) {
-      console.error('Error converting schema to graph:', err);
-      setError(err instanceof Error ? err.message : 'Failed to parse schema');
-      
-      // Create a demo graph on error
-      const emptyGraph = new Graphology();
-      const demoGraph = ensureNonEmptyGraph(emptyGraph);
-      setGraph(demoGraph);
-      setTypeInfo(generateTypeInfo(demoGraph));
-      
-      // Create JSON for the demo graph
-      const nodes: any[] = [];
-      demoGraph.forEachNode((node, attributes) => {
-        nodes.push({ id: node, ...attributes });
-      });
-      
-      const edges: any[] = [];
-      demoGraph.forEachEdge((edge, attributes, source, target) => {
-        edges.push({ id: edge, source, target, ...attributes });
-      });
-      
-      setJsonData({ nodes, edges });
-    }
-  }, [schemaText]);
 
   // Property display component for showing type details
   const PropertyDisplay: React.FC<{ selectedElement: SelectedElement | null, onClose: () => void }> = ({ selectedElement, onClose }) => {
@@ -491,67 +381,88 @@ export default function SchemaVisualization({ schemaText }: SchemaVisualizationP
     );
   };
 
-  // Always render the visualization - we now show an example graph when no schema is available
-
   return (
-    <div className={`bg-white shadow-md rounded-lg p-6 ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold">Schema Visualization</h2>
-        <div className="flex space-x-2 items-center">
-          <button
-            onClick={refreshSchemaData}
-            disabled={isLoading}
-            className={`py-2 px-4 rounded-md focus:outline-none ${
-              isLoading 
-                ? 'bg-gray-400 cursor-not-allowed' 
-                : 'bg-green-600 hover:bg-green-700 text-white'
-            }`}
-            title="Refresh schema data from Dgraph"
-          >
-            {isLoading ? (
-              <div className="flex items-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Processing...
+    <div className="h-full flex flex-col" style={{ height: "600px" }}>
+      <div className="flex justify-between items-start mb-3 flex-shrink-0">
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-lg font-semibold text-gray-800">Schema Visualization</h3>
+            <div className="flex space-x-2 items-center">
+              <button
+                onClick={refreshSchemaData}
+                disabled={isLoading}
+                className={`py-1 px-3 rounded-md focus:outline-none text-sm ${
+                  isLoading 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-green-600 hover:bg-green-700 text-white'
+                }`}
+                title="Refresh schema data from Dgraph"
+              >
+                {isLoading ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                    Loading...
+                  </div>
+                ) : (
+                  '🔄 Refresh'
+                )}
+              </button>
+              <button
+                onClick={() => setViewMode('graph')}
+                className={`py-1 px-3 rounded-md focus:outline-none text-sm ${
+                  viewMode === 'graph'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                Graph
+              </button>
+              <button
+                onClick={() => setViewMode('json')}
+                className={`py-1 px-3 rounded-md focus:outline-none text-sm ${
+                  viewMode === 'json'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                JSON
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-600">
+              Interactive database structure • Click nodes/edges for details
+            </p>
+            {viewMode === 'graph' && graph && typeInfo.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {typeInfo.slice(0, 4).map((item) => (
+                  <div key={item.type} className="flex items-center">
+                    <div
+                      className="w-2 h-2 mr-1"
+                      style={{ backgroundColor: item.color }}
+                    ></div>
+                    <span className="text-xs text-gray-600">
+                      {item.type} ({item.count})
+                    </span>
+                  </div>
+                ))}
+                {typeInfo.length > 4 && (
+                  <span className="text-xs text-gray-500">+{typeInfo.length - 4} more</span>
+                )}
               </div>
-            ) : (
-              '🔄 Refresh'
             )}
-          </button>
-          <FullscreenToggle
-            isFullscreen={isFullscreen}
-            onToggle={() => setIsFullscreen(!isFullscreen)}
-          />
-          <button
-            onClick={() => setViewMode('graph')}
-            className={`py-2 px-4 rounded-md focus:outline-none ${
-              viewMode === 'graph'
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            Graph View
-          </button>
-          <button
-            onClick={() => setViewMode('json')}
-            className={`py-2 px-4 rounded-md focus:outline-none ${
-              viewMode === 'json'
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            JSON View
-          </button>
+          </div>
         </div>
       </div>
 
       {error && (
-        <div className="bg-amber-100 border border-amber-400 text-amber-700 px-4 py-3 rounded mb-4">
+        <div className="bg-amber-100 border border-amber-400 text-amber-700 px-4 py-3 rounded mb-3 flex-shrink-0">
           {error}
         </div>
       )}
 
       {viewMode === 'graph' ? (
-        <div className={`border border-gray-300 rounded-md ${isFullscreen ? 'h-[calc(100vh-130px)]' : 'h-[500px]'}`}>
+        <div className="border border-gray-300 rounded-md flex-1 overflow-hidden" style={{ height: "450px" }}>
           {isLoading ? (
             <div className="flex justify-center items-center h-full bg-gray-100">
               <div className="text-center">
@@ -604,7 +515,7 @@ export default function SchemaVisualization({ schemaText }: SchemaVisualizationP
           )}
         </div>
       ) : (
-        <div className={`border border-gray-300 rounded-md overflow-auto p-4 ${isFullscreen ? 'h-[calc(100vh-130px)]' : 'h-[500px]'}`}>
+        <div className="border border-gray-300 rounded-md overflow-auto p-4 flex-1" style={{ height: "450px" }}>
           {jsonData ? (
             <JsonView data={jsonData} />
           ) : (
@@ -631,39 +542,7 @@ export default function SchemaVisualization({ schemaText }: SchemaVisualizationP
         />
       )}
 
-      {viewMode === 'graph' && graph && (
-        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
-          <div className="flex flex-wrap gap-4 mb-2">
-            {typeInfo.map((item) => (
-              <div key={item.type} className="flex items-center">
-                <div
-                  className="w-4 h-4 mr-2"
-                  style={{ backgroundColor: item.color }}
-                ></div>
-                <span className="text-sm text-gray-700">
-                  {item.type} ({item.count})
-                </span>
-              </div>
-            ))}
-          </div>
-          <p className="text-sm text-blue-700">
-            <strong>Legend:</strong> Red nodes are types, blue nodes are predicates/fields, 
-            green nodes are scalar types, yellow nodes represent UID references, and blue arrows show relationships between types.
-          </p>
-          <p className="text-sm text-blue-700 mt-1">
-            <strong>Click on any type node (red) to see its predicates and properties.</strong>
-          </p>
-          <p className="text-sm text-blue-700 mt-1">
-            <strong>Click on any relationship edge (blue arrows) to see connection details.</strong>
-          </p>
-          <p className="text-sm text-blue-700 mt-1">
-            <strong>Data Source:</strong> Schema visualization shows types with instance counts from DQL query.
-          </p>
-          <p className="text-sm text-blue-700 mt-1">
-            You can zoom in/out using the mouse wheel and drag nodes to rearrange the graph.
-          </p>
-        </div>
-      )}
+
     </div>
   );
 }

@@ -18,6 +18,9 @@ The graph visualization in this Dgraph client application has been simplified to
 - **Circular layout** for consistent node positioning
 - **Color-coded nodes** based on Dgraph types
 - **Stable rendering** without disappearing visualization issues
+- **Professional height management** with 500px containers for optimal visualization
+- **Height-optimized containers** preventing "Container has no height" errors
+- **Consistent sizing** across all graph visualization modes
 
 ## Removed Features
 
@@ -53,6 +56,7 @@ To achieve stability, the following complex features were removed from the previ
 - **No disappearing graphs** - Eliminates the primary issue where visualizations would render briefly then vanish
 - **Stable rendering** - Consistent display without layout algorithms causing instability
 - **Reduced complexity** - Fewer moving parts means fewer potential failure points
+- **Height stability** - Fixed height containers prevent rendering issues and provide consistent user experience
 
 ### Performance
 - **Faster initial render** - No complex layout calculations on each render
@@ -84,3 +88,23 @@ When the core visualization is proven stable, consider gradually adding back fea
 - The `nodeReducer` ensures consistent node properties across all graph data
 - Circular layout provides a reliable fallback for any graph structure
 - No client-side state management reduces hydration issues in Next.js
+
+## Height Management Implementation
+
+### Container Heights
+- **Query Results**: 500px height containers for optimal graph visualization
+- **Schema Visualization**: 600px container with 450px dedicated graph area
+- **Guide Examples**: Consistent 500px height across all interactive examples
+- **SigmaGraph Components**: Direct height assignment to prevent inheritance issues
+
+### Technical Approach
+- **Fixed Heights**: Eliminates CSS height inheritance problems
+- **Direct Assignment**: Components use explicit height values instead of relative sizing
+- **Container Validation**: Ensures Sigma.js containers have proper dimensions
+- **Height Constraints**: Prevents "Container has no height" runtime errors
+
+### Benefits
+- **Professional Appearance**: Substantial visualization areas for better user experience
+- **Consistent Layout**: Uniform height across all graph modes
+- **No Height Issues**: Eliminates the "few pixels high" visualization problem
+- **Better Usability**: Larger graphs are easier to navigate and interact with

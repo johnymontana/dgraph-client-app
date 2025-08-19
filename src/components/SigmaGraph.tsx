@@ -1,14 +1,11 @@
 'use client';
 
 import React, { useEffect } from "react";
-import { SigmaContainer, useLoadGraph, useSetSettings, useRegisterEvents, useSigma } from "@react-sigma/core";
+import { SigmaContainer, useLoadGraph, useRegisterEvents, useSigma } from "@react-sigma/core";
 import Graphology from "graphology";
 import "@react-sigma/core/lib/style.css";
 import { random } from 'graphology-layout';
-import { useWorkerLayoutForceAtlas2 } from '@react-sigma/layout-forceatlas2';
-import { useLayoutForceAtlas2 } from '@react-sigma/layout-forceatlas2';
 import { useLayoutNoverlap } from '@react-sigma/layout-noverlap';
-import { useLayoutForce } from '@react-sigma/layout-force';
 
 interface TypeInfo {
   type: string;
@@ -18,7 +15,7 @@ interface TypeInfo {
 
 interface SigmaGraphProps {
   graph: Graphology;
-  typeInfo: TypeInfo[];
+  typeInfo?: TypeInfo[];
   onNodeClick?: (nodeId: string, nodeData: any) => void;
   onEdgeClick?: (edgeId: string, edgeData: any) => void;
 }
@@ -26,7 +23,6 @@ interface SigmaGraphProps {
 // Simple component that loads the graph into Sigma
 const LoadGraph: React.FC<{ graph: Graphology; onNodeClick?: (nodeId: string, nodeData: any) => void; onEdgeClick?: (edgeId: string, edgeData: any) => void }> = ({ graph, onNodeClick, onEdgeClick }) => {
   const loadGraph = useLoadGraph();
-  const setSettings = useSetSettings();
   const registerEvents = useRegisterEvents();
   const sigma = useSigma();
   // const {positions, assign} = useLayoutForceAtlas2();
@@ -83,12 +79,12 @@ const LoadGraph: React.FC<{ graph: Graphology; onNodeClick?: (nodeId: string, no
 };
 
 // Main SigmaGraph component
-const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo, onNodeClick, onEdgeClick }) => {
+const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, onNodeClick, onEdgeClick }) => {
   if (!graph || graph.order === 0) {
     return (
       <div style={{ 
         width: "100%", 
-        height: "600px",
+        height: "100%",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -110,6 +106,7 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo, onNodeClick, o
     defaultEdgeColor: "#ccc",
     labelRenderedSizeThreshold: 8,
     edgeLabelRenderedSizeThreshold: 0, // Always show edge labels
+    allowInvalidContainer: true, // Allow rendering even when container height is not calculated yet
     nodeReducer: (node: string, data: any) => ({
       ...data,
       type: "circle", // Force all nodes to use circle type
@@ -142,9 +139,9 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, typeInfo, onNodeClick, o
   // };
 
   return (
-    <div style={{ width: "100%", height: "600px" }}>
+    <div style={{ width: "100%", height: "500px", border: "2px solid red" }}>
       <SigmaContainer 
-        style={{ width: "100%", height: "100%" }}
+        style={{ width: "100%", height: "500px", border: "2px solid blue" }}
         settings={settings}
       >
         <LoadGraph graph={graph} onNodeClick={onNodeClick} onEdgeClick={onEdgeClick} />

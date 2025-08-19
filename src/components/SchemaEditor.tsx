@@ -19,7 +19,7 @@ import {
 import { useColorModeValue } from '@/components/ui/color-mode';
 
 export default function SchemaEditor() {
-  // Ref for SchemaAutocomplete's handleInpu
+  // Ref for SchemaAutocomplete's handleInput
   const autocompleteInputRef = useRef<(() => void) | null>(null);
   const { dgraphService, connected, schemaText, updateSchemaText } = useDgraph();
   const [isLoading, setIsLoading] = useState(false);
@@ -104,14 +104,24 @@ export default function SchemaEditor() {
       return;
     }
 
+    if (!schemaText || schemaText.trim() === '') {
+      setError('Schema text cannot be empty.');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setSuccess(null);
 
     try {
+      // Update the schema
       await dgraphService.alter(schemaText);
-      setSuccess('Schema updated successfully');
-      // No need to refresh schema as it's already updated in the contex
+      setSuccess('Schema updated successfully!');
+      
+      // Refresh the schema to show the updated version
+      setTimeout(() => {
+        fetchSchema();
+      }, 1000);
     } catch (err: any) {
       console.error('Schema update error:', err);
       setError(err.response?.data?.errors?.[0]?.message || err.message || 'Failed to update schema');
@@ -121,104 +131,142 @@ export default function SchemaEditor() {
   };
 
   return (
-    <Card.Root bg={bgColor} shadow="md" p={6} mb={6}>
-              <HStack justify="space-between" align="center" mb={4}>
-        <Heading as="h2" size="md" color={textColor}>
-          DQL Schema
-        </Heading>
-        <HStack gap={2}>
-          <Button
-            onClick={fetchSchema}
-            loading={isFetching}
-            loadingText="Fetching..."
-            disabled={!connected}
-            colorPalette="gray"
-            size="md"
-          >
-            Refresh Schema
-          </Button>
-          <Button
-            onClick={handleUpdateSchema}
-            loading={isLoading}
-            loadingText="Updating..."
-            disabled={!connected}
-            className="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-          >
-            Update Schema
-          </Button>
+    <Card.Root bg={bgColor} shadow="lg" p={6}>
+      <VStack gap={6} align="stretch">
+        <HStack justify="space-between" align="center">
+          <Heading as="h2" size="md" color={textColor}>
+            DQL Schema
+          </Heading>
+          <HStack gap={2}>
+            <Button
+              onClick={fetchSchema}
+              loading={isFetching}
+              loadingText="Fetching..."
+              disabled={!connected}
+              colorPalette="gray"
+              size="md"
+            >
+              Refresh Schema
+            </Button>
+            <Button
+              onClick={handleUpdateSchema}
+              loading={isLoading}
+              loadingText="Updating..."
+              disabled={!connected}
+              className="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+            >
+              Update Schema
+            </Button>
+          </HStack>
         </HStack>
-      </HStack>
 
-      {error && (
-        <Alert.Root status="error" mb={4}>
-          <Alert.Indicator />
-          <Alert.Content>
-            {error}
-          </Alert.Content>
-        </Alert.Root>
-      )}
+        {error && (
+          <Alert.Root status="error" mb={4}>
+            <Alert.Indicator />
+            <Alert.Content>
+              {error}
+            </Alert.Content>
+          </Alert.Root>
+        )}
 
-      {success && (
-        <Alert.Root status="success" mb={4}>
-          <Alert.Indicator />
-          <Alert.Content>
-            {success}
-          </Alert.Content>
-        </Alert.Root>
-      )}
+        {success && (
+          <Alert.Root status="success" mb={4}>
+            <Alert.Indicator />
+            <Alert.Content>
+              {success}
+            </Alert.Content>
+          </Alert.Root>
+        )}
 
-      <Box
-        position="relative"
-        border="1px"
-        borderColor={borderColor}
-        borderRadius="md"
-        overflow="hidden"
-        mb={4}
-      >
-        <CodeMirror
-          value={schemaText}
-          height="300px"
-          onChange={handleEditorChange}
-          theme="light"
-          className="text-sm"
-        />
+        {/* Side-by-side layout */}
         <Box
-          ref={editorRef}
-          tabIndex={0}
-          onKeyDown={() => {
-            if (autocompleteInputRef.current) autocompleteInputRef.current();
-          }}
-          onInput={() => {
-            if (autocompleteInputRef.current) autocompleteInputRef.current();
-          }}
+          display="flex"
+          gap={6}
+          h="calc(100vh - 280px)"
+          minH="600px"
         >
-          <SchemaAutocomplete
-            editorRef={editorRef}
-            schema={schemaText}
-            cursorPosition={cursorPosition}
-            onSuggestionSelect={handleSuggestionSelect}
-            registerHandleInput={(handle: () => void) => {
-              autocompleteInputRef.current = handle;
-            }}
-          />
-        </Box>
-      </Box>
+          {/* Left side - Schema Editor */}
+          <Box flex="1" minW="0">
+            <VStack gap={4} align="stretch" h="full">
+              <Box
+                position="relative"
+                border="1px"
+                borderColor={borderColor}
+                borderRadius="md"
+                overflow="hidden"
+                flex="1"
+                minH="0"
+              >
+                <CodeMirror
+                  value={schemaText}
+                  height="100%"
+                  onChange={handleEditorChange}
+                  theme="light"
+                  className="text-sm"
+                />
+                <Box
+                  ref={editorRef}
+                  tabIndex={0}
+                  onKeyDown={() => {
+                    if (autocompleteInputRef.current) autocompleteInputRef.current();
+                  }}
+                  onInput={() => {
+                    if (autocompleteInputRef.current) autocompleteInputRef.current();
+                  }}
+                >
+                  <SchemaAutocomplete
+                    editorRef={editorRef}
+                    schema={schemaText}
+                    cursorPosition={cursorPosition}
+                    onSuggestionSelect={handleSuggestionSelect}
+                    registerHandleInput={(handle: () => void) => {
+                      autocompleteInputRef.current = handle;
+                    }}
+                  />
+                </Box>
+              </Box>
 
-      <VStack gap={2} align="start">
-        <Text fontSize="sm" color={mutedTextColor}>
-          Edit the DQL schema above and click "Update Schema" to apply changes.
-        </Text>
-        <Text fontSize="sm" color={mutedTextColor}>
-          Example: <Code>name: string @index(exact) .</Code>
-        </Text>
+              <VStack gap={2} align="start">
+                <Text fontSize="sm" color={mutedTextColor}>
+                  Edit the DQL schema above and click "Update Schema" to apply changes.
+                </Text>
+                <Text fontSize="sm" color={mutedTextColor}>
+                  Example: <Code>name: string @index(exact) .</Code>
+                </Text>
+              </VStack>
+            </VStack>
+          </Box>
+
+          {/* Right side - Schema Visualization */}
+          <Box flex="1" minW="0">
+            {schemaText && schemaText.trim() !== '' && schemaText !== '# No schema found or empty schema' ? (
+              <Box h="full">
+                <SchemaVisualization schemaText={schemaText} />
+              </Box>
+            ) : (
+              <Box
+                h="full"
+                border="1px"
+                borderColor={borderColor}
+                borderRadius="md"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                bg="bg.muted"
+              >
+                <VStack gap={2} align="center">
+                  <Text color={mutedTextColor} textAlign="center">
+                    Schema visualization will appear here
+                  </Text>
+                  <Text fontSize="sm" color={mutedTextColor} textAlign="center">
+                    Edit the schema on the left to see the visualization
+                  </Text>
+                </VStack>
+              </Box>
+            )}
+          </Box>
+        </Box>
       </VStack>
-
-      {/* Schema Visualization */}
-      {schemaText && schemaText.trim() !== '' && schemaText !== '# No schema found or empty schema' && (
-        <Box mt={6}>
-          <SchemaVisualization schemaText={schemaText} />
-        </Box>
-      )}
     </Card.Root>
   );
 }

@@ -509,12 +509,12 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
       </div>
 
       {!data ? (
-        <div className="flex justify-center items-center h-96 bg-gray-100 rounded-md">
+        <div className="flex justify-center items-center h-[500px] bg-gray-100 rounded-md">
           <p className="text-gray-500">No query results to display. Run a query to see results.</p>
         </div>
       ) : viewMode === 'graph' ? (
         <div className="relative">
-          <div className={`border border-gray-300 rounded-md overflow-hidden ${isFullscreen ? 'h-[calc(100vh-130px)]' : 'h-96'}`}>
+          <div className={`border border-gray-300 rounded-md overflow-hidden ${isFullscreen ? 'h-[calc(100vh-130px)]' : 'h-[500px]'}`} style={{ border: "2px solid green" }}>
             {isProcessing ? (
               <div className="flex justify-center items-center h-full bg-gray-100">
                 <p className="text-gray-500">Processing data...</p>
@@ -530,7 +530,7 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
         </div>
       ) : viewMode === 'map' ? (
         <div className="relative map-container-wrapper">
-          <div className={`border border-gray-300 rounded-md overflow-hidden ${isFullscreen ? 'h-[calc(100vh-130px)]' : 'h-96'}`} style={{ position: 'relative' }}>
+          <div className={`border border-gray-300 rounded-md overflow-hidden ${isFullscreen ? 'h-[calc(100vh-130px)]' : 'h-[500px]'}`} style={{ position: 'relative' }}>
 
             {isProcessing ? (
               <div className="flex justify-center items-center h-full bg-gray-100">
@@ -552,7 +552,7 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
           </div>
         </div>
       ) : (
-        <div className={`border border-gray-300 rounded-md overflow-auto ${isFullscreen ? 'h-[calc(100vh-130px)]' : 'h-96'}`}>
+        <div className={`border border-gray-300 rounded-md overflow-auto ${isFullscreen ? 'h-[calc(100vh-130px)]' : 'h-[500px]'}`}>
           <div className="flex justify-end p-2 bg-gray-50 border-b border-gray-300">
             <button
               onClick={() => {
