@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
@@ -34,30 +34,173 @@ const GeospatialTab: React.FC = () => {
   const [drawingMode, setDrawingMode] = useState<'polygon' | 'point' | 'line'>('polygon');
   const [discoveredPredicates, setDiscoveredPredicates] = useState<string[]>([]);
   const [activePredicate, setActivePredicate] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [sortBy, setSortBy] = useState<'uid' | 'type' | 'properties'>('uid');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const drawRef = useRef<MapboxDraw | null>(null);
 
+  // Helper functions for geometry processing
+  const parseWKTGeometry = (wkt: string): GeoJSON.Geometry | null => {
+    try {
+      console.log('🔍 Parsing WKT geometry:', wkt);
+
+      // Handle common WKT formats
+      if (wkt.toUpperCase().startsWith('POINT(')) {
+        const coords = wkt.match(/POINT\(([^)]+)\)/i)?.[1];
+        if (coords) {
+          const [lng, lat] = coords.split(/\s+/).map(Number);
+          if (!isNaN(lng) && !isNaN(lat)) {
+            return {
+              type: 'Point',
+              coordinates: [lng, lat]
+            };
+          }
+        }
+      } else if (wkt.toUpperCase().startsWith('POLYGON(')) {
+        const coords = wkt.match(/POLYGON\(\(([^)]+)\)\)/i)?.[1];
+        if (coords) {
+          const rings = coords.split(/\),\s*\(/).map(ring =>
+            ring.replace(/[()]/g, '').split(',').map(coord => {
+              const [lng, lat] = coord.trim().split(/\s+/).map(Number);
+              return [lng, lat];
+            })
+          );
+          if (rings.length > 0 && rings[0].length >= 3) {
+            return {
+              type: 'Polygon',
+              coordinates: rings
+            };
+          }
+        }
+      } else if (wkt.toUpperCase().startsWith('LINESTRING(')) {
+        const coords = wkt.match(/LINESTRING\(([^)]+)\)/i)?.[1];
+        if (coords) {
+          const points = coords.split(',').map(coord => {
+            const [lng, lat] = coord.trim().split(/\s+/).map(Number);
+            return [lng, lat];
+          });
+          if (points.length >= 2) {
+            return {
+              type: 'LineString',
+              coordinates: points
+            };
+          }
+        }
+      }
+
+      console.warn('⚠️ Unsupported WKT format:', wkt);
+      return null;
+    } catch (error) {
+      console.error('❌ Error parsing WKT:', error);
+      return null;
+    }
+  };
+
+  const isValidGeoJSONGeometry = (geometry: any): geometry is GeoJSON.Geometry => {
+    if (!geometry || typeof geometry !== 'object') return false;
+
+    const validTypes = ['Point', 'LineString', 'Polygon', 'MultiPoint', 'MultiLineString', 'MultiPolygon'];
+    if (!validTypes.includes(geometry.type)) return false;
+
+    if (!Array.isArray(geometry.coordinates)) return false;
+
+    // Basic validation for different geometry types
+    switch (geometry.type) {
+      case 'Point':
+        return geometry.coordinates.length === 2 &&
+               typeof geometry.coordinates[0] === 'number' &&
+               typeof geometry.coordinates[1] === 'number';
+      case 'LineString':
+        return geometry.coordinates.length >= 2 &&
+               geometry.coordinates.every((coord: any) =>
+                 Array.isArray(coord) && coord.length === 2 &&
+                 typeof coord[0] === 'number' && typeof coord[1] === 'number'
+               );
+      case 'Polygon':
+        return geometry.coordinates.length >= 1 &&
+               geometry.coordinates.every((ring: any) =>
+                 Array.isArray(ring) && ring.length >= 3 &&
+                 ring.every((coord: any) =>
+                   Array.isArray(coord) && coord.length === 2 &&
+                   typeof coord[0] === 'number' && typeof coord[1] === 'number'
+                 )
+               );
+      default:
+        return true; // For other types, just check basic structure
+    }
+  };
+
+  const convertToGeoJSON = (geometry: any): GeoJSON.Geometry | null => {
+    try {
+      console.log('🔍 Attempting to convert geometry:', geometry);
+
+      // Handle common Dgraph geometry formats
+      if (geometry.lat && geometry.lng) {
+        return {
+          type: 'Point',
+          coordinates: [geometry.lng, geometry.lat]
+        };
+      } else if (geometry.latitude && geometry.longitude) {
+        return {
+          type: 'Point',
+          coordinates: [geometry.longitude, geometry.latitude]
+        };
+      } else if (geometry.coordinates && Array.isArray(geometry.coordinates)) {
+        // Might already be GeoJSON format
+        if (isValidGeoJSONGeometry(geometry)) {
+          return geometry;
+        }
+      } else if (geometry.x && geometry.y) {
+        // Handle x,y coordinate format
+        return {
+          type: 'Point',
+          coordinates: [geometry.x, geometry.y]
+        };
+      }
+
+      console.warn('⚠️ Could not convert geometry format:', geometry);
+      return null;
+    } catch (error) {
+      console.error('❌ Error converting geometry:', error);
+      return null;
+    }
+  };
+
   // Initialize map
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    const map = new maplibregl.Map({
-      container: mapContainerRef.current,
-      style: mapStyle,
-      center: [-74.006, 40.7128],
-      zoom: 10
-    });
+    let map: maplibregl.Map;
 
-    mapRef.current = map;
+    try {
+      map = new maplibregl.Map({
+        container: mapContainerRef.current,
+        style: mapStyle,
+        center: [-74.006, 40.7128],
+        zoom: 10
+      });
+
+      mapRef.current = map;
+      console.log('✅ Map initialized successfully');
+    } catch (error) {
+      console.error('❌ Error initializing map:', error);
+      return;
+    }
 
     // Wait for map to load before adding controls
     map.on('load', () => {
-      // Add navigation controls
-      map.addControl(new maplibregl.NavigationControl(), 'top-right');
+      try {
+        // Add navigation controls
+        map.addControl(new maplibregl.NavigationControl(), 'top-right');
+        console.log('✅ Navigation controls added successfully');
+      } catch (error) {
+        console.error('❌ Error adding navigation controls:', error);
+      }
 
-      // Add drawing controls
+      // Add drawing controls with custom styling to fix MapLibre compatibility
       const draw = new MapboxDraw({
         displayControlsDefault: false,
         controls: {
@@ -65,52 +208,193 @@ const GeospatialTab: React.FC = () => {
           point: true,
           line: true,
           trash: true
-        }
+        },
+        // Custom styles to fix MapLibre compatibility issues
+        styles: [
+          // Active (being drawn) styles
+          {
+            "id": "gl-draw-polygon-fill-active",
+            "type": "fill",
+            "filter": ["all", ["==", "active", "true"], ["==", "$type", "Polygon"]],
+            "paint": {
+              "fill-color": "#3bb2d0",
+              "fill-outline-color": "#3bb2d0",
+              "fill-opacity": 0.1
+            }
+          },
+          {
+            "id": "gl-draw-polygon-stroke-active",
+            "type": "line",
+            "filter": ["all", ["==", "active", "true"], ["==", "$type", "Polygon"]],
+            "layout": {
+              "line-cap": "round",
+              "line-join": "round"
+            },
+            "paint": {
+              "line-color": "#3bb2d0",
+              "line-dasharray": ["literal", [0.2, 2]],
+              "line-width": 2
+            }
+          },
+          // Inactive styles
+          {
+            "id": "gl-draw-polygon-fill-inactive",
+            "type": "fill",
+            "filter": ["all", ["==", "active", "false"], ["==", "$type", "Polygon"]],
+            "paint": {
+              "fill-color": "#3bb2d0",
+              "fill-outline-color": "#3bb2d0",
+              "fill-opacity": 0.1
+            }
+          },
+          {
+            "id": "gl-draw-polygon-stroke-inactive",
+            "type": "line",
+            "filter": ["all", ["==", "active", "false"], ["==", "$type", "Polygon"]],
+            "layout": {
+              "line-cap": "round",
+              "line-join": "round"
+            },
+            "paint": {
+              "line-color": "#3bb2d0",
+              "line-width": 1
+            }
+          },
+          // Point styles
+          {
+            "id": "gl-draw-point-point-active",
+            "type": "circle",
+            "filter": ["all", ["==", "active", "true"], ["==", "$type", "Point"]],
+            "paint": {
+              "circle-radius": 7,
+              "circle-color": "#fff"
+            }
+          },
+          {
+            "id": "gl-draw-point-point-inactive",
+            "type": "circle",
+            "filter": ["all", ["==", "active", "false"], ["==", "$type", "Point"]],
+            "paint": {
+              "circle-radius": 5,
+              "circle-color": "#fff"
+            }
+          },
+          // Line styles
+          {
+            "id": "gl-draw-line-active",
+            "type": "line",
+            "filter": ["all", ["==", "active", "true"], ["==", "$type", "LineString"]],
+            "layout": {
+              "line-cap": "round",
+              "line-join": "round"
+            },
+            "paint": {
+              "line-color": "#3bb2d0",
+              "line-dasharray": ["literal", [0.2, 2]],
+              "line-width": 2
+            }
+          },
+          {
+            "id": "gl-draw-line-inactive",
+            "type": "line",
+            "filter": ["all", ["==", "active", "false"], ["==", "$type", "LineString"]],
+            "layout": {
+              "line-cap": "round",
+              "line-join": "round"
+            },
+            "paint": {
+              "line-color": "#3bb2d0",
+              "line-width": 1
+            }
+          }
+        ]
       });
 
-      map.addControl(draw);
-      drawRef.current = draw;
+      try {
+        map.addControl(draw);
+        drawRef.current = draw;
+        console.log('✅ Drawing controls added successfully');
+      } catch (error) {
+        console.error('❌ Error adding drawing controls:', error);
+        // Fallback: try to add without custom styles
+        try {
+          const fallbackDraw = new MapboxDraw({
+            displayControlsDefault: false,
+            controls: {
+              polygon: true,
+              point: true,
+              line: true,
+              trash: true
+            }
+          });
+          map.addControl(fallbackDraw);
+          drawRef.current = fallbackDraw;
+          console.log('✅ Drawing controls added with fallback configuration');
+        } catch (fallbackError) {
+          console.error('❌ Fallback drawing controls also failed:', fallbackError);
+        }
+      }
 
       // Handle draw events using the correct API
-      map.on('draw.create', (e: any) => {
-        console.log('✏️ Draw create event:', e);
-        if (e.features && e.features.length > 0) {
-          const feature = e.features[0];
-          console.log('🎯 Created feature:', {
-            type: feature.geometry.type,
-            coordinates: feature.geometry.coordinates,
-            properties: feature.properties
-          });
-          if (feature.geometry.type === 'Polygon') {
-            setDrawnPolygon(feature.geometry as GeoJSON.Polygon);
-            console.log('✅ Polygon set for querying');
+      try {
+        map.on('draw.create', (e: any) => {
+          console.log('✏️ Draw create event:', e);
+          if (e.features && e.features.length > 0) {
+            const feature = e.features[0];
+            console.log('🎯 Created feature:', {
+              type: feature.geometry.type,
+              coordinates: feature.geometry.coordinates,
+              properties: feature.properties
+            });
+            if (feature.geometry.type === 'Polygon') {
+              setDrawnPolygon(feature.geometry as GeoJSON.Polygon);
+              console.log('✅ Polygon set for querying');
+            }
           }
-        }
-      });
+        });
+        console.log('✅ Draw create event listener added');
+      } catch (error) {
+        console.error('❌ Error adding draw create event listener:', error);
+      }
 
-      map.on('draw.delete', (e: any) => {
-        console.log('🗑️ Draw delete event:', e);
-        setDrawnPolygon(null);
-        console.log('❌ Polygon cleared');
-      });
+      try {
+        map.on('draw.delete', (e: any) => {
+          console.log('🗑️ Draw delete event:', e);
+          setDrawnPolygon(null);
+          console.log('❌ Polygon cleared');
+        });
+        console.log('✅ Draw delete event listener added');
+      } catch (error) {
+        console.error('❌ Error adding draw delete event listener:', error);
+      }
 
-      map.on('draw.update', (e: any) => {
-        console.log('✏️ Draw update event:', e);
-        if (e.features && e.features.length > 0) {
-          const feature = e.features[0];
-          console.log('🔄 Updated feature:', {
-            type: feature.geometry.type,
-            coordinates: feature.geometry.coordinates
-          });
-          if (feature.geometry.type === 'Polygon') {
-            setDrawnPolygon(feature.geometry as GeoJSON.Polygon);
-            console.log('✅ Polygon updated for querying');
+      try {
+        map.on('draw.update', (e: any) => {
+          console.log('✏️ Draw update event:', e);
+          if (e.features && e.features.length > 0) {
+            const feature = e.features[0];
+            console.log('🔄 Updated feature:', {
+              type: feature.geometry.type,
+              coordinates: feature.geometry.coordinates
+            });
+            if (feature.geometry.type === 'Polygon') {
+              setDrawnPolygon(feature.geometry as GeoJSON.Polygon);
+              console.log('✅ Polygon updated for querying');
+            }
           }
-        }
-      });
+        });
+        console.log('✅ Draw update event listener added');
+      } catch (error) {
+        console.error('❌ Error adding draw update event listener:', error);
+      }
 
       // Set initial drawing mode
-      draw.changeMode('draw_polygon');
+      try {
+        draw.changeMode('draw_polygon');
+        console.log('✅ Initial drawing mode set to polygon');
+      } catch (error) {
+        console.error('❌ Error setting initial drawing mode:', error);
+      }
     });
 
     return () => {
@@ -124,16 +408,23 @@ const GeospatialTab: React.FC = () => {
   useEffect(() => {
     if (!drawRef.current) return;
 
-    switch (drawingMode) {
-      case 'polygon':
-        drawRef.current.changeMode('draw_polygon');
-        break;
-      case 'point':
-        drawRef.current.changeMode('draw_point');
-        break;
-      case 'line':
-        drawRef.current.changeMode('draw_line_string');
-        break;
+    try {
+      switch (drawingMode) {
+        case 'polygon':
+          drawRef.current.changeMode('draw_polygon');
+          console.log('✅ Drawing mode changed to polygon');
+          break;
+        case 'point':
+          drawRef.current.changeMode('draw_point');
+          console.log('✅ Drawing mode changed to point');
+          break;
+        case 'line':
+          drawRef.current.changeMode('draw_line_string');
+          console.log('✅ Drawing mode changed to line');
+          break;
+      }
+    } catch (error) {
+      console.error('❌ Error changing drawing mode:', error);
     }
   }, [drawingMode]);
 
@@ -420,7 +711,12 @@ const GeospatialTab: React.FC = () => {
         updateDashboardStats(results);
         
         // Add results to map
-        addResultsToMap(results);
+        try {
+          addResultsToMap(results);
+        } catch (error) {
+          console.error('❌ Error adding results to map:', error);
+          console.log('🔍 Results that failed to map:', results);
+        }
       } else {
         console.log('⚠️ No results found in response');
         console.log('📋 Response structure:', Object.keys(result));
@@ -451,27 +747,77 @@ const GeospatialTab: React.FC = () => {
       mapRef.current.removeSource('query-results');
     }
 
-    // Add new results as GeoJSON source
+    // Process and validate geometry data
+    const validFeatures: GeoJSON.Feature[] = [];
+    
+    results.forEach((result, index) => {
+      try {
+        let geometry: GeoJSON.Geometry | null = null;
+        
+        // Handle different geometry data formats from Dgraph
+        if (typeof result.geometry === 'string') {
+          // Try to parse WKT (Well-Known Text) format
+          geometry = parseWKTGeometry(result.geometry);
+        } else if (result.geometry && typeof result.geometry === 'object') {
+          // Check if it's already valid GeoJSON
+          if (isValidGeoJSONGeometry(result.geometry)) {
+            geometry = result.geometry;
+          } else {
+            // Try to convert from other formats
+            geometry = convertToGeoJSON(result.geometry);
+          }
+        }
+        
+        if (geometry) {
+          validFeatures.push({
+            type: 'Feature',
+            geometry: geometry,
+            properties: {
+              uid: result.uid,
+              type: result.type,
+              ...result.properties
+            }
+          });
+          console.log(`✅ Feature ${index} processed successfully:`, geometry.type);
+        } else {
+          console.warn(`⚠️ Feature ${index} has invalid geometry:`, result.geometry);
+        }
+      } catch (error) {
+        console.error(`❌ Error processing feature ${index}:`, error);
+        console.log('🔍 Feature data:', result);
+      }
+    });
+
+    if (validFeatures.length === 0) {
+      console.warn('⚠️ No valid features to display on map');
+      console.log('🔍 Raw results for debugging:', results);
+      
+      // Show a message to the user that no valid geometries were found
+      setError('No valid geospatial data found in query results. The data may not be in a supported format.');
+      return;
+    }
+
+    // Create GeoJSON source with validated features
     const geojsonData: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
-      features: results.map(result => ({
-        type: 'Feature',
-        geometry: result.geometry,
-        properties: {
-          uid: result.uid,
-          type: result.type,
-          ...result.properties
-        }
-      }))
+      features: validFeatures
     };
 
-    console.log('📊 GeoJSON data for map:', geojsonData);
-    console.log('🔍 Geometry types found:', [...new Set(results.map(r => r.geometry?.type))]);
+    console.log('📊 Valid GeoJSON data for map:', geojsonData);
+    console.log('🔍 Valid features count:', validFeatures.length);
+    console.log('🔍 Geometry types found:', [...new Set(validFeatures.map(f => f.geometry.type))]);
 
-    mapRef.current.addSource('query-results', {
-      type: 'geojson',
-      data: geojsonData
-    });
+    try {
+      mapRef.current.addSource('query-results', {
+        type: 'geojson',
+        data: geojsonData
+      });
+      console.log('✅ GeoJSON source added successfully');
+    } catch (error) {
+      console.error('❌ Error adding GeoJSON source:', error);
+      console.log('🔍 GeoJSON data that failed:', geojsonData);
+      return;
+    }
 
     // Add layers for different geometry types
     mapRef.current.addLayer({
@@ -559,10 +905,59 @@ const GeospatialTab: React.FC = () => {
   };
 
   // Clear results
+  // Filter and sort results
+  const filteredAndSortedResults = useMemo(() => {
+    let filtered = queryResults;
+    
+    // Apply search filter
+    if (searchTerm) {
+      filtered = queryResults.filter(result => 
+        result.uid.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        result.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        Object.keys(result.properties).some(key => 
+          key.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          String(result.properties[key]).toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      );
+    }
+    
+    // Apply sorting
+    const sorted = [...filtered].sort((a, b) => {
+      let aValue: any, bValue: any;
+      
+      switch (sortBy) {
+        case 'uid':
+          aValue = a.uid;
+          bValue = b.uid;
+          break;
+        case 'type':
+          aValue = a.type;
+          bValue = b.type;
+          break;
+        case 'properties':
+          aValue = Object.keys(a.properties).length;
+          bValue = Object.keys(b.properties).length;
+          break;
+        default:
+          aValue = a.uid;
+          bValue = b.uid;
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
+    
+    return sorted;
+  }, [queryResults, searchTerm, sortBy, sortOrder]);
+
   const clearResults = () => {
     setQueryResults([]);
     setDashboardStats(null);
     setError(null);
+    setSearchTerm('');
     
     // Remove results from map
     if (mapRef.current && mapRef.current.getSource('query-results')) {
@@ -690,97 +1085,120 @@ const GeospatialTab: React.FC = () => {
         </Card.Root>
 
         {/* Dashboard Section */}
-        <Card.Root variant="elevated" w="400px">
+        <Card.Root variant="elevated" w="400px" h="500px">
           <Card.Header>
             <Heading size="md">Query Dashboard</Heading>
           </Card.Header>
-          <Card.Body>
-            {error && (
-              <Alert.Root status="error" mb={4}>
-                <Alert.Indicator />
-                <Alert.Description>{error}</Alert.Description>
-              </Alert.Root>
+          <Card.Body p={0} h="calc(500px - 60px)">
+            <Box
+              h="full"
+              overflowY="auto"
+              overflowX="hidden"
+              p={4}
+              css={{
+                '&::-webkit-scrollbar': {
+                  width: '8px',
+                },
+                '&::-webkit-scrollbar-track': {
+                  background: '#f1f1f1',
+                  borderRadius: '4px',
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  background: '#c1c1c1',
+                  borderRadius: '4px',
+                },
+                '&::-webkit-scrollbar-thumb:hover': {
+                  background: '#a8a8a8',
+                },
+              }}
+            >
+              {error && (
+                <Alert.Root status="error" mb={4}>
+                  <Alert.Indicator />
+                  <Alert.Description>{error}</Alert.Description>
+                </Alert.Root>
+              )}
+
+              {isQuerying && (
+                <HStack justify="center" py={8}>
+                  <Spinner size="lg" />
+                  <Text>Executing geospatial query...</Text>
+                </HStack>
             )}
 
-            {isQuerying && (
-              <HStack justify="center" py={8}>
-                <Spinner size="lg" />
-                <Text>Executing geospatial query...</Text>
-              </HStack>
-            )}
+              {dashboardStats && (
+                <VStack gap={4} align="stretch">
+                  {/* Summary Stats */}
+                  <Box>
+                    <Text fontSize="sm" fontWeight="medium" mb={2}>
+                      Summary
+                    </Text>
+                    <HStack gap={4}>
+                      <Badge colorScheme="blue" variant="subtle">
+                        {dashboardStats.totalNodes} nodes
+                      </Badge>
+                      <Badge colorScheme="green" variant="subtle">
+                        {Object.keys(dashboardStats.nodeTypes).length} types
+                      </Badge>
+                    </HStack>
+                  </Box>
 
-            {dashboardStats && (
-              <VStack gap={4} align="stretch">
-                {/* Summary Stats */}
-                <Box>
-                  <Text fontSize="sm" fontWeight="medium" mb={2}>
-                    Summary
-                  </Text>
-                  <HStack gap={4}>
-                    <Badge colorScheme="blue" variant="subtle">
-                      {dashboardStats.totalNodes} nodes
-                    </Badge>
-                    <Badge colorScheme="green" variant="subtle">
-                      {Object.keys(dashboardStats.nodeTypes).length} types
-                    </Badge>
-                  </HStack>
-                </Box>
+                  {/* Node Types */}
+                  <Box>
+                    <Text fontSize="sm" fontWeight="medium" mb={2}>
+                      Node Types
+                    </Text>
+                    <VStack gap={2} align="stretch">
+                      {Object.entries(dashboardStats.nodeTypes).map(([type, count]) => (
+                        <HStack key={type} justify="space-between">
+                          <Text fontSize="sm">{type}</Text>
+                          <Badge variant="outline">{count}</Badge>
+                        </HStack>
+                      ))}
+                    </VStack>
+                  </Box>
 
-                {/* Node Types */}
-                <Box>
-                  <Text fontSize="sm" fontWeight="medium" mb={2}>
-                    Node Types
-                  </Text>
-                  <VStack gap={2} align="stretch">
-                    {Object.entries(dashboardStats.nodeTypes).map(([type, count]) => (
-                      <HStack key={type} justify="space-between">
-                        <Text fontSize="sm">{type}</Text>
-                        <Badge variant="outline">{count}</Badge>
-                      </HStack>
-                    ))}
-                  </VStack>
-                </Box>
-
-                {/* Property Aggregations */}
-                <Box>
-                  <Text fontSize="sm" fontWeight="medium" mb={2}>
-                    Property Analysis
-                  </Text>
-                  <VStack gap={2} align="stretch">
-                    {Object.entries(dashboardStats.propertyAggregations).map(([prop, stats]) => (
-                      <Box key={prop} p={2} bg="gray.50" borderRadius="md">
-                        <Text fontSize="sm" fontWeight="medium">{prop}</Text>
-                        <Text fontSize="xs" color="gray.600">
-                          {stats.count} occurrences, {stats.values.size} unique values
-                        </Text>
-                        {stats.numericValues.length > 0 && (
+                  {/* Property Aggregations */}
+                  <Box>
+                    <Text fontSize="sm" fontWeight="medium" mb={2}>
+                      Property Analysis
+                    </Text>
+                    <VStack gap={2} align="stretch">
+                      {Object.entries(dashboardStats.propertyAggregations).map(([prop, stats]) => (
+                        <Box key={prop} p={2} bg="gray.50" borderRadius="md">
+                          <Text fontSize="sm" fontWeight="medium">{prop}</Text>
                           <Text fontSize="xs" color="gray.600">
-                            Range: {Math.min(...stats.numericValues)} - {Math.max(...stats.numericValues)}
+                            {stats.count} occurrences, {stats.values.size} unique values
                           </Text>
-                        )}
-                      </Box>
-                    ))}
-                  </VStack>
+                          {stats.numericValues.length > 0 && (
+                            <Text fontSize="xs" color="gray.600">
+                              Range: {Math.min(...stats.numericValues)} - {Math.max(...stats.numericValues)}
+                            </Text>
+                          )}
+                        </Box>
+                      ))}
+                    </VStack>
+                  </Box>
+
+                  <Button
+                    variant="outline"
+                    onClick={clearResults}
+                    size="sm"
+                  >
+                    Clear Results
+                  </Button>
+                </VStack>
+              )}
+
+              {!dashboardStats && !isQuerying && (
+                <Box textAlign="center" py={8} color="gray.500">
+                  <Icons.map size={32} />
+                  <Text mt={2} fontSize="sm">
+                    Draw a polygon on the map and execute a query to see results here
+                  </Text>
                 </Box>
-
-                <Button
-                  variant="outline"
-                  onClick={clearResults}
-                  size="sm"
-                >
-                  Clear Results
-                </Button>
-              </VStack>
-            )}
-
-            {!dashboardStats && !isQuerying && (
-              <Box textAlign="center" py={8} color="gray.500">
-                <Icons.map size={32} />
-                <Text mt={2} fontSize="sm">
-                  Draw a polygon on the map and execute a query to see results here
-                </Text>
-              </Box>
-            )}
+              )}
+            </Box>
           </Card.Body>
         </Card.Root>
       </HStack>
@@ -789,49 +1207,272 @@ const GeospatialTab: React.FC = () => {
       {queryResults.length > 0 && (
         <Card.Root variant="elevated">
           <Card.Header>
-            <Heading size="md">Query Results ({queryResults.length})</Heading>
+            <VStack gap={4} align="stretch">
+              <HStack justify="space-between" align="center">
+                <Heading size="md">Query Results ({queryResults.length})</Heading>
+                <HStack gap={2}>
+                  <Text fontSize="sm" color="gray.600">
+                    Showing {filteredAndSortedResults.length} of {queryResults.length} results
+                  </Text>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearResults}
+                  >
+                    Clear Results
+                  </Button>
+                </HStack>
+              </HStack>
+              
+              {/* Search and Sort Controls */}
+              <HStack gap={4} align="center">
+                <Box flex={1}>
+                  <Text fontSize="sm" fontWeight="medium" mb={2}>
+                    Search Results
+                  </Text>
+                  <input
+                    type="text"
+                    placeholder="Search by UID, type, or property values..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    style={{
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      width: '100%',
+                      outline: 'none'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#3b82f6';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#d1d5db';
+                    }}
+                  />
+                </Box>
+                
+                <Box>
+                  <Text fontSize="sm" fontWeight="medium" mb={2}>
+                    Sort By
+                  </Text>
+                  <HStack gap={2}>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as 'uid' | 'type' | 'properties')}
+                      style={{
+                        padding: '8px 12px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        backgroundColor: 'white'
+                      }}
+                    >
+                      <option value="uid">UID</option>
+                      <option value="type">Type</option>
+                      <option value="properties">Property Count</option>
+                    </select>
+                    
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                    >
+                      {sortOrder === 'asc' ? '↑' : '↓'}
+                    </Button>
+                  </HStack>
+                </Box>
+              </HStack>
+            </VStack>
           </Card.Header>
-          <Card.Body>
-            <Box overflowX="auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          <Card.Body p={0}>
+            <Box
+              maxH="400px"
+              overflowY="auto"
+              overflowX="auto"
+              borderTop="1px"
+              borderColor="gray.200"
+            >
+              <Box as="table" w="full">
+                <Box as="thead" position="sticky" top={0} bg="gray.50" zIndex={1}>
+                  <Box as="tr">
+                    <Box
+                      as="th"
+                      px={4}
+                      py={3}
+                      textAlign="left"
+                      fontSize="xs"
+                      fontWeight="medium"
+                      color="gray.500"
+                      textTransform="uppercase"
+                      letterSpacing="wider"
+                      borderBottom="1px"
+                      borderColor="gray.200"
+                      minW="120px"
+                    >
                       UID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    </Box>
+                    <Box
+                      as="th"
+                      px={4}
+                      py={3}
+                      textAlign="left"
+                      fontSize="xs"
+                      fontWeight="medium"
+                      color="gray.500"
+                      textTransform="uppercase"
+                      letterSpacing="wider"
+                      borderBottom="1px"
+                      borderColor="gray.200"
+                      minW="100px"
+                    >
                       Type
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    </Box>
+                    <Box
+                      as="th"
+                      px={4}
+                      py={3}
+                      textAlign="left"
+                      fontSize="xs"
+                      fontWeight="medium"
+                      color="gray.500"
+                      textTransform="uppercase"
+                      letterSpacing="wider"
+                      borderBottom="1px"
+                      borderColor="gray.200"
+                      minW="200px"
+                    >
                       Properties
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {queryResults.map((result) => (
-                    <tr key={result.uid}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
-                        {result.uid}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <Badge variant="outline">{result.type}</Badge>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        <div className="space-y-1">
-                          {Object.entries(result.properties).map(([key, value]) => (
-                            <div key={key} className="flex items-center space-x-2">
-                              <span className="font-medium text-gray-700">{key}:</span>
-                              <span className="text-gray-600">
-                                {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                              </span>
-                            </div>
+                    </Box>
+                    <Box
+                      as="th"
+                      px={4}
+                      py={3}
+                      textAlign="left"
+                      fontSize="xs"
+                      fontWeight="medium"
+                      color="gray.500"
+                      textTransform="uppercase"
+                      letterSpacing="wider"
+                      borderBottom="1px"
+                      borderColor="gray.200"
+                      minW="120px"
+                    >
+                      Geometry
+                    </Box>
+                  </Box>
+                </Box>
+                <Box as="tbody">
+                  {filteredAndSortedResults.map((result, index) => (
+                    <Box
+                      as="tr"
+                      key={result.uid}
+                      bg={index % 2 === 0 ? 'white' : 'gray.50'}
+                      _hover={{ bg: 'blue.50' }}
+                      transition="background-color 0.2s"
+                    >
+                      <Box
+                        as="td"
+                        px={4}
+                        py={3}
+                        fontSize="sm"
+                        fontFamily="mono"
+                        color="gray.900"
+                        borderBottom="1px"
+                        borderColor="gray.200"
+                        verticalAlign="top"
+                      >
+                        <Text fontSize="xs" color="gray.500" mb={1}>
+                          UID
+                        </Text>
+                        <Text fontSize="sm" fontFamily="mono" wordBreak="break-all">
+                          {result.uid}
+                        </Text>
+                      </Box>
+                      <Box
+                        as="td"
+                        px={4}
+                        py={3}
+                        fontSize="sm"
+                        color="gray.900"
+                        borderBottom="1px"
+                        borderColor="gray.200"
+                        verticalAlign="top"
+                      >
+                        <Text fontSize="xs" color="gray.500" mb={1}>
+                          Type
+                        </Text>
+                        <Badge variant="outline" colorScheme="blue">
+                          {result.type}
+                        </Badge>
+                      </Box>
+                      <Box
+                        as="td"
+                        px={4}
+                        py={3}
+                        fontSize="sm"
+                        color="gray.900"
+                        borderBottom="1px"
+                        borderColor="gray.200"
+                        verticalAlign="top"
+                      >
+                        <Text fontSize="xs" color="gray.500" mb={1}>
+                          Properties
+                        </Text>
+                        <VStack gap={1} align="start">
+                          {Object.entries(result.properties).slice(0, 5).map(([key, value]) => (
+                            <HStack key={key} gap={2} align="start">
+                              <Text fontSize="xs" fontWeight="medium" color="gray.700" minW="80px">
+                                {key}:
+                              </Text>
+                              <Text fontSize="xs" color="gray.600" wordBreak="break-all">
+                                {typeof value === 'object' 
+                                  ? JSON.stringify(value).slice(0, 100) + (JSON.stringify(value).length > 100 ? '...' : '')
+                                  : String(value).slice(0, 100) + (String(value).length > 100 ? '...' : '')
+                                }
+                              </Text>
+                            </HStack>
                           ))}
-                        </div>
-                      </td>
-                    </tr>
+                          {Object.keys(result.properties).length > 5 && (
+                            <Text fontSize="xs" color="gray.500" fontStyle="italic">
+                              +{Object.keys(result.properties).length - 5} more properties
+                            </Text>
+                          )}
+                        </VStack>
+                      </Box>
+                      <Box
+                        as="td"
+                        px={4}
+                        py={3}
+                        fontSize="sm"
+                        color="gray.900"
+                        borderBottom="1px"
+                        borderColor="gray.200"
+                        verticalAlign="top"
+                      >
+                        <Text fontSize="xs" color="gray.500" mb={1}>
+                          Geometry
+                        </Text>
+                        <VStack gap={1} align="start">
+                          <Text fontSize="xs" fontWeight="medium" color="gray.700">
+                            Type: {result.geometry?.type || 'Unknown'}
+                          </Text>
+                          {result.geometryPredicate && (
+                            <Text fontSize="xs" color="gray.600">
+                              Predicate: {result.geometryPredicate}
+                            </Text>
+                          )}
+                          {result.geometry?.coordinates && (
+                            <Text fontSize="xs" color="gray.600" fontFamily="mono">
+                              Coords: {JSON.stringify(result.geometry.coordinates).slice(0, 50)}...
+                            </Text>
+                          )}
+                        </VStack>
+                      </Box>
+                    </Box>
                   ))}
-                </tbody>
-              </table>
+                </Box>
+              </Box>
             </Box>
           </Card.Body>
         </Card.Root>
