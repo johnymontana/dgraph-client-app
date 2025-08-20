@@ -14,6 +14,7 @@ interface GeospatialQueryResult {
   type: string;
   geometry: any;
   geometryPredicate: string;
+  allLocationFields: Record<string, any>;
   properties: Record<string, any>;
 }
 
@@ -43,6 +44,51 @@ const GeospatialTab: React.FC = () => {
   const drawRef = useRef<MapboxDraw | null>(null);
 
   // Helper functions for geometry processing
+  
+  // Validate and format DQL polygon string for Dgraph geospatial queries
+  const formatDQLPolygon = (coordinates: number[][]): string => {
+    try {
+      if (!coordinates || coordinates.length < 3) {
+        throw new Error('Polygon must have at least 3 coordinates');
+      }
+      
+      // Ensure coordinates are in [longitude, latitude] format
+      const validCoords = coordinates.every(coord => 
+        Array.isArray(coord) && 
+        coord.length === 2 && 
+        typeof coord[0] === 'number' && 
+        typeof coord[1] === 'number' &&
+        coord[0] >= -180 && coord[0] <= 180 && // longitude range
+        coord[1] >= -90 && coord[1] <= 90      // latitude range
+      );
+      
+      if (!validCoords) {
+        throw new Error('Invalid coordinate ranges: longitude must be -180 to 180, latitude must be -90 to 90');
+      }
+      
+      // Dgraph within() function expects a nested array format: [[[lng, lat], [lng, lat], ...]]
+      // Ensure polygon is closed
+      const firstCoord = coordinates[0];
+      const lastCoord = coordinates[coordinates.length - 1];
+      
+      let finalCoordinates = [...coordinates];
+      if (firstCoord[0] !== lastCoord[0] || firstCoord[1] !== lastCoord[1]) {
+        console.log('⚠️ Polygon not closed, adding closing coordinate');
+        finalCoordinates.push([...firstCoord]);
+      }
+      
+      // Convert to nested array format for Dgraph
+      const nestedArray = `[[${finalCoordinates.map(coord => `[${coord[0]}, ${coord[1]}]`).join(', ')}]]`;
+      
+      console.log('📍 Formatted DQL polygon for Dgraph within():', nestedArray);
+      console.log('📍 Note: Dgraph expects nested array format: [[[lng, lat], [lng, lat], ...]]');
+      return nestedArray;
+    } catch (error) {
+      console.error('❌ Error formatting DQL polygon:', error);
+      throw error;
+    }
+  };
+  
   const parseWKTGeometry = (wkt: string): GeoJSON.Geometry | null => {
     try {
       console.log('🔍 Parsing WKT geometry:', wkt);
@@ -435,25 +481,47 @@ const GeospatialTab: React.FC = () => {
     try {
       console.log('🔍 Discovering geospatial predicates...');
       
-      // Use a simpler approach - just check for common geospatial predicates
       const potentialGeoPredicates: string[] = [];
       
-      // Common geospatial predicate names to check
-      const commonGeoPredicates = [
+      // Enhanced list of geospatial predicate patterns
+      const geoPatterns = [
+        // Direct geometry predicates
         'geometry', 'location', 'coordinates', 'boundary', 'area', 'shape',
-        'geo', 'spatial', 'lat', 'lng', 'lon', 'latitude', 'longitude',
-        'point', 'polygon', 'line', 'multipoint', 'multipolygon', 'multilinestring'
+        'geo', 'spatial', 'geom', 'polygon', 'point', 'line', 'multipoint', 
+        'multipolygon', 'multilinestring', 'linestring',
+        
+        // Coordinate predicates
+        'lat', 'lng', 'lon', 'latitude', 'longitude', 'x', 'y',
+        
+        // Address and location predicates
+        'address', 'street', 'city', 'state', 'country', 'zip', 'postal',
+        'neighborhood', 'district', 'region', 'province', 'county',
+        
+        // Building and infrastructure predicates
+        'building', 'floor', 'room', 'zone', 'section', 'block',
+        
+        // Natural feature predicates
+        'landmark', 'mountain', 'river', 'lake', 'forest', 'park',
+        
+        // Custom predicates that might contain geo data
+        'position', 'placement', 'site', 'venue', 'facility'
       ];
       
-      // Test each potential predicate
-      for (const predName of commonGeoPredicates) {
+      // Test each potential predicate with a more comprehensive query
+      for (const predName of geoPatterns) {
         try {
           console.log(`🔍 Testing predicate: ${predName}`);
+          
+          // Try to find nodes with this predicate and check their values
           const testQuery = `{
-            q(func: has(${predName}), first: 1) {
+            q(func: has(${predName}), first: 5) {
               uid
               dgraph.type
               ${predName}
+              expand(_all_) {
+                uid
+                dgraph.type
+              }
             }
           }`;
           
@@ -461,21 +529,52 @@ const GeospatialTab: React.FC = () => {
           
           if (result.data && result.data.q && result.data.q.length > 0) {
             console.log(`✅ Found predicate: ${predName}`);
-            potentialGeoPredicates.push(predName);
-          } else {
-            console.log(`❌ No data for predicate: ${predName}`);
+            
+            // Check if the predicate actually contains geospatial data
+            const hasGeoData = result.data.q.some((node: any) => {
+              const value = node[predName];
+              if (!value) return false;
+              
+              // Check for WKT format
+              if (typeof value === 'string') {
+                return value.toUpperCase().includes('POINT') ||
+                       value.toUpperCase().includes('POLYGON') ||
+                       value.toUpperCase().includes('LINESTRING') ||
+                       value.toUpperCase().includes('MULTIPOINT') ||
+                       value.toUpperCase().includes('MULTIPOLYGON') ||
+                       value.toUpperCase().includes('MULTILINESTRING');
+              }
+              
+              // Check for coordinate objects
+              if (typeof value === 'object' && value !== null) {
+                return (value.lat && value.lng) ||
+                       (value.latitude && value.longitude) ||
+                       (value.x && value.y) ||
+                       (value.coordinates && Array.isArray(value.coordinates));
+              }
+              
+              return false;
+            });
+            
+            if (hasGeoData) {
+              console.log(`🎯 Predicate ${predName} contains actual geospatial data`);
+              potentialGeoPredicates.push(predName);
+            } else {
+              console.log(`⚠️ Predicate ${predName} exists but contains no geospatial data`);
+            }
           }
         } catch (error) {
           console.log(`⚠️ Predicate ${predName} test failed:`, error);
-          // Continue testing other predicates
         }
       }
       
-      // Also try to find any predicates that might contain geospatial data
+      // Also try to find any predicates that might contain geospatial data by sampling
       try {
-        console.log('🔍 Checking for any nodes with potential geospatial data...');
+        console.log('🔍 Sampling nodes to discover additional geospatial predicates...');
+        
+        // Query for nodes with dgraph.type to get a sample
         const sampleQuery = `{
-          q(func: has(dgraph.type), first: 10) {
+          q(func: has(dgraph.type), first: 20) {
             uid
             dgraph.type
             expand(_all_) {
@@ -491,20 +590,31 @@ const GeospatialTab: React.FC = () => {
           sampleResult.data.q.forEach((node: any) => {
             Object.keys(node).forEach(key => {
               if (key !== 'uid' && key !== 'dgraph.type' && !potentialGeoPredicates.includes(key)) {
-                // Check if this predicate might contain geospatial data
                 const value = node[key];
+                
+                // Check if this predicate might contain geospatial data
                 if (value && (
-                  typeof value === 'string' && (
+                  // WKT format check
+                  (typeof value === 'string' && (
                     value.includes('POINT') ||
                     value.includes('POLYGON') ||
                     value.includes('LINESTRING') ||
                     value.includes('MULTIPOINT') ||
                     value.includes('MULTIPOLYGON') ||
                     value.includes('MULTILINESTRING')
-                  )
+                  )) ||
+                  // Coordinate object check
+                  (typeof value === 'object' && value !== null && (
+                    (value.lat && value.lng) ||
+                    (value.latitude && value.longitude) ||
+                    (value.x && value.y) ||
+                    (value.coordinates && Array.isArray(value.coordinates))
+                  ))
                 )) {
-                  console.log(`🎯 Found potential geospatial predicate: ${key} with value: ${value}`);
-                  potentialGeoPredicates.push(key);
+                  console.log(`🎯 Found additional geospatial predicate: ${key} with value:`, value);
+                  if (!potentialGeoPredicates.includes(key)) {
+                    potentialGeoPredicates.push(key);
+                  }
                 }
               }
             });
@@ -517,7 +627,7 @@ const GeospatialTab: React.FC = () => {
       // Remove duplicates and filter out empty names
       const uniquePredicates = [...new Set(potentialGeoPredicates)].filter(name => name && name.trim() !== '');
       
-      console.log('🎯 Discovered potential geospatial predicates:', uniquePredicates);
+      console.log('🎯 Discovered geospatial predicates:', uniquePredicates);
       return uniquePredicates;
       
     } catch (error) {
@@ -537,43 +647,13 @@ const GeospatialTab: React.FC = () => {
     setError(null);
 
     try {
-      // Convert polygon to DQL geospatial query
+      // Convert polygon to DQL geospatial query using the helper function
       const coordinates = drawnPolygon.coordinates[0];
+      const polygonString = formatDQLPolygon(coordinates);
       
-      // Validate polygon coordinates
-      if (!coordinates || coordinates.length < 3) {
-        throw new Error('Invalid polygon: must have at least 3 coordinates');
-      }
-      
-      // Check for valid coordinate ranges
-      const validCoordinates = coordinates.every(coord => 
-        Array.isArray(coord) && 
-        coord.length === 2 && 
-        typeof coord[0] === 'number' && 
-        typeof coord[1] === 'number' &&
-        coord[0] >= -180 && coord[0] <= 180 && // longitude range
-        coord[1] >= -90 && coord[1] <= 90      // latitude range
-      );
-      
-      if (!validCoordinates) {
-        throw new Error('Invalid coordinates: must be valid lat/lng pairs');
-      }
-      
-      const polygonString = coordinates.map(coord => `${coord[1]} ${coord[0]}`).join(', ');
-      
-      // Ensure polygon is closed (first and last coordinates should be the same)
-      const isClosed = coordinates[0][0] === coordinates[coordinates.length - 1][0] && 
-                       coordinates[0][1] === coordinates[coordinates.length - 1][1];
-      
-      if (!isClosed) {
-        console.log('⚠️ Polygon not closed, adding closing coordinate');
-        coordinates.push([...coordinates[0]]); // Add closing coordinate
-      }
-      
-      // Validate the polygon string
-      if (!polygonString || polygonString.trim() === '') {
-        throw new Error('Invalid polygon string generated');
-      }
+      console.log('📍 Original coordinates:', coordinates);
+      console.log('📍 Generated DQL polygon string:', polygonString);
+      console.log('📍 Coordinate format: longitude latitude (DQL standard)');
 
       // Discover geospatial predicates
       const geoPredicates = await discoverGeospatialPredicates();
@@ -596,7 +676,7 @@ const GeospatialTab: React.FC = () => {
         }
       });
 
-      // Generate queries for each discovered predicate
+      // Generate comprehensive queries for each discovered predicate
       const queries = geoPredicates.map(predicate => {
         // Use a safer approach - create the query with proper escaping
         const safePredicate = predicate.replace(/[^a-zA-Z0-9_]/g, '_');
@@ -605,10 +685,11 @@ const GeospatialTab: React.FC = () => {
           predicate,
           safePredicate,
           query: `{
-            q(func: has(${safePredicate})) @filter(within(${safePredicate}, "POLYGON((${polygonString}))")) {
+            q(func: has(${safePredicate})) @filter(within(${safePredicate}, "${polygonString}")) {
               uid
               dgraph.type
               ${safePredicate}
+              # Include all other properties (this will include location fields without duplicates)
               expand(_all_)
             }
           }`
@@ -643,28 +724,74 @@ const GeospatialTab: React.FC = () => {
       }
 
       if (!result || !result.data || !result.data.q) {
-        // Try a very simple fallback query
-        console.log('⚠️ All predicate-specific queries failed, trying simple fallback...');
+        // Try a comprehensive fallback query to find any geospatial data
+        console.log('⚠️ All predicate-specific queries failed, trying comprehensive fallback...');
         
         try {
+          // Try to find any nodes that might have geospatial data
           const fallbackQuery = `{
-            q(func: has(dgraph.type), first: 100) {
+            q(func: has(dgraph.type), first: 200) {
               uid
               dgraph.type
+              # Include all properties (this will include location fields without duplicates)
               expand(_all_)
             }
           }`;
           
-          console.log('🔄 Trying fallback query:', fallbackQuery);
+          console.log('🔄 Trying comprehensive fallback query:', fallbackQuery);
           const fallbackResult = await dgraphService.query(fallbackQuery);
           
           if (fallbackResult.data && fallbackResult.data.q && fallbackResult.data.q.length > 0) {
-            console.log('✅ Fallback query succeeded, but no geospatial filtering applied');
-            result = fallbackResult;
-            successfulPredicate = 'fallback';
-            setActivePredicate('fallback');
+            console.log('✅ Fallback query succeeded, filtering for geospatial data...');
+            
+            // Filter results to only include nodes with actual geospatial data
+            const geoNodes = fallbackResult.data.q.filter((node: any) => {
+              const locationFields = [
+                'location', 'coordinates', 'geometry', 'boundary', 'area', 'shape',
+                'lat', 'lng', 'latitude', 'longitude', 'x', 'y',
+                'address', 'street', 'city', 'state', 'country', 'zip', 'postal',
+                'neighborhood', 'district', 'region', 'province', 'county',
+                'building', 'floor', 'room', 'zone', 'section', 'block',
+                'landmark', 'mountain', 'river', 'lake', 'forest', 'park',
+                'position', 'placement', 'site', 'venue', 'facility'
+              ];
+              
+              return locationFields.some(field => {
+                const value = node[field];
+                if (!value) return false;
+                
+                // Check for WKT format
+                if (typeof value === 'string') {
+                  return value.toUpperCase().includes('POINT') ||
+                         value.toUpperCase().includes('POLYGON') ||
+                         value.toUpperCase().includes('LINESTRING') ||
+                         value.toUpperCase().includes('MULTIPOINT') ||
+                         value.toUpperCase().includes('MULTIPOLYGON') ||
+                         value.toUpperCase().includes('MULTILINESTRING');
+                }
+                
+                // Check for coordinate objects
+                if (typeof value === 'object' && value !== null) {
+                  return (value as any).lat && (value as any).lng ||
+                         (value as any).latitude && (value as any).longitude ||
+                         (value as any).x && (value as any).y ||
+                         (value as any).coordinates && Array.isArray((value as any).coordinates);
+                }
+                
+                return false;
+              });
+            });
+            
+            if (geoNodes.length > 0) {
+              console.log(`✅ Found ${geoNodes.length} nodes with geospatial data in fallback query`);
+              result = { data: { q: geoNodes } };
+              successfulPredicate = 'fallback-filtered';
+              setActivePredicate('fallback-filtered');
+            } else {
+              throw new Error('Fallback query found no geospatial data');
+            }
           } else {
-            throw new Error('Fallback query also failed');
+            throw new Error('Fallback query returned no results');
           }
         } catch (fallbackError) {
           console.error('❌ Fallback query failed:', fallbackError);
@@ -683,20 +810,61 @@ const GeospatialTab: React.FC = () => {
       
       if (result.data && result.data.q) {
         const results = result.data.q.map((node: any) => {
-          // Find the actual geometry predicate used
-          const geometryPredicate = geoPredicates.find(pred => node[pred]);
-          const geometryData = geometryPredicate ? node[geometryPredicate] : null;
+          // Find all location-related fields
+          const locationFields = [
+            'location', 'coordinates', 'geometry', 'boundary', 'area', 'shape',
+            'lat', 'lng', 'latitude', 'longitude', 'x', 'y',
+            'address', 'street', 'city', 'state', 'country', 'zip', 'postal',
+            'neighborhood', 'district', 'region', 'province', 'county',
+            'building', 'floor', 'room', 'zone', 'section', 'block',
+            'landmark', 'mountain', 'river', 'lake', 'forest', 'park',
+            'position', 'placement', 'site', 'venue', 'facility'
+          ];
+          
+          // Find the primary geometry predicate used for the query
+          const primaryGeometryPredicate = geoPredicates.find(pred => node[pred]);
+          const primaryGeometryData = primaryGeometryPredicate ? node[primaryGeometryPredicate] : null;
+          
+          // Collect all location data from the node
+          const allLocationData: Record<string, any> = {};
+          locationFields.forEach(field => {
+            if (node[field]) {
+              allLocationData[field] = node[field];
+            }
+          });
+          
+          // Find the best geometry for map rendering (prioritize actual geometry over coordinates)
+          let bestGeometry = primaryGeometryData;
+          if (!bestGeometry) {
+            // Look for any valid geometry data
+            if (node.geometry) bestGeometry = node.geometry;
+            else if (node.coordinates) bestGeometry = node.coordinates;
+            else if (node.location) bestGeometry = node.location;
+            else if (node.boundary) bestGeometry = node.boundary;
+            else if (node.shape) bestGeometry = node.shape;
+            else if (node.area) bestGeometry = node.area;
+            else if ((node.lat && node.lng) || (node.latitude && node.longitude) || (node.x && node.y)) {
+              // Create point from coordinates
+              const lat = node.lat || node.latitude || node.y;
+              const lng = node.lng || node.longitude || node.x;
+              bestGeometry = { type: 'Point', coordinates: [lng, lat] };
+            }
+          }
+          
+          // Separate location fields from other properties
+          const otherProperties = Object.fromEntries(
+            Object.entries(node).filter(([key]) => 
+              !['uid', 'dgraph.type', ...locationFields].includes(key)
+            )
+          );
           
           return {
             uid: node.uid,
             type: node['dgraph.type']?.[0] || 'unknown',
-            geometry: geometryData,
-            geometryPredicate: geometryPredicate || 'unknown',
-            properties: Object.fromEntries(
-              Object.entries(node).filter(([key]) => 
-                !['uid', 'dgraph.type', geometryPredicate].includes(key)
-              )
-            )
+            geometry: bestGeometry,
+            geometryPredicate: primaryGeometryPredicate || 'unknown',
+            allLocationFields: allLocationData,
+            properties: otherProperties
           };
         });
 
@@ -754,17 +922,62 @@ const GeospatialTab: React.FC = () => {
       try {
         let geometry: GeoJSON.Geometry | null = null;
         
-        // Handle different geometry data formats from Dgraph
-        if (typeof result.geometry === 'string') {
-          // Try to parse WKT (Well-Known Text) format
-          geometry = parseWKTGeometry(result.geometry);
-        } else if (result.geometry && typeof result.geometry === 'object') {
-          // Check if it's already valid GeoJSON
-          if (isValidGeoJSONGeometry(result.geometry)) {
-            geometry = result.geometry;
-          } else {
-            // Try to convert from other formats
-            geometry = convertToGeoJSON(result.geometry);
+        // First try the primary geometry
+        if (result.geometry) {
+          if (typeof result.geometry === 'string') {
+            geometry = parseWKTGeometry(result.geometry);
+          } else if (typeof result.geometry === 'object') {
+            if (isValidGeoJSONGeometry(result.geometry)) {
+              geometry = result.geometry;
+            } else {
+              geometry = convertToGeoJSON(result.geometry);
+            }
+          }
+        }
+        
+        // If no primary geometry, try to find geometry in location fields
+        if (!geometry && result.allLocationFields) {
+          const locationFields = ['geometry', 'coordinates', 'location', 'boundary', 'shape', 'area'];
+          
+          for (const field of locationFields) {
+            if (result.allLocationFields[field]) {
+              const value = result.allLocationFields[field];
+              if (typeof value === 'string') {
+                geometry = parseWKTGeometry(value);
+              } else if (typeof value === 'object') {
+                if (isValidGeoJSONGeometry(value)) {
+                  geometry = value;
+                } else {
+                  geometry = convertToGeoJSON(value);
+                }
+              }
+              if (geometry) break;
+            }
+          }
+        }
+        
+        // If still no geometry, try to create from coordinate fields
+        if (!geometry && result.allLocationFields) {
+          const coordFields = ['lat', 'lng', 'latitude', 'longitude', 'x', 'y'];
+          let lat: number | null = null;
+          let lng: number | null = null;
+          
+          for (const field of coordFields) {
+            if (result.allLocationFields[field] !== undefined) {
+              if (field === 'lat' || field === 'latitude' || field === 'y') {
+                lat = Number(result.allLocationFields[field]);
+              } else if (field === 'lng' || field === 'longitude' || field === 'x') {
+                lng = Number(result.allLocationFields[field]);
+              }
+            }
+          }
+          
+          if (lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng)) {
+            geometry = {
+              type: 'Point',
+              coordinates: [lng, lat]
+            };
+            console.log(`📍 Created point geometry from coordinates: [${lng}, ${lat}]`);
           }
         }
         
@@ -775,12 +988,17 @@ const GeospatialTab: React.FC = () => {
             properties: {
               uid: result.uid,
               type: result.type,
+              geometryPredicate: result.geometryPredicate,
+              allLocationFields: result.allLocationFields,
               ...result.properties
             }
           });
           console.log(`✅ Feature ${index} processed successfully:`, geometry.type);
         } else {
-          console.warn(`⚠️ Feature ${index} has invalid geometry:`, result.geometry);
+          console.warn(`⚠️ Feature ${index} has no valid geometry data:`, {
+            geometry: result.geometry,
+            locationFields: result.allLocationFields
+          });
         }
       } catch (error) {
         console.error(`❌ Error processing feature ${index}:`, error);
@@ -976,6 +1194,146 @@ const GeospatialTab: React.FC = () => {
     setDrawnPolygon(null);
   };
 
+  // Test DQL polygon format
+  const testDQLPolygonFormat = useCallback(() => {
+    console.log('🧪 Testing Dgraph geospatial polygon format...');
+    
+    // Test with your coordinates from the error
+    const testCoords = [
+      [42.67524108527863, -74.28183348865907],
+      [42.94665831876094, -70.42968036261611],
+      [40.51079526751644, -71.03906051814818],
+      [42.67524108527863, -74.28183348865907]
+    ];
+    
+    console.log('📍 Test coordinates (lat, lng):', testCoords);
+    
+    try {
+      // Convert to Dgraph nested array format
+      const nestedArray = `[[${testCoords.map(coord => `[${coord[1]}, ${coord[0]}]`).join(', ')}]]`;
+      console.log('📍 Dgraph within() nested array format:', nestedArray);
+      console.log('📍 Note: Dgraph expects nested array format: [[[lng, lat], [lng, lat], ...]]');
+      
+      // Validate ranges
+      const validLng = testCoords.every(coord => coord[1] >= -180 && coord[1] <= 180);
+      const validLat = testCoords.every(coord => coord[0] >= -90 && coord[0] <= 90);
+      
+      console.log('📍 Longitude range valid:', validLng);
+      console.log('📍 Latitude range valid:', validLat);
+      
+      if (!validLng || !validLat) {
+        console.error('❌ Invalid coordinate ranges detected!');
+        console.error('   Longitude must be -180 to 180');
+        console.error('   Latitude must be -90 to 90');
+      }
+      
+      // Show example query
+      console.log('📍 Example Dgraph query:');
+      console.log(`   @filter(within(location, ${nestedArray}))`);
+      
+      return nestedArray;
+    } catch (error) {
+      console.error('❌ Error testing DQL format:', error);
+      return null;
+    }
+  }, []);
+
+  // Test geospatial query functionality
+  const testGeospatialQuery = useCallback(async () => {
+    if (!dgraphService || !connected) {
+      setError('Not connected to database');
+      return;
+    }
+
+    setIsQuerying(true);
+    setError(null);
+
+    try {
+      console.log('🧪 Testing geospatial query functionality...');
+      
+      // First, discover available predicates
+      const predicates = await discoverGeospatialPredicates();
+      console.log('🔍 Discovered predicates:', predicates);
+      
+      if (predicates.length === 0) {
+        // Try a simple query to see what's available
+        console.log('🔍 No geospatial predicates found, trying simple query...');
+        
+        const simpleQuery = `{
+          q(func: has(dgraph.type), first: 10) {
+            uid
+            dgraph.type
+            expand(_all_) {
+              uid
+              dgraph.type
+            }
+          }
+        }`;
+        
+        const result = await dgraphService.query(simpleQuery);
+        console.log('📊 Simple query result:', result);
+        
+        if (result.data && result.data.q) {
+          // Look for any potential geospatial data
+          const potentialGeoData: any[] = [];
+          
+          result.data.q.forEach((node: any) => {
+            Object.entries(node).forEach(([key, value]) => {
+              if (key !== 'uid' && key !== 'dgraph.type' && value) {
+                if (typeof value === 'string' && (
+                  value.includes('POINT') ||
+                  value.includes('POLYGON') ||
+                  value.includes('LINESTRING')
+                )) {
+                  potentialGeoData.push({ node, field: key, value });
+                } else if (typeof value === 'object' && value !== null && (
+                  (value as any).lat || (value as any).lng || (value as any).latitude || (value as any).longitude
+                )) {
+                  potentialGeoData.push({ node, field: key, value });
+                }
+              }
+            });
+          });
+          
+          if (potentialGeoData.length > 0) {
+            console.log('🎯 Found potential geospatial data:', potentialGeoData);
+            setError(`Found ${potentialGeoData.length} potential geospatial fields. Try drawing a polygon to query them.`);
+          } else {
+            setError('No geospatial data found. The database may not contain location information.');
+          }
+        }
+      } else {
+        // Test a simple geospatial query with the first predicate
+        const testPredicate = predicates[0];
+        console.log(`🧪 Testing query with predicate: ${testPredicate}`);
+        
+        // Create a simple bounding box query
+        const testQuery = `{
+          q(func: has(${testPredicate}), first: 5) {
+            uid
+            dgraph.type
+            ${testPredicate}
+            expand(_all_)
+          }
+        }`;
+        
+        const result = await dgraphService.query(testQuery);
+        console.log('📊 Test query result:', result);
+        
+        if (result.data && result.data.q && result.data.q.length > 0) {
+          setError(`✅ Test successful! Found ${result.data.q.length} nodes with ${testPredicate}. Draw a polygon to execute spatial queries.`);
+        } else {
+          setError(`⚠️ Test query returned no results for ${testPredicate}`);
+        }
+      }
+    } catch (err) {
+      console.error('❌ Test query failed:', err);
+      setError(`Test failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsQuerying(false);
+    }
+  }, [dgraphService, connected, discoverGeospatialPredicates]);
+
   if (!connected) {
     return (
       <Box p={6}>
@@ -1068,16 +1426,35 @@ const GeospatialTab: React.FC = () => {
                     </Box>
                   )}
                   
-                  {drawnPolygon && (
+                  <HStack gap={2}>
                     <Button
                       size="sm"
-                      colorScheme="blue"
-                      onClick={executeGeospatialQuery}
+                      variant="outline"
+                      onClick={testDQLPolygonFormat}
+                    >
+                      Test DQL Format
+                    </Button>
+                    
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={testGeospatialQuery}
                       loading={isQuerying}
                     >
-                      {isQuerying ? 'Querying...' : 'Execute Query'}
+                      {isQuerying ? 'Testing...' : 'Test Query'}
                     </Button>
-                  )}
+                    
+                    {drawnPolygon && (
+                      <Button
+                        size="sm"
+                        colorScheme="blue"
+                        onClick={executeGeospatialQuery}
+                        loading={isQuerying}
+                      >
+                        {isQuerying ? 'Querying...' : 'Execute Query'}
+                      </Button>
+                    )}
+                  </HStack>
                 </VStack>
               </Box>
             </Box>
@@ -1360,6 +1737,22 @@ const GeospatialTab: React.FC = () => {
                     >
                       Geometry
                     </Box>
+                    <Box
+                      as="th"
+                      px={4}
+                      py={3}
+                      textAlign="left"
+                      fontSize="xs"
+                      fontWeight="medium"
+                      color="gray.500"
+                      textTransform="uppercase"
+                      letterSpacing="wider"
+                      borderBottom="1px"
+                      borderColor="gray.200"
+                      minW="150px"
+                    >
+                      Location Fields
+                    </Box>
                   </Box>
                 </Box>
                 <Box as="tbody">
@@ -1465,6 +1858,46 @@ const GeospatialTab: React.FC = () => {
                           {result.geometry?.coordinates && (
                             <Text fontSize="xs" color="gray.600" fontFamily="mono">
                               Coords: {JSON.stringify(result.geometry.coordinates).slice(0, 50)}...
+                            </Text>
+                          )}
+                        </VStack>
+                      </Box>
+                      <Box
+                        as="td"
+                        px={4}
+                        py={3}
+                        fontSize="sm"
+                        color="gray.900"
+                        borderBottom="1px"
+                        borderColor="gray.200"
+                        verticalAlign="top"
+                      >
+                        <Text fontSize="xs" color="gray.500" mb={1}>
+                          Location Fields
+                        </Text>
+                        <VStack gap={1} align="start">
+                          {Object.keys(result.allLocationFields || {}).length > 0 ? (
+                            Object.entries(result.allLocationFields).slice(0, 3).map(([key, value]) => (
+                              <HStack key={key} gap={2} align="start">
+                                <Text fontSize="xs" fontWeight="medium" color="gray.700" minW="60px">
+                                  {key}:
+                                </Text>
+                                <Text fontSize="xs" color="gray.600" wordBreak="break-all">
+                                  {typeof value === 'object' 
+                                    ? JSON.stringify(value).slice(0, 80) + (JSON.stringify(value).length > 80 ? '...' : '')
+                                    : String(value).slice(0, 80) + (String(value).length > 80 ? '...' : '')
+                                  }
+                                </Text>
+                              </HStack>
+                            ))
+                          ) : (
+                            <Text fontSize="xs" color="gray.500" fontStyle="italic">
+                              No location fields
+                            </Text>
+                          )}
+                          {Object.keys(result.allLocationFields || {}).length > 3 && (
+                            <Text fontSize="xs" color="gray.500" fontStyle="italic">
+                              +{Object.keys(result.allLocationFields).length - 3} more location fields
                             </Text>
                           )}
                         </VStack>
