@@ -38,10 +38,18 @@ const GeospatialTab: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [sortBy, setSortBy] = useState<'uid' | 'type' | 'properties'>('uid');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [selectedFeature, setSelectedFeature] = useState<GeoJSON.Feature | null>(null);
+  const [popupPosition, setPopupPosition] = useState<{ lng: number; lat: number } | null>(null);
   
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const drawRef = useRef<MapboxDraw | null>(null);
+
+  // Monitor state changes for debugging
+  useEffect(() => {
+    console.log('🔄 State changed - selectedFeature:', selectedFeature ? 'YES' : 'NO');
+    console.log('🔄 State changed - popupPosition:', popupPosition ? 'YES' : 'NO');
+  }, [selectedFeature, popupPosition]);
 
   // Helper functions for geometry processing
   
@@ -1050,6 +1058,7 @@ const GeospatialTab: React.FC = () => {
       },
       filter: ['==', '$type', 'Point']
     });
+    console.log('✅ Added results-points layer');
 
     mapRef.current.addLayer({
       id: 'results-polygons',
@@ -1062,6 +1071,7 @@ const GeospatialTab: React.FC = () => {
       },
       filter: ['==', '$type', 'Polygon']
     });
+    console.log('✅ Added results-polygons layer');
 
     mapRef.current.addLayer({
       id: 'results-lines',
@@ -1073,8 +1083,111 @@ const GeospatialTab: React.FC = () => {
       },
       filter: ['==', '$type', 'LineString']
     });
+    console.log('✅ Added results-lines layer');
 
-    console.log('✅ Map layers added successfully');
+    // Add click event handlers for all geometry types
+    mapRef.current.on('click', 'results-points', (e) => {
+      console.log('📍 Clicked on results-points layer');
+      if (e.features && e.features.length > 0) {
+        const feature = e.features[0];
+        console.log('📍 Found feature in results-points:', feature);
+        showFeaturePopup(feature, e.lngLat);
+      }
+    });
+
+    mapRef.current.on('click', 'results-polygons', (e) => {
+      console.log('📍 Clicked on results-polygons layer');
+      if (e.features && e.features.length > 0) {
+        const feature = e.features[0];
+        console.log('📍 Found feature in results-polygons:', feature);
+        showFeaturePopup(feature, e.lngLat);
+      }
+    });
+
+    mapRef.current.on('click', 'results-lines', (e) => {
+      console.log('📍 Clicked on results-lines layer');
+      if (e.features && e.features.length > 0) {
+        const feature = e.features[0];
+        console.log('📍 Found feature in results-lines:', feature);
+        showFeaturePopup(feature, e.lngLat);
+      }
+    });
+
+    // Add click handler for map background to close popup
+    mapRef.current.on('click', (e: any) => {
+      console.log('📍 Map background clicked, features:', e.features);
+      // Only close popup if clicking on empty space (no features)
+      if (!e.features || e.features.length === 0) {
+        console.log('📍 No features found, closing popup');
+        closeFeaturePopup();
+      }
+    });
+
+    // Add a global click handler to see if ANY clicks are being registered
+    mapRef.current.on('click', (e: any) => {
+      console.log('📍 GLOBAL MAP CLICK - Position:', e.lngLat, 'Features:', e.features?.length || 0);
+      if (e.features && e.features.length > 0) {
+        console.log('📍 GLOBAL CLICK - Feature details:', e.features[0]);
+      }
+    });
+
+    // Change cursor to pointer when hovering over features
+    mapRef.current.on('mouseenter', 'results-points', () => {
+      if (mapRef.current) {
+        mapRef.current.getCanvas().style.cursor = 'pointer';
+      }
+    });
+
+    mapRef.current.on('mouseenter', 'results-polygons', () => {
+      if (mapRef.current) {
+        mapRef.current.getCanvas().style.cursor = 'pointer';
+      }
+    });
+
+    mapRef.current.on('mouseenter', 'results-lines', () => {
+      if (mapRef.current) {
+        mapRef.current.getCanvas().style.cursor = 'pointer';
+      }
+    });
+
+    mapRef.current.on('mouseleave', 'results-points', () => {
+      if (mapRef.current) {
+        mapRef.current.getCanvas().style.cursor = '';
+      }
+    });
+
+    mapRef.current.on('mouseleave', 'results-polygons', () => {
+      if (mapRef.current) {
+        mapRef.current.getCanvas().style.cursor = '';
+      }
+    });
+
+    mapRef.current.on('mouseleave', 'results-lines', () => {
+      if (mapRef.current) {
+        mapRef.current.getCanvas().style.cursor = '';
+      }
+    });
+
+    // Verify layers were added and are clickable
+    setTimeout(() => {
+      if (mapRef.current) {
+        console.log('🔍 Checking if layers exist:');
+        console.log('  - results-points:', mapRef.current.getLayer('results-points') ? '✅' : '❌');
+        console.log('  - results-polygons:', mapRef.current.getLayer('results-polygons') ? '✅' : '❌');
+        console.log('  - results-lines:', mapRef.current.getLayer('results-lines') ? '✅' : '❌');
+        
+        // Check if source exists
+        console.log('  - query-results source:', mapRef.current.getSource('query-results') ? '✅' : '❌');
+        
+        // Check if features are in the source
+        const source = mapRef.current.getSource('query-results') as any;
+        if (source && source._data) {
+          console.log('  - Features in source:', source._data.features?.length || 0);
+        }
+      }
+    }, 100);
+
+    console.log('✅ Map layers and click handlers added successfully');
   };
 
   // Update dashboard statistics
@@ -1176,6 +1289,8 @@ const GeospatialTab: React.FC = () => {
     setDashboardStats(null);
     setError(null);
     setSearchTerm('');
+    setSelectedFeature(null);
+    setPopupPosition(null);
     
     // Remove results from map
     if (mapRef.current && mapRef.current.getSource('query-results')) {
@@ -1193,6 +1308,32 @@ const GeospatialTab: React.FC = () => {
     }
     setDrawnPolygon(null);
   };
+
+  // Show feature popup when clicked
+  const showFeaturePopup = useCallback((feature: GeoJSON.Feature, lngLat: { lng: number; lat: number }) => {
+    console.log('📍 Feature clicked:', feature);
+    console.log('📍 Setting popup state - selectedFeature:', feature);
+    console.log('📍 Setting popup state - popupPosition:', lngLat);
+    
+    // Force immediate state update
+    setSelectedFeature(feature);
+    setPopupPosition(lngLat);
+    
+    // Log the state after setting it
+    console.log('📍 Popup state should now be visible');
+    
+    // Force a re-render by updating a dummy state
+    setTimeout(() => {
+      console.log('📍 After timeout - selectedFeature:', feature);
+      console.log('📍 After timeout - popupPosition:', lngLat);
+    }, 100);
+  }, []);
+
+  // Close feature popup
+  const closeFeaturePopup = useCallback(() => {
+    setSelectedFeature(null);
+    setPopupPosition(null);
+  }, []);
 
   // Test DQL polygon format
   const testDQLPolygonFormat = useCallback(() => {
@@ -1394,7 +1535,166 @@ const GeospatialTab: React.FC = () => {
           </Card.Header>
           <Card.Body>
             <Box h="500px" position="relative">
-              <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
+              <div 
+                ref={mapContainerRef} 
+                style={{ width: '100%', height: '100%' }}
+              />
+
+              {/* Debug Info */}
+              <Box
+                position="absolute"
+                top="10px"
+                left="10px"
+                bg="red.100"
+                p={2}
+                borderRadius="md"
+                fontSize="xs"
+                zIndex={9998}
+              >
+                Debug: selectedFeature={selectedFeature ? 'YES' : 'NO'}, popupPosition={popupPosition ? 'YES' : 'NO'}
+                {selectedFeature && (
+                  <Box mt={1} p={1} bg="green.100" borderRadius="sm">
+                    Feature UID: {selectedFeature.properties?.uid}
+                  </Box>
+                )}
+              </Box>
+
+              {/* Feature Popup */}
+              {(() => {
+                console.log('🔄 Render check - selectedFeature:', selectedFeature ? 'YES' : 'NO');
+                console.log('🔄 Render check - popupPosition:', popupPosition ? 'YES' : 'NO');
+                console.log('🔄 Render check - Should show popup:', selectedFeature && popupPosition ? 'YES' : 'NO');
+                return null;
+              })()}
+              {selectedFeature && popupPosition && (
+                <Box
+                  position="absolute"
+                  top="20px"
+                  right="20px"
+                  bg="white"
+                  p={4}
+                  borderRadius="md"
+                  shadow="xl"
+                  border="1px"
+                  borderColor="gray.200"
+                  maxW="400px"
+                  maxH="300px"
+                  overflowY="auto"
+                  zIndex={9999}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Box position="absolute" top="-10px" left="-10px" bg="red" color="white" p={1} borderRadius="full" fontSize="xs">
+                    POPUP ACTIVE
+                  </Box>
+                  <VStack gap={3} align="stretch">
+                    <HStack justify="space-between" align="center">
+                      <Heading size="sm">Node Details</Heading>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={closeFeaturePopup}
+                        p={1}
+                        minW="auto"
+                      >
+                        ×
+                      </Button>
+                    </HStack>
+                    
+                    <Box>
+                      <Text fontSize="sm" fontWeight="medium" mb={2}>
+                        Basic Information
+                      </Text>
+                      <VStack gap={2} align="start">
+                        <HStack gap={2}>
+                          <Text fontSize="xs" color="gray.600" minW="60px">UID:</Text>
+                          <Text fontSize="xs" fontFamily="mono" wordBreak="break-all">
+                            {selectedFeature.properties?.uid}
+                          </Text>
+                        </HStack>
+                        <HStack gap={2}>
+                          <Text fontSize="xs" color="gray.600" minW="60px">Type:</Text>
+                          <Badge size="sm" variant="outline" colorScheme="blue">
+                            {selectedFeature.properties?.type}
+                          </Badge>
+                        </HStack>
+                        {selectedFeature.properties?.geometryPredicate && (
+                          <HStack gap={2}>
+                            <Text fontSize="xs" color="gray.600" minW="60px">Geometry:</Text>
+                            <Text fontSize="xs" color="gray.700">
+                              {selectedFeature.properties.geometryPredicate}
+                            </Text>
+                          </HStack>
+                        )}
+                      </VStack>
+                    </Box>
+
+                    {selectedFeature.properties?.allLocationFields && Object.keys(selectedFeature.properties.allLocationFields).length > 0 && (
+                      <Box>
+                        <Text fontSize="sm" fontWeight="medium" mb={2}>
+                          Location Fields
+                        </Text>
+                        <VStack gap={1} align="start">
+                          {Object.entries(selectedFeature.properties.allLocationFields).slice(0, 5).map(([key, value]) => (
+                            <HStack key={key} gap={2} align="start">
+                              <Text fontSize="xs" fontWeight="medium" color="gray.700" minW="80px">
+                                {key}:
+                              </Text>
+                              <Text fontSize="xs" color="gray.600" wordBreak="break-all">
+                                {typeof value === 'object' 
+                                  ? JSON.stringify(value).slice(0, 80) + (JSON.stringify(value).length > 80 ? '...' : '')
+                                  : String(value).slice(0, 80) + (String(value).length > 80 ? '...' : '')
+                                }
+                              </Text>
+                            </HStack>
+                          ))}
+                          {Object.keys(selectedFeature.properties.allLocationFields).length > 5 && (
+                            <Text fontSize="xs" color="gray.500" fontStyle="italic">
+                              +{Object.keys(selectedFeature.properties.allLocationFields).length - 5} more location fields
+                            </Text>
+                          )}
+                        </VStack>
+                      </Box>
+                    )}
+
+                    {selectedFeature.properties && Object.keys(selectedFeature.properties).filter(key => 
+                      !['uid', 'type', 'geometryPredicate', 'allLocationFields'].includes(key)
+                    ).length > 0 && (
+                      <Box>
+                        <Text fontSize="sm" fontWeight="medium" mb={2}>
+                          Properties
+                        </Text>
+                        <VStack gap={1} align="start">
+                          {Object.entries(selectedFeature.properties)
+                            .filter(([key]) => !['uid', 'type', 'geometryPredicate', 'allLocationFields'].includes(key))
+                            .slice(0, 5)
+                            .map(([key, value]) => (
+                              <HStack key={key} gap={2} align="start">
+                                <Text fontSize="xs" fontWeight="medium" color="gray.700" minW="80px">
+                                  {key}:
+                                </Text>
+                                <Text fontSize="xs" color="gray.600" wordBreak="break-all">
+                                  {typeof value === 'object' 
+                                    ? JSON.stringify(value).slice(0, 80) + (JSON.stringify(value).length > 80 ? '...' : '')
+                                    : String(value).slice(0, 80) + (String(value).length > 80 ? '...' : '')
+                                  }
+                                </Text>
+                              </HStack>
+                            ))}
+                          {Object.keys(selectedFeature.properties).filter(key => 
+                            !['uid', 'type', 'geometryPredicate', 'allLocationFields'].includes(key)
+                          ).length > 5 && (
+                            <Text fontSize="xs" color="gray.500" fontStyle="italic">
+                              +{Object.keys(selectedFeature.properties).filter(key => 
+                                !['uid', 'type', 'geometryPredicate', 'allLocationFields'].includes(key)
+                              ).length - 5} more properties
+                            </Text>
+                          )}
+                        </VStack>
+                      </Box>
+                    )}
+                  </VStack>
+                </Box>
+              )}
 
               {/* Query Controls Overlay */}
               <Box
@@ -1442,6 +1742,28 @@ const GeospatialTab: React.FC = () => {
                       loading={isQuerying}
                     >
                       {isQuerying ? 'Testing...' : 'Test Query'}
+                    </Button>
+                    
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const testFeature = {
+                          type: 'Feature',
+                          geometry: { type: 'Point', coordinates: [0, 0] },
+                          properties: {
+                            uid: '0x12345',
+                            type: 'Test',
+                            geometryPredicate: 'location',
+                            allLocationFields: { lat: 42.0, lng: -72.0 },
+                            testProp: 'Test Value'
+                          }
+                        } as GeoJSON.Feature;
+                        setSelectedFeature(testFeature);
+                        setPopupPosition({ lng: -72.0, lat: 42.0 });
+                      }}
+                    >
+                      Test Popup
                     </Button>
                     
                     {drawnPolygon && (

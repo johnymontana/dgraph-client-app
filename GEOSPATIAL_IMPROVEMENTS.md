@@ -59,6 +59,9 @@ Queries now return all location-related fields through the `expand(_all_)` claus
 - **Better Geometry Handling**: Supports multiple geometry formats and automatic conversion
 - **Enhanced Properties**: Map features now include all location data and metadata
 - **Fallback Rendering**: Creates map features even when primary geometry is missing
+- **Interactive Features**: Click on any map marker to view detailed node information
+- **Feature Popups**: Comprehensive popup showing UID, type, location fields, and properties
+- **Visual Feedback**: Cursor changes to pointer when hovering over clickable features
 
 ### 5. Fallback Query System
 
@@ -89,6 +92,12 @@ When specific geospatial queries fail, the system:
 - **Multiple Drawing Modes**: Polygon, point, and line drawing tools
 - **Comprehensive Results**: View all location fields and properties for each result
 - **Interactive Map**: Click on map features to see detailed information
+- **Feature Popups**: Rich popup interface showing:
+  - Basic node information (UID, type, geometry predicate)
+  - All location fields with values
+  - Node properties and metadata
+  - Truncated display for long values with "show more" indicators
+- **Visual Feedback**: Cursor changes to pointer when hovering over clickable features
 - **Data Export**: Results can be analyzed and exported for further processing
 
 ## Technical Details
