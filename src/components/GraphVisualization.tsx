@@ -514,7 +514,7 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
         </div>
       ) : viewMode === 'graph' ? (
         <div className="relative">
-          <div className={`border border-gray-300 rounded-md overflow-hidden ${isFullscreen ? 'h-[calc(100vh-130px)]' : 'h-full'}`} style={{ border: "2px solid green", minHeight: "500px" }}>
+          <div className={`border border-gray-300 rounded-md overflow-hidden ${isFullscreen ? 'h-[calc(100vh-130px)]' : 'h-full'}`} style={{ minHeight: "500px", height: "500px" }}>
             {isProcessing ? (
               <div className="flex justify-center items-center h-full bg-gray-100">
                 <p className="text-gray-500">Processing data...</p>
