@@ -10,13 +10,25 @@ import { useDgraph } from '@/context/DgraphContext';
 import { Icons } from '@/components/ui/icons';
 
 export default function StatusIndicator() {
-  const { connected, endpoint, error } = useDgraph();
+  const { connected, endpoint, error, isHealthy, lastHealthCheck, performHealthCheck } = useDgraph();
   const [mounted, setMounted] = useState(false);
+  const [isCheckingHealth, setIsCheckingHealth] = useState(false);
 
   // Prevent hydration mismatch by only rendering after mount
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleHealthCheck = async () => {
+    if (!connected) return;
+
+    setIsCheckingHealth(true);
+    try {
+      await performHealthCheck();
+    } finally {
+      setIsCheckingHealth(false);
+    }
+  };
 
   if (!mounted) {
     return (
@@ -49,13 +61,34 @@ export default function StatusIndicator() {
     }
     
     if (connected) {
-      return {
-        status: 'connected',
-        label: 'Connected',
-        icon: Icons.success,
-        bg: 'status.success',
-        description: `Connected to ${endpoint}`
-      };
+      // Check if we have health information
+      if (lastHealthCheck) {
+        if (isHealthy) {
+          return {
+            status: 'connected',
+            label: 'Connected',
+            icon: Icons.success,
+            bg: 'status.success',
+            description: `Connected to ${endpoint} - Last health check: ${lastHealthCheck.toLocaleTimeString()}`
+          };
+        } else {
+          return {
+            status: 'warning',
+            label: 'Unhealthy',
+            icon: Icons.warning,
+            bg: 'status.warning',
+            description: `Connected to ${endpoint} but health check failed at ${lastHealthCheck.toLocaleTimeString()}`
+          };
+        }
+      } else {
+        return {
+          status: 'connected',
+          label: 'Connected',
+          icon: Icons.success,
+          bg: 'status.success',
+          description: `Connected to ${endpoint} - Health check pending`
+        };
+      }
     }
     
     if (endpoint) {
@@ -81,21 +114,46 @@ export default function StatusIndicator() {
   const IconComponent = statusInfo.icon;
 
   return (
-    <Box
-      layerStyle="status-badge"
-      bg={statusInfo.bg}
-      color="white"
-      px={3}
-      py={1.5}
-      title={statusInfo.description}
-      cursor="help"
-    >
-      <HStack gap={2} align="center">
-        <IconComponent size={12} />
-        <Text fontSize="xs" fontWeight="semibold">
-          {statusInfo.label}
-        </Text>
-      </HStack>
-    </Box>
+    <HStack gap={2} align="center">
+      <Box
+        layerStyle="status-badge"
+        bg={statusInfo.bg}
+        color="white"
+        px={3}
+        py={1.5}
+        title={statusInfo.description}
+        cursor="help"
+      >
+        <HStack gap={2} align="center">
+          <IconComponent size={12} />
+          <Text fontSize="xs" fontWeight="semibold">
+            {statusInfo.label}
+          </Text>
+        </HStack>
+      </Box>
+
+      {connected && (
+        <Box
+          as="button"
+          onClick={isCheckingHealth ? undefined : handleHealthCheck}
+          bg="bg.muted"
+          color="fg.primary"
+          px={2}
+          py={1}
+          borderRadius="md"
+          fontSize="xs"
+          cursor={isCheckingHealth ? 'not-allowed' : 'pointer'}
+          opacity={isCheckingHealth ? 0.6 : 1}
+          title="Check database health"
+          _hover={!isCheckingHealth ? { bg: 'bg.secondary' } : {}}
+          _disabled={{
+            cursor: 'not-allowed',
+            opacity: 0.6
+          }}
+        >
+          {isCheckingHealth ? 'Checking...' : 'Health Check'}
+        </Box>
+      )}
+    </HStack>
   );
 }
