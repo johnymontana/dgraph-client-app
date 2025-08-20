@@ -28,6 +28,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.4",
     "@ai-sdk/openai": "^2.0.15",
+    "@chakra-ui/charts": "^3.24.2",
     "@chakra-ui/react": "^3.24.2",
     "@codemirror/autocomplete": "^6.18.6",
     "@codemirror/lang-json": "^6.0.1",

@@ -54,14 +54,24 @@ const LoadGraph: React.FC<{ graph: Graphology; onNodeClick?: (nodeId: string, no
 
       // Force Sigma to resize after a short delay to ensure container is ready
       setTimeout(() => {
-        if (sigma.getContainer()) {
-          sigma.resize();
-          console.log('Sigma resized, new dimensions:', {
-            width: sigma.getContainer()?.clientWidth,
-            height: sigma.getContainer()?.clientHeight
-          });
+        try {
+          const container = sigma.getContainer();
+          if (container && container.clientWidth > 0 && container.clientHeight > 0) {
+            sigma.resize();
+            console.log('Sigma resized, new dimensions:', {
+              width: container.clientWidth,
+              height: container.clientHeight
+            });
+          } else {
+            console.log('Container not ready for resize, dimensions:', {
+              width: container?.clientWidth,
+              height: container?.clientHeight
+            });
+          }
+        } catch (error) {
+          console.warn('Error during Sigma resize:', error);
         }
-      }, 100);
+      }, 200); // Increased delay to ensure container is ready
     }
   }, [sigma]);
 
@@ -121,7 +131,12 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, onNodeClick, onEdgeClick
         if (parentHeight > 0) {
           container.style.height = `${parentHeight}px`;
           container.style.minHeight = `${parentHeight}px`;
+        } else {
+          // Fallback to default dimensions if parent height is not available
+          container.style.height = '500px';
+          container.style.minHeight = '500px';
         }
+
         if (parentWidth > 0) {
           container.style.width = `${parentWidth}px`;
         }
@@ -233,7 +248,7 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, onNodeClick, onEdgeClick
     defaultEdgeColor: "#ccc",
     labelRenderedSizeThreshold: 8,
     edgeLabelRenderedSizeThreshold: 0, // Always show edge labels
-    allowInvalidContainer: false, // Don't allow invalid container
+    allowInvalidContainer: true, // Allow invalid container temporarily to prevent errors
     container: undefined, // Let Sigma handle the container
     nodeReducer: (node: string, data: any) => ({
       ...data,
@@ -267,10 +282,27 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({ graph, onNodeClick, onEdgeClick
   // };
 
   return (
-    <div ref={containerRef} className="graph-container" style={{ width: "100%", height: "500px", minHeight: "500px" }}>
+    <div 
+      ref={containerRef} 
+      className="graph-container" 
+      style={{ 
+        width: "100%", 
+        height: "500px", 
+        minHeight: "500px",
+        position: "relative",
+        overflow: "hidden"
+      }}
+    >
       <SigmaContainer 
         className="sigma-container"
-        style={{ width: "100%", height: "500px", minHeight: "500px" }}
+        style={{ 
+          width: "100%", 
+          height: "100%", 
+          minHeight: "500px",
+          position: "absolute",
+          top: 0,
+          left: 0
+        }}
         settings={settings}
       >
         <LoadGraph graph={graph} onNodeClick={onNodeClick} onEdgeClick={onEdgeClick} />
