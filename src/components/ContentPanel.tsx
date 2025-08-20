@@ -40,6 +40,7 @@ export default function ContentPanel({
   const { connected } = useDgraph();
   const [queryResult, setQueryResult] = useState<any>(null);
   const [showVectorSearch, setShowVectorSearch] = useState(false);
+  const queryEditorRef = React.useRef<any>(null);
 
   const renderConnectionSection = () => (
     <VStack gap={6} align="stretch">
@@ -195,8 +196,6 @@ export default function ContentPanel({
       )}
     </VStack>
   );
-
-  const queryEditorRef = React.useRef<any>(null);
 
   const renderQuerySection = () => {
 
