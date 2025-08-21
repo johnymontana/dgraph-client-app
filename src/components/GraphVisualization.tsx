@@ -483,8 +483,10 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
                   minHeight: "500px",
                   maxHeight: isFullscreen ? undefined : "600px",
                   overflowY: "auto",
-                  overflowX: "hidden",
-                  position: "relative"
+                  overflowX: "auto",
+                  position: "relative",
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "#cbd5e0 #f7fafc"
                 }}
               >
                 <div className="flex justify-end p-2 bg-gray-50 border-b border-gray-300">

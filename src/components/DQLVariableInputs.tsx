@@ -76,9 +76,8 @@ export default function DQLVariableInputs({ query, onChange }: DQLVariableInputs
     
     setVariables(newVariables);
     
-    // Call onChange with the current variable values
-    const varValues = buildVariablesObject(newVariables);
-    onChange(varValues);
+    // Don't call onChange here to prevent overriding externally set variables
+    // The parent component (QueryEditor) will handle setting the variables
   }, [query]);
   
   // Build a variables object from the current state
@@ -125,20 +124,18 @@ export default function DQLVariableInputs({ query, onChange }: DQLVariableInputs
       <VStack gap={3} align="stretch">
         {variables.map(variable => (
           <HStack key={variable.name} align="start" gap={4}>
-            <Box w="1/4">
-              <Field.Label
-                htmlFor={`var-${variable.name}`}
-                fontSize="sm"
-                fontWeight="medium"
-                color={labelColor}
-                mt={1}
-                display="block"
-              >
-                ${variable.name}{variable.type ? `: ${variable.type}` : ''}
-              </Field.Label>
-            </Box>
             <Box w="3/4">
               <Field.Root>
+                <Field.Label
+                  htmlFor={`var-${variable.name}`}
+                  fontSize="sm"
+                  fontWeight="medium"
+                  color={labelColor}
+                  mt={1}
+                  display="block"
+                >
+                  ${variable.name}{variable.type ? `: ${variable.type}` : ''}
+                </Field.Label>
                 <Input
                   id={`var-${variable.name}`}
                   type="text"
