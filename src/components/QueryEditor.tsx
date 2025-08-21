@@ -184,15 +184,26 @@ const QueryEditor = React.forwardRef<any, QueryEditorProps>(function QueryEditor
 
   // Handle variable changes from DQLVariableInputs component
   const handleVariablesChange = (variables: Record<string, any>) => {
-    setQueryVariables(variables);
+    // Only update variables if we're not overriding externally set ones
+    // This prevents DQLVariableInputs from clearing variables set by vector search
+    const hasExternalVariables = Object.keys(queryVariables).length > 0;
+    if (!hasExternalVariables || Object.values(variables).some(val => val !== '')) {
+      setQueryVariables(variables);
+    }
   };
 
   // Handle vector search query generation
   const handleVectorQueryGenerated = (generatedQuery: string, variables: Record<string, any>) => {
+    console.log('QueryEditor - Received variables:', variables);
+    console.log('QueryEditor - Received query:', generatedQuery);
+
     setQuery(generatedQuery);
+    // Set variables directly, bypassing DQLVariableInputs override
     setQueryVariables(variables);
     setActiveTab('query');
   };
+
+
 
   // Expose methods through ref
   React.useImperativeHandle(ref, () => ({
@@ -211,6 +222,9 @@ const QueryEditor = React.forwardRef<any, QueryEditorProps>(function QueryEditor
     try {
       let result;
       const hasVariables = Object.keys(queryVariables).length > 0;
+      console.log('QueryEditor - Executing query with variables:', queryVariables);
+      console.log('QueryEditor - Has variables:', hasVariables);
+
       if (activeTab === 'query') {
         // Pass variables if they exist
         result = await dgraphService.query(query, hasVariables ? queryVariables : undefined);

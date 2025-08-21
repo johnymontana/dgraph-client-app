@@ -420,6 +420,12 @@ class DgraphService {
         console.log('Enhanced query:', enhancedQuery);
       }
 
+      // Debug: Log the exact request being sent
+      console.log('DgraphService - Final request payload:', {
+        query: enhancedQuery,
+        variables
+      });
+
              try {
          // First try direct request
          const response = await axios.post(

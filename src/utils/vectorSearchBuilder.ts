@@ -20,9 +20,9 @@ export function buildVectorSearchQuery(options: VectorSearchOptions): {
   } = options;
 
   const variables = {
-    queryVector: embedding,
-    topK,
-    alpha
+    queryVector: JSON.stringify(embedding),
+    topK: String(topK),
+    alpha: String(alpha)
   };
 
   let query: string;
@@ -32,11 +32,15 @@ export function buildVectorSearchQuery(options: VectorSearchOptions): {
                     .replace(/\$topK\b/g, '$topK')
                     .replace(/\$alpha\b/g, '$alpha');
   } else {
-    query = `query vectorSearch($queryVector: [float], $topK: int, $alpha: float) {
-  vectorSearch(by: ${field}, vector: $queryVector, topk: $topK, alpha: $alpha) {
+    // Use Dgraph's similar_to function for vector similarity search
+    // This requires the field to have @index(hnsw) in the schema
+    query = `{
+  q(func: similar_to(${field}, $topK, $queryVector)) {
     uid
     dgraph.type
     ${field}
+    name
+    description
   }
 }`;
   }

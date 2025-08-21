@@ -91,7 +91,7 @@ class EmbeddingService {
           }
           // Set the API key for OpenAI
           process.env.OPENAI_API_KEY = this.config.apiKey;
-          provider = openai('text-embedding-ada-002');
+          provider = openai.embedding('text-embedding-ada-002');
           break;
           
         case 'anthropic':
@@ -100,7 +100,7 @@ class EmbeddingService {
           }
           // Set the API key for Anthropic
           process.env.ANTHROPIC_API_KEY = this.config.apiKey;
-          provider = anthropic('claude-3-haiku-20240307');
+          provider = anthropic.embedding('claude-3-haiku-20240307');
           break;
           
         case 'ollama':
@@ -122,7 +122,7 @@ class EmbeddingService {
       }
 
       const { embeddings, usage } = await embedMany({
-        model: (provider as any)(model),
+        model: provider,
         values: [text],
       });
 
@@ -151,7 +151,7 @@ class EmbeddingService {
           }
           // Set the API key for OpenAI
           process.env.OPENAI_API_KEY = this.config.apiKey;
-          provider = openai('text-embedding-ada-002');
+          provider = openai.embedding('text-embedding-ada-002');
           break;
           
         case 'anthropic':
@@ -160,7 +160,7 @@ class EmbeddingService {
           }
           // Set the API key for Anthropic
           process.env.ANTHROPIC_API_KEY = this.config.apiKey;
-          provider = anthropic('claude-3-haiku-20240307');
+          provider = anthropic.embedding('claude-3-haiku-20240307');
           break;
           
         case 'ollama':
@@ -182,7 +182,7 @@ class EmbeddingService {
       }
 
       const { embeddings, usage } = await embedMany({
-        model: (provider as any)(model),
+        model: provider,
         values: texts,
       });
 

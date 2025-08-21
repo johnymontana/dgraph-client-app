@@ -54,6 +54,9 @@ export default function VectorSearchPanel({ onQueryGenerated }: VectorSearchPane
         alpha
       });
 
+      console.log('VectorSearchPanel - Generated variables:', variables);
+      console.log('VectorSearchPanel - Generated query:', query);
+
       onQueryGenerated(query, variables);
     } catch (err: any) {
       console.error('Error generating embedding:', err);
@@ -64,16 +67,19 @@ export default function VectorSearchPanel({ onQueryGenerated }: VectorSearchPane
   };
 
   const handleQuickSearch = () => {
-    const sampleQuery = `query vectorSearch($queryVector: [float], $topK: int, $alpha: float) {
-  vectorSearch(by: ${vectorField}, vector: $queryVector, topk: $topK, alpha: $alpha) {
-    uid
-    dgraph.type
-    ${vectorField}
-    name
-    description
-  }
-}`;
-    onQueryGenerated(sampleQuery, {});
+    // Generate actual vector search query with proper variables
+    const { query, variables } = buildVectorSearchQuery({
+      queryText: searchText || "sample text",
+      embedding: [0.1, 0.2, 0.3, 0.4, 0.5], // Sample embedding for demo
+      field: vectorField || "description_embedding",
+      topK: 10,
+      alpha: 1.0
+    });
+
+    console.log('VectorSearchPanel - Generated query:', query);
+    console.log('VectorSearchPanel - Generated variables:', variables);
+
+    onQueryGenerated(query, variables);
   };
 
 
