@@ -41,6 +41,127 @@
   scrollbar-color: var(--chakra-colors-border-primary) var(--chakra-colors-bg-muted);
 }
 
+/* Sigma graph container styles */
+.sigma-container {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 400px !important;
+  position: relative !important;
+  display: block !important;
+  overflow: hidden !important;
+}
+
+.sigma-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+}
+
+.sigma-container > div {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 400px !important;
+}
+
+/* Override any Sigma internal styles that might be causing height issues */
+.sigma-container [data-sigma-root] {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 400px !important;
+}
+
+/* Ensure graph containers have proper dimensions */
+.graph-container {
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+  position: relative;
+  display: block;
+  overflow: hidden;
+}
+
+/* Additional Sigma container overrides to prevent dimension issues */
+.sigma-container {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+}
+
+/* Force Sigma canvas to fill container */
+.sigma-container canvas {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Analysis container scrolling styles */
+.analysis-container {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 #f7fafc;
+}
+
+.analysis-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.analysis-container::-webkit-scrollbar-track {
+  background: #f7fafc;
+  border-radius: 4px;
+}
+
+.analysis-container::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 4px;
+}
+
+.analysis-container::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+/* Ensure content inside analysis container can scroll properly */
+.analysis-container > div {
+  height: auto !important;
+  min-height: 100% !important;
+}
+
+/* JSON container scrolling styles */
+.json-container {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 #f7fafc;
+}
+
+.json-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.json-container::-webkit-scrollbar-track {
+  background: #f7fafc;
+  border-radius: 4px;
+}
+
+.json-container::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 4px;
+}
+
+.json-container::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+/* Ensure content inside JSON container can scroll properly */
+.json-container > div {
+  height: auto !important;
+  min-height: 100% !important;
+}
+
 /* vis-network styles for graph visualization */
 .vis-network {
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);

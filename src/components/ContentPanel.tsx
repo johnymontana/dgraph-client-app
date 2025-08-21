@@ -19,12 +19,13 @@ import VectorSearchPanel from './VectorSearchPanel';
 import ResizableContainer from './ResizableContainer';
 import GraphVisualization from './GraphVisualization';
 import GeoVisualization from './GeoVisualization';
+import GeospatialTab from './GeospatialTab';
 import { hasGeoData } from '@/utils/geoUtils';
 import { useDgraph } from '@/context/DgraphContext';
 import { Icons } from '@/components/ui/icons';
 
 interface ContentPanelProps {
-  activeSection: 'connection' | 'schema' | 'guides' | 'query' | 'text-to-dql';
+  activeSection: 'connection' | 'schema' | 'guides' | 'query' | 'text-to-dql' | 'geospatial';
   isSidebarOpen: boolean;
   isMobile?: boolean;
   isTablet?: boolean;
@@ -39,6 +40,7 @@ export default function ContentPanel({
   const { connected } = useDgraph();
   const [queryResult, setQueryResult] = useState<any>(null);
   const [showVectorSearch, setShowVectorSearch] = useState(false);
+  const queryEditorRef = React.useRef<any>(null);
 
   const renderConnectionSection = () => (
     <VStack gap={6} align="stretch">
@@ -120,10 +122,80 @@ export default function ContentPanel({
   );
 
   const renderTextToDqlSection = () => (
-    <TextToDqlTab />
+    <VStack gap={6} align="stretch">
+      <Box>
+        <Heading textStyle="heading.section" mb={3}>
+          Text to DQL
+        </Heading>
+        <Text textStyle="body.medium">
+          Convert natural language queries to DQL using AI assistance
+        </Text>
+      </Box>
+
+      {!connected ? (
+        <Card.Root variant="elevated">
+          <VStack gap={4} align="center" py={12}>
+            <Box
+              p={4}
+              borderRadius="full"
+              bg="bg.muted"
+              color="fg.tertiary"
+            >
+              <Icons.ai size={32} />
+            </Box>
+            <VStack gap={2} align="center">
+              <Text textStyle="body.medium">
+                Database Connection Required
+              </Text>
+              <Text textStyle="body.small" textAlign="center">
+                Connect to a Dgraph database to use AI-powered query generation
+              </Text>
+            </VStack>
+          </VStack>
+        </Card.Root>
+      ) : (
+        <TextToDqlTab />
+      )}
+    </VStack>
   );
 
-  const queryEditorRef = React.useRef<any>(null);
+  const renderGeospatialSection = () => (
+    <VStack gap={6} align="stretch">
+      <Box>
+        <Heading textStyle="heading.section" mb={3}>
+          Geospatial Analysis
+        </Heading>
+        <Text textStyle="body.medium">
+          Interactive map-based exploration of geospatial data in your Dgraph database
+        </Text>
+      </Box>
+
+      {!connected ? (
+        <Card.Root variant="elevated">
+          <VStack gap={4} align="center" py={12}>
+            <Box
+              p={4}
+              borderRadius="full"
+              bg="bg.muted"
+              color="fg.tertiary"
+            >
+              <Icons.map size={32} />
+            </Box>
+            <VStack gap={2} align="center">
+              <Text textStyle="body.medium">
+                Database Connection Required
+              </Text>
+              <Text textStyle="body.small" textAlign="center">
+                Connect to a Dgraph database to use geospatial features
+              </Text>
+            </VStack>
+          </VStack>
+        </Card.Root>
+      ) : (
+        <GeospatialTab />
+      )}
+    </VStack>
+  );
 
   const renderQuerySection = () => {
 
@@ -275,6 +347,8 @@ export default function ContentPanel({
         return renderQuerySection();
       case 'text-to-dql':
         return renderTextToDqlSection();
+      case 'geospatial':
+        return renderGeospatialSection();
       default:
         return renderConnectionSection();
     }

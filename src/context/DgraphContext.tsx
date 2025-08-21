@@ -37,6 +37,10 @@ interface DgraphContextType {
   updateSchemaText: (text: string) => void;
   schemaData: any;
   refreshSchemaData: () => Promise<void>;
+  // Health check state
+  isHealthy: boolean;
+  lastHealthCheck: Date | null;
+  performHealthCheck: () => Promise<void>;
 }
 
 const DgraphContext = createContext<DgraphContextType | undefined>(undefined);
@@ -101,9 +105,14 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
     loadFromStorage(STORAGE_KEY_MCP_BEARER_TOKEN, '')
   );
   const [error, setError] = useState<string | null>(null);
-  const [schemaText, setSchemaText] = useState('');
+  const [schemaText, setSchemaText] = useState<string>('');
   const [parsedSchema, setParsedSchema] = useState<ParsedSchema>({ types: [] });
   const [schemaData, setSchemaData] = useState<any>(null);
+
+  // Health check state
+  const [isHealthy, setIsHealthy] = useState<boolean>(true);
+  const [lastHealthCheck, setLastHealthCheck] = useState<Date | null>(null);
+  const [healthCheckInterval, setHealthCheckInterval] = useState<NodeJS.Timeout | null>(null);
 
   console.log('DgraphProvider state:', { connected, endpoint, apiKey, error });
 
@@ -245,6 +254,23 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
     }
   }, [endpoint, connected, dgraphService]);
 
+  // Cleanup health check on unmount
+  React.useEffect(() => {
+    return () => {
+      stopHealthCheck();
+    };
+  }, []);
+
+  // Monitor health status changes
+  React.useEffect(() => {
+    if (connected && !isHealthy) {
+      console.warn('Database health check failed - connection may be unstable');
+      // The error message is already set in performHealthCheck
+    } else if (connected && isHealthy && lastHealthCheck) {
+      console.log('Database health check passed - connection is stable');
+    }
+  }, [isHealthy, connected, lastHealthCheck]);
+
   const connect = async () => {
     try {
       console.log('DgraphContext.connect() called with endpoint:', endpoint);
@@ -300,6 +326,9 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
 
       setDgraphService(service);
       setConnected(true);
+
+      // Start health check polling
+      startHealthCheck();
     } catch (err) {
       console.error('Connection error:', err);
       setError('Failed to connect to Dgraph. Please check your endpoint and API key.');
@@ -309,6 +338,9 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
   };
 
   const disconnect = () => {
+    // Stop health check polling
+    stopHealthCheck();
+
     // Immediate UI State update
     setConnected(false);
 
@@ -378,6 +410,66 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  /**
+   * Perform a health check on the connected Dgraph instance
+   */
+  const performHealthCheck = async () => {
+    if (!dgraphService || !connected) {
+      return;
+    }
+
+    try {
+      console.log('Performing health check...');
+      const healthy = await dgraphService.healthCheck();
+      setIsHealthy(healthy);
+      setLastHealthCheck(new Date());
+
+      if (!healthy) {
+        console.warn('Health check failed - database may be down');
+        // Optionally set an error message
+        setError('Database connection appears to be unhealthy. Please check your connection.');
+      } else {
+        // Clear any previous health-related errors
+        if (error && error.includes('unhealthy')) {
+          setError(null);
+        }
+      }
+    } catch (error) {
+      console.error('Health check error:', error);
+      setIsHealthy(false);
+      setLastHealthCheck(new Date());
+    }
+  };
+
+  /**
+   * Start the health check polling interval
+   */
+  const startHealthCheck = () => {
+    if (healthCheckInterval) {
+      clearInterval(healthCheckInterval);
+    }
+
+    // Perform initial health check
+    performHealthCheck();
+
+    // Set up polling every 60 seconds
+    const interval = setInterval(performHealthCheck, 60000);
+    setHealthCheckInterval(interval);
+
+    console.log('Health check polling started - checking every 60 seconds');
+  };
+
+  /**
+   * Stop the health check polling interval
+   */
+  const stopHealthCheck = () => {
+    if (healthCheckInterval) {
+      clearInterval(healthCheckInterval);
+      setHealthCheckInterval(null);
+      console.log('Health check polling stopped');
+    }
+  };
+
   return (
     <DgraphContext.Provider
       value={{
@@ -412,6 +504,10 @@ export function DgraphProvider({ children }: { children: ReactNode }) {
         updateSchemaText,
         schemaData,
         refreshSchemaData,
+        // Health check state
+        isHealthy,
+        lastHealthCheck,
+        performHealthCheck,
       }}
     >
       {children}

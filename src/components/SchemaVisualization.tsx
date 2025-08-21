@@ -462,7 +462,7 @@ export default function SchemaVisualization({ schemaText }: SchemaVisualizationP
       )}
 
       {viewMode === 'graph' ? (
-        <div className="border border-gray-300 rounded-md flex-1 overflow-hidden" style={{ minHeight: "450px" }}>
+        <div className="border border-gray-300 rounded-md flex-1 overflow-hidden" style={{ height: "500px", minHeight: "500px" }}>
           {isLoading ? (
             <div className="flex justify-center items-center h-full bg-gray-100">
               <div className="text-center">
@@ -515,7 +515,7 @@ export default function SchemaVisualization({ schemaText }: SchemaVisualizationP
           )}
         </div>
       ) : (
-        <div className="border border-gray-300 rounded-md overflow-auto p-4 flex-1" style={{ minHeight: "450px" }}>
+        <div className="border border-gray-300 rounded-md overflow-auto p-4 flex-1" style={{ height: "500px", minHeight: "500px" }}>
           {jsonData ? (
             <JsonView data={jsonData} />
           ) : (

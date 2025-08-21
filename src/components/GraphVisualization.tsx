@@ -4,14 +4,15 @@ import React, { useState, useEffect } from 'react';
 import { JsonView } from 'react-json-view-lite';
 import 'react-json-view-lite/dist/index.css';
 import Graphology from 'graphology';
-import { random } from 'graphology-layout';
+
 import forceAtlas2 from 'graphology-layout-forceatlas2';
 import dynamic from 'next/dynamic';
 import FullscreenToggle from './FullscreenToggle';
 import { hasGeoData, extractGeoNodesAndEdges } from '@/utils/geoUtils';
 import '@/styles/toast.css';
 import SigmaGraph from './SigmaGraph';
-
+import PropertyAnalysis from './PropertyAnalysis';
+import { Tabs } from '@chakra-ui/react';
 
 // // Dynamically import SigmaGraph to avoid SSR issues with WebGL
 // const SigmaGraph = dynamic(() => import('./SigmaGraph'), {
@@ -85,7 +86,7 @@ function Toast({ message, type, onClose }: ToastProps) {
 }
 
 export default function GraphVisualization({ data }: GraphVisualizationProps) {
-  const [viewMode, setViewMode] = useState<'graph' | 'json' | 'map'>('graph');
+  const [viewMode, setViewMode] = useState<'graph' | 'json' | 'map' | 'analysis'>('graph');
   const [graph, setGraph] = useState<Graphology | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -126,8 +127,6 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
       }
     }
   }, [data]);
-
-
 
   // Convert Dgraph response to graphology graph for sigma.js
   const processDataForSigmaGraph = (queryResult: any) => {
@@ -190,7 +189,7 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
 
         // If we haven't seen this type before, assign the next color in palette
         if (!typeColorAssignment.has(type)) {
-          // Use the next color in the palette or wrap around if we run ou
+          // Use the next color in the palette or wrap around if we run out
           const color = colorPalette[colorIndex % colorPalette.length];
           typeColorAssignment.set(type, color);
           colorIndex++;
@@ -276,317 +275,275 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
           graph.addNode(nodeId, {
             label: nodeLabel,
             color: nodeTypeStr ? getColorForType(nodeTypeStr) : defaultColor,
-            raw: node,
-            type: nodeTypeStr
+            size: 8,
+            type: nodeTypeStr || 'Unknown'
           });
 
+          // Mark this node as processed
           nodeMap.set(nodeId, true);
-        }
 
-        // Recursively process nested nodes
-        Object.entries(node).forEach(([key, value]) => {
-          if (key === 'uid' || value === null) return;
+          // Process nested objects recursively
+          for (const [key, value] of Object.entries(node)) {
+            if (key === 'uid' || key === 'dgraph.type' || key === 'type') continue;
 
-          if (Array.isArray(value)) {
-            value.forEach((item) => {
-              if (item && typeof item === 'object' && 'uid' in item) {
-                addNodes(item, depth + 1);
-              }
-            });
-          } else if (typeof value === 'object' && 'uid' in value) {
-            addNodes(value, depth + 1);
+            if (value && typeof value === 'object' && !Array.isArray(value)) {
+              // This is a nested object, process it recursively
+              addNodes(value, depth + 1);
+            } else if (Array.isArray(value)) {
+              // This is an array, process each item
+              value.forEach((item, index) => {
+                if (item && typeof item === 'object') {
+                  addNodes(item, depth + 1);
+                }
+              });
+            }
           }
-        });
+        }
       };
-      // Second pass: add all edges recursively
-      const addEdges = (node: any, depth = 0) => {
-        // Skip invalid nodes
-        if (!node || typeof node !== 'object') return;
-        if (!('uid' in node)) return;
+
+      // Second pass: add edges between connected nodes
+      const addEdges = (node: any, parentId?: string, edgeLabel?: string) => {
+        if (!node || typeof node !== 'object' || !('uid' in node)) return;
 
         const nodeId = node.uid;
-        console.log(`Adding edges for node ${nodeId} at depth ${depth}`);
 
-        // Process each property of the node
-        Object.entries(node).forEach(([key, value]) => {
-          // Skip uid and null values
-          if (key === 'uid' || key === 'dgraph.type' || value === null) return;
+                 // Add edge from parent if we have one
+         if (parentId && edgeLabel) {
+           const edgeId = `${parentId}-${nodeId}-${edgeLabel}`;
+           if (!graph.hasEdge(edgeId)) {
+             graph.addEdgeWithKey(edgeId, parentId, nodeId, {
+               label: edgeLabel,
+               color: '#ccc',
+               size: 1
+             });
+           }
+         }
 
-          // Handle array of objects (one-to-many relationships)
-          if (Array.isArray(value)) {
+        // Process nested objects recursively
+        for (const [key, value] of Object.entries(node)) {
+          if (key === 'uid' || key === 'dgraph.type' || key === 'type') continue;
+
+          if (value && typeof value === 'object' && !Array.isArray(value)) {
+            // This is a nested object, add edge and process recursively
+            if ('uid' in value) {
+              addEdges(value, nodeId, key);
+            }
+          } else if (Array.isArray(value)) {
+            // This is an array, process each item
             value.forEach((item, index) => {
               if (item && typeof item === 'object' && 'uid' in item) {
-                const targetId = item.uid;
-
-                // Create a more descriptive edge label from the property name
-                let edgeLabel = key;
-                // Try to extract a more readable label by removing type prefixes
-                if (key.includes('.')) {
-                  edgeLabel = key.split('.').slice(1).join('.');
-                }
-
-                // Only add edges between nodes that exist and are different
-                if (graph.hasNode(nodeId) && graph.hasNode(targetId) && nodeId !== targetId) {
-                  const edgeId = `${nodeId}-${targetId}-${key}-${index}`;
-                  if (!graph.hasEdge(edgeId)) {
-                    console.log(`Adding edge from ${nodeId} to ${targetId} with label ${edgeLabel}`);
-                    graph.addEdgeWithKey(edgeId, nodeId, targetId, { 
-                      label: edgeLabel,
-                      key: key, // Store original property name
-                      index: index // Store array index for reference
-                    });
-                  }
-                }
-
-                // Process nested objects recursively
-                addEdges(item, depth + 1);
+                addEdges(item, nodeId, key);
               }
             });
-          } 
-          // Handle single object (one-to-one relationship)
-          else if (typeof value === 'object' && 'uid' in value) {
-            const targetId = value.uid;
-
-            // Create a more descriptive edge label
-            let edgeLabel = key;
-            if (key.includes('.')) {
-              edgeLabel = key.split('.').slice(1).join('.');
-            }
-
-            // Only add edges between nodes that exist and are different
-            if (graph.hasNode(nodeId) && graph.hasNode(targetId) && nodeId !== targetId) {
-              const edgeId = `${nodeId}-${targetId}-${key}`;
-              if (!graph.hasEdge(edgeId)) {
-                console.log(`Adding edge from ${nodeId} to ${targetId} with label ${edgeLabel}`);
-                graph.addEdgeWithKey(edgeId, nodeId, targetId, { 
-                  label: edgeLabel,
-                  key: key // Store original property name
-                });
-              }
-            }
-
-            // Process nested object recursively
-            addEdges(value, depth + 1);
           }
-        });
+        }
       };
 
+      // Process all data recursively
       if (Array.isArray(queryData)) {
-        queryData.forEach(node => addNodes(node));
-        queryData.forEach(node => addEdges(node));
-      } else if (queryData && typeof queryData === 'object') {
+        queryData.forEach(item => {
+          addNodes(item);
+        });
+        queryData.forEach(item => {
+          addEdges(item);
+        });
+      } else {
         addNodes(queryData);
         addEdges(queryData);
       }
 
-      console.log("This is where I commented out initial layout to position nodes");
-      // Run an initial layout to position nodes
-      forceAtlas2.assign(graph, { iterations: 50, settings: {
-        gravity: 0.05,
-        scalingRatio: 4,
-        strongGravityMode: false,
-        slowDown: 5,
-        linLogMode: false,
-        outboundAttractionDistribution: false,
-        adjustSizes: true
-      }});
+             // Apply force layout
+       forceAtlas2.assign(graph, {
+         iterations: 100,
+         settings: forceAtlas2.inferSettings(graph.order)
+       });
 
-      // We'll use continuous simulation in SigmaGraph componen
-      // Ensure all nodes have numeric x and y coordinates
-    //   graph.forEachNode((node, attrs) => {
-    //     if (typeof attrs.x !== 'number' || typeof attrs.y !== 'number') {
-    //       graph.mergeNodeAttributes(node, {
-    //         x: Math.random(),
-    //         y: Math.random()
-    //       });
-    //     }
-    //   });
-    // // Debug info for node types
-    // console.log('Types detected:', Array.from(newTypeColorMap.keys()));
-    // console.log('Type counts:', Array.from(newTypeColorMap.entries()).map(([type, info]) => `${type}: ${info.count}`));
-    // console.log('Total types:', newTypeColorMap.size);
-    // console.log('Total nodes:', graph.order);
-    // // Check for Geo nodes specifically in the final graph
-    // graph.forEachNode((node, attrs) => {
-    //   if (attrs.type === 'Geo') {
-    //     console.log('Geo node found in final graph:', node, attrs);
-    //   }
-    // });
-    setGraph(graph);
-    setTypeColorMap(newTypeColorMap);
+      console.log("Graph created with", graph.order, "nodes and", graph.size, "edges");
+      console.log("Type color map:", Object.fromEntries(newTypeColorMap));
+
+      setGraph(graph);
+      setTypeColorMap(newTypeColorMap);
+      setIsProcessing(false);
     } catch (error) {
-       console.error('Error processing graph data:', error);
-    //   setGraph(null);
-    //   setTypeColorMap(new Map());
-     } finally {
-       setIsProcessing(false);
-     }
+      console.error('Error processing data for graph:', error);
+      setGraph(null);
+      setIsProcessing(false);
+    }
   };
 
-  // For backward compatibility - still used for nodes without a type
+  // Helper function to generate random colors
   const getRandomColor = () => {
     const colors = [
-      '#4285F4', // Google Blue
-      '#EA4335', // Google Red
-      '#FBBC05', // Google Yellow
-      '#34A853', // Google Green
-      '#673AB7', // Deep Purple
-      '#3F51B5', // Indigo
-      '#2196F3', // Blue
-      '#03A9F4', // Light Blue
-      '#00BCD4', // Cyan
-      '#009688', // Teal
-      '#4CAF50', // Green
-      '#8BC34A', // Light Green
-      '#CDDC39', // Lime
-      '#FFEB3B', // Yellow
-      '#FFC107', // Amber
-      '#FF9800', // Orange
-      '#FF5722', // Deep Orange
-      '#795548', // Brown
-      '#9E9E9E', // Grey
-      '#607D8B'  // Blue Grey
+      '#4285F4', '#EA4335', '#FBBC05', '#34A853', '#673AB7',
+      '#FF9800', '#009688', '#E91E63', '#9C27B0', '#CDDC39',
+      '#00BCD4', '#8BC34A', '#FFC107', '#3F51B5', '#795548'
     ];
     return colors[Math.floor(Math.random() * colors.length)];
   };
 
-  // No longer needed: react-graph-vis events. Sigma.js events can be handled via props if needed.
+  // Type info for SigmaGraph
+  const typeInfo = Array.from(typeColorMap.entries()).map(([type, info]) => ({
+    type,
+    color: info.color,
+    count: info.count
+  }));
 
-  // Convert type map to array for SigmaGraph
-  const typeInfo = Array.from(typeColorMap?.entries() || []).map((entry) => {
-    const [type, info] = entry as [string, {color: string, count: number}];
-    return {
-      type,
-      color: info.color,
-      count: info.count
-    };
-  });
-  // Debug the final typeInfo that's passed to SigmaGraph
-  console.log('typeInfo being passed to SigmaGraph:', typeInfo);
+  if (isFullscreen) {
+    return (
+      <div className="fixed inset-0 z-50 bg-white">
+        <div className="flex justify-between items-center p-4 border-b border-gray-300">
+          <h2 className="text-xl font-bold">Query Results - Fullscreen</h2>
+          <FullscreenToggle
+            isFullscreen={isFullscreen}
+            onToggle={() => setIsFullscreen(!isFullscreen)}
+          />
+        </div>
+        <div className="p-4 h-[calc(100vh-80px)]">
+          <GraphVisualization data={data} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`bg-white shadow-md rounded-lg p-6 ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">Query Results</h2>
-        <div className="flex space-x-2 items-center">
+        <div className="flex items-center">
           <FullscreenToggle
             isFullscreen={isFullscreen}
             onToggle={() => setIsFullscreen(!isFullscreen)}
           />
-          <button
-            onClick={() => setViewMode('graph')}
-            className={`py-2 px-4 rounded-md focus:outline-none ${
-              viewMode === 'graph'
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            Graph View
-          </button>
-          {hasGeo && (
-            <button
-              onClick={() => setViewMode('map')}
-              className={`py-2 px-4 rounded-md focus:outline-none ${
-                viewMode === 'map'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              Map View
-            </button>
-          )}
-          <button
-            onClick={() => setViewMode('json')}
-            className={`py-2 px-4 rounded-md focus:outline-none ${
-              viewMode === 'json'
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            JSON View
-          </button>
         </div>
       </div>
 
-      {!data ? (
-        <div className="flex justify-center items-center h-full bg-gray-100 rounded-md" style={{ minHeight: "500px" }}>
-          <p className="text-gray-500">No query results to display. Run a query to see results.</p>
-        </div>
-      ) : viewMode === 'graph' ? (
-        <div className="relative">
-          <div className={`border border-gray-300 rounded-md overflow-hidden ${isFullscreen ? 'h-[calc(100vh-130px)]' : 'h-full'}`} style={{ border: "2px solid green", minHeight: "500px" }}>
-            {isProcessing ? (
-              <div className="flex justify-center items-center h-full bg-gray-100">
-                <p className="text-gray-500">Processing data...</p>
-              </div>
-            ) : !graph || graph.order === 0 ? (
-              <div className="flex justify-center items-center h-full bg-gray-100">
-                <p className="text-gray-500">No graph data available to visualize.</p>
-              </div>
-            ) : (
-              <SigmaGraph graph={graph} typeInfo={typeInfo} />
-            )}
-          </div>
-        </div>
-      ) : viewMode === 'map' ? (
-        <div className="relative map-container-wrapper">
-          <div className={`border border-gray-300 rounded-md overflow-hidden ${isFullscreen ? 'h-[calc(100vh-130px)]' : 'h-full'}`} style={{ position: 'relative', minHeight: "500px" }}>
+      <Tabs.Root value={viewMode} onValueChange={(details) => setViewMode(details.value as any)}>
+        <Tabs.List>
+          <Tabs.Trigger value="graph">Graph View</Tabs.Trigger>
+          {hasGeo && <Tabs.Trigger value="map">Map View</Tabs.Trigger>}
+          <Tabs.Trigger value="json">JSON View</Tabs.Trigger>
+          <Tabs.Trigger value="analysis">Analysis</Tabs.Trigger>
+        </Tabs.List>
 
-            {isProcessing ? (
-              <div className="flex justify-center items-center h-full bg-gray-100">
-                <p className="text-gray-500">Processing data...</p>
+        {!data ? (
+          <Tabs.Content value="graph">
+            <div className="flex justify-center items-center h-full bg-gray-100 rounded-md" style={{ minHeight: "500px" }}>
+              <p className="text-gray-500">No query results to display. Run a query to see results.</p>
+            </div>
+          </Tabs.Content>
+        ) : (
+          <>
+            <Tabs.Content value="graph">
+              <div className="relative">
+                <div className={`border border-gray-300 rounded-md overflow-hidden ${isFullscreen ? 'h-[calc(100vh-130px)]' : 'h-full'}`} style={{ minHeight: "500px", height: "500px" }}>
+                  {isProcessing ? (
+                    <div className="flex justify-center items-center h-full bg-gray-100">
+                      <p className="text-gray-500">Processing data...</p>
+                    </div>
+                  ) : !graph || graph.order === 0 ? (
+                    <div className="flex justify-center items-center h-full bg-gray-100">
+                      <p className="text-gray-500">No graph data available to visualize.</p>
+                    </div>
+                  ) : (
+                    <SigmaGraph graph={graph} typeInfo={typeInfo} />
+                  )}
+                </div>
               </div>
-            ) : !hasGeo || geoNodes.length === 0 ? (
-              <div className="flex justify-center items-center h-full bg-gray-100">
-                <p className="text-gray-500">No geographic data available to display on map.</p>
+            </Tabs.Content>
+
+            <Tabs.Content value="map">
+              <div className="relative map-container-wrapper">
+                <div className={`border border-gray-300 rounded-md overflow-hidden ${isFullscreen ? 'h-[calc(100vh-130px)]' : 'h-full'}`} style={{ position: 'relative', minHeight: "500px" }}>
+                  {isProcessing ? (
+                    <div className="flex justify-center items-center h-full bg-gray-100">
+                      <p className="text-gray-500">Processing data...</p>
+                    </div>
+                  ) : !hasGeo || geoNodes.length === 0 ? (
+                    <div className="flex justify-center items-center h-full bg-gray-100">
+                      <p className="text-gray-500">No geographic data available to display on map.</p>
+                    </div>
+                  ) : (
+                    <div className="h-full">
+                      <MapView
+                        nodes={geoNodes}
+                        edges={geoEdges}
+                        height="100%"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
-            ) : (
-              <div className="h-full">
-                <MapView
-                  nodes={geoNodes}
-                  edges={geoEdges}
-                  height="100%"
-                />
+            </Tabs.Content>
+
+            <Tabs.Content value="json">
+              <div
+                className={`border border-gray-300 rounded-md json-container ${isFullscreen ? 'h-[calc(100vh-130px)]' : ''}`}
+                style={{
+                  height: isFullscreen ? undefined : "600px",
+                  minHeight: "500px",
+                  maxHeight: isFullscreen ? undefined : "600px",
+                  overflowY: "auto",
+                  overflowX: "hidden",
+                  position: "relative"
+                }}
+              >
+                <div className="flex justify-end p-2 bg-gray-50 border-b border-gray-300">
+                  <button
+                    onClick={() => {
+                      // Copy JSON data to clipboard
+                      const jsonString = JSON.stringify(data, null, 2);
+                      navigator.clipboard.writeText(jsonString)
+                        .then(() => {
+                          // Show toast notification for success
+                          setToast({
+                            message: 'JSON data copied to clipboard',
+                            type: 'success'
+                          });
+                        })
+                        .catch(err => {
+                          console.error('Failed to copy JSON data:', err);
+                          setToast({
+                            message: 'Failed to copy JSON data to clipboard',
+                            type: 'error'
+                          });
+                        });
+                    }}
+                    className="flex items-center px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-md transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                    </svg>
+                    Copy Data
+                  </button>
+                </div>
+                <div className="p-4">
+                  <JsonView data={data} />
+                </div>
               </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className={`border border-gray-300 rounded-md overflow-auto ${isFullscreen ? 'h-[calc(100vh-130px)]' : 'h-full'}`} style={{ minHeight: "500px" }}>
-          <div className="flex justify-end p-2 bg-gray-50 border-b border-gray-300">
-            <button
-              onClick={() => {
-                // Copy JSON data to clipboard
-                const jsonString = JSON.stringify(data, null, 2);
-                navigator.clipboard.writeText(jsonString)
-                  .then(() => {
-                    // Show toast notification for success
-                    setToast({
-                      message: 'JSON data copied to clipboard',
-                      type: 'success'
-                    });
-                  })
-                  .catch(err => {
-                    console.error('Failed to copy JSON data:', err);
-                    setToast({
-                      message: 'Failed to copy JSON data to clipboard',
-                      type: 'error'
-                    });
-                  });
-              }}
-              className="flex items-center px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-md transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-              </svg>
-              Copy Data
-            </button>
-          </div>
-          <div className="p-4">
-            <JsonView data={data} />
-          </div>
-        </div>
-      )}
+            </Tabs.Content>
+
+            <Tabs.Content value="analysis">
+              <div className="relative">
+                <div
+                  className={`border border-gray-300 rounded-md analysis-container ${isFullscreen ? 'h-[calc(100vh-130px)]' : ''}`}
+                  style={{
+                    height: isFullscreen ? undefined : "600px",
+                    minHeight: "500px",
+                    maxHeight: isFullscreen ? undefined : "600px",
+                    overflowY: "auto",
+                    overflowX: "hidden",
+                    position: "relative"
+                  }}
+                >
+                  <div className="p-4">
+                    <PropertyAnalysis data={data} />
+                  </div>
+                </div>
+              </div>
+            </Tabs.Content>
+          </>
+        )}
+      </Tabs.Root>
 
       {viewMode === 'graph' && graph && (
         <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
@@ -606,6 +563,17 @@ export default function GraphVisualization({ data }: GraphVisualizationProps) {
           </p>
           <p className="text-sm text-blue-700 mt-1">
             Use the mouse wheel to zoom in/out and drag to pan around the map.
+          </p>
+        </div>
+      )}
+
+      {viewMode === 'analysis' && (
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <p className="text-sm text-blue-700">
+            <strong>Tip:</strong> Property analysis shows distribution patterns and statistics for your query results.
+          </p>
+          <p className="text-sm text-blue-700 mt-1">
+            Hover over sparkline bars to see value distributions, and explore numeric vs categorical data insights.
           </p>
         </div>
       )}

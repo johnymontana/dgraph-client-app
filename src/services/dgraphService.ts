@@ -530,6 +530,27 @@ class DgraphService {
       throw error;
     }
   }
+
+  /**
+   * Check if the Dgraph endpoint is healthy and responding
+   * @returns Promise<boolean> - true if healthy, false if unhealthy
+   */
+  async healthCheck(): Promise<boolean> {
+    try {
+      const response = await axios.get(
+        this.getEndpoint('/health'),
+        {
+          headers: this.getHeaders(),
+          timeout: 10000, // Shorter timeout for health checks
+          withCredentials: false
+        }
+      );
+      return response.status === 200;
+    } catch (error) {
+      console.warn('Health check failed:', error);
+      return false;
+    }
+  }
 }
 
 export default DgraphService;
